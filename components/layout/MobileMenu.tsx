@@ -46,7 +46,13 @@ export default function MobileMenu({
         <div>
           {/* Header */}
           <div className="flex items-center justify-between pb-6 border-b border-[#BBBFCA]/30">
-            <span className="font-serif text-xl tracking-[0.35em] font-light">SHOPY</span>
+            <Link href="/" onClick={onClose} className="inline-block hover:opacity-85 transition-opacity">
+              <img
+                src="/logo.svg"
+                alt="SHOPY"
+                className="h-7 w-auto"
+              />
+            </Link>
             <button
               onClick={onClose}
               className="p-1.5 text-[#495464] hover:opacity-70 transition-opacity"

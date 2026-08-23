@@ -31,15 +31,26 @@ export default function Footer() {
   ];
 
   return (
-    <footer className="relative bg-[#F4F4F2] text-[#495464] pt-24 pb-0 border-t border-[#BBBFCA]/30 overflow-hidden select-none">
+    <footer className="relative bg-[#F4F4F2] text-[#495464] pt-16 pb-0 border-t border-[#BBBFCA]/30 overflow-hidden select-none">
+      {/* Brand Logo Header */}
+      <div className="max-w-[1720px] mx-auto px-6 lg:px-16 mb-12 flex justify-start">
+        <Link href="/" className="inline-block hover:opacity-85 transition-opacity">
+          <img
+            src="/logo.svg"
+            alt="SHOPY"
+            className="h-8 w-auto"
+          />
+        </Link>
+      </div>
+
       {/* Upper Footer Navigation Grid */}
       <div className="max-w-[1720px] mx-auto px-6 lg:px-16 mb-20">
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-12 lg:gap-16">
           {/* Brand Manifesto */}
-          <div className="col-span-2 lg:col-span-2 space-y-6 pr-6">
-            <Link href="/" className="font-serif tracking-widest text-3xl font-medium block">
-              SHOPY
-            </Link>
+          <div className="col-span-2 lg:col-span-2 space-y-4 pr-6">
+            <span className="font-serif tracking-widest text-xl font-medium block text-[#495464]">
+              HAUTE ATELIER
+            </span>
             <p className="text-xs text-[#495464]/80 leading-relaxed max-w-sm tracking-wider uppercase">
               A contemporary editorial house exploring architectural silhouettes, tactile fabrications, and sensory extraits. Crafted for permanence.
             </p>

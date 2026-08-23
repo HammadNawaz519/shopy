@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Mail, ArrowRight, ArrowLeft, Loader2, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/context/ToastContext";
 
@@ -35,6 +36,20 @@ export default function ForgotPasswordPage() {
   return (
     <div className="pt-32 pb-32 bg-[#F4F4F2] text-[#495464] flex items-center justify-center">
       <div className="max-w-md w-full mx-auto px-6">
+        {/* Centered Brand Logo */}
+        <div className="flex justify-center mb-8">
+          <Link href="/" className="inline-block hover:opacity-85 transition-opacity">
+            <Image
+              src="/logo.svg"
+              alt="SHOPY"
+              width={130}
+              height={36}
+              priority
+              className="h-8 w-auto"
+            />
+          </Link>
+        </div>
+
         <div className="text-center mb-8">
           <span className="text-xs uppercase tracking-widest text-[#495464]/60 block mb-2 font-medium">
             ACCOUNT RECOVERY

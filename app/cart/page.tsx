@@ -56,8 +56,19 @@ export default function CartPage() {
   return (
     <div className="pt-28 pb-32 bg-[#F4F4F2] text-[#495464]">
       <div className="max-w-[1400px] mx-auto px-6 lg:px-12">
+        {/* Centered Brand Logo */}
+        <div className="flex justify-center mb-6">
+          <Link href="/" className="inline-block hover:opacity-85 transition-opacity">
+            <img
+              src="/logo.svg"
+              alt="SHOPY"
+              className="h-8 w-auto"
+            />
+          </Link>
+        </div>
+
         {/* Header */}
-        <div className="text-center py-12 border-b border-[#BBBFCA]/30 mb-12">
+        <div className="text-center py-8 border-b border-[#BBBFCA]/30 mb-12">
           <span className="text-xs uppercase tracking-widest text-[#495464]/60 block mb-2">
             YOUR SELECTIONS
           </span>
@@ -67,7 +78,14 @@ export default function CartPage() {
         </div>
 
         {items.length === 0 ? (
-          <div className="text-center py-20 bg-[#E8E8E8]/50 border border-[#BBBFCA]/30 p-12 max-w-2xl mx-auto">
+          <div className="text-center py-16 bg-[#E8E8E8]/50 border border-[#BBBFCA]/30 p-12 max-w-2xl mx-auto">
+            <div className="flex justify-center mb-4 opacity-70">
+              <img
+                src="/logo.svg"
+                alt="SHOPY"
+                className="h-6 w-auto"
+              />
+            </div>
             <span className="font-serif text-2xl text-[#495464] block mb-3">
               Your bag is currently empty
             </span>

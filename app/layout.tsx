@@ -37,6 +37,13 @@ export const metadata: Metadata = {
     "Tailored Trousers",
   ],
   authors: [{ name: "SHOPY Atelier" }],
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+    ],
+    shortcut: "/icon.svg",
+    apple: "/icon.svg",
+  },
   openGraph: {
     title: "SHOPY — Editorial Fashion & Modern Essentials",
     description:

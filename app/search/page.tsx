@@ -77,7 +77,14 @@ function SearchContent() {
             ))}
           </div>
         ) : query && !loading ? (
-          <div className="text-center py-20">
+          <div className="text-center py-16">
+            <div className="flex justify-center mb-4 opacity-70">
+              <img
+                src="/logo.svg"
+                alt="SHOPY"
+                className="h-6 w-auto"
+              />
+            </div>
             <p className="font-serif text-2xl text-[#495464]/80 mb-2">No matching pieces</p>
             <p className="text-xs text-[#495464]/60 tracking-wider">
               Try searching for &quot;Tee&quot;, &quot;Trousers&quot;, &quot;Loafers&quot;, or &quot;Extrait&quot;.

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 180" width="640" height="180">
+  <!-- Premium Dark Label Box in Deep Slate #495464 -->
+  <rect width="640" height="180" rx="4" fill="#495464"/>
+  
+  <!-- Subtle Inner Hairline Accent #BBBFCA -->
+  <rect x="8" y="8" width="624" height="164" rx="2" stroke="#BBBFCA" stroke-width="1" fill="none" opacity="0.35"/>
+  
+  <!-- SHOPY Pure Editorial Serif Wordmark in #F4F4F2 -->
+  <text 
+    x="320" 
+    y="112" 
+    text-anchor="middle" 
+    fill="#F4F4F2" 
+    font-family="'Cormorant Garamond', 'Playfair Display', 'Georgia', serif" 
+    font-size="74" 
+    font-weight="300" 
+    letter-spacing="24"
+  >SHOPY</text>
+</svg>

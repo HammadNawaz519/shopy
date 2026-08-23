@@ -2,6 +2,7 @@
 
 import React, { useState, Suspense } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
@@ -43,6 +44,20 @@ function LoginForm() {
 
   return (
     <div className="max-w-md w-full mx-auto px-6">
+      {/* Centered Brand Logo */}
+      <div className="flex justify-center mb-8">
+        <Link href="/" className="inline-block hover:opacity-85 transition-opacity">
+          <Image
+            src="/logo.svg"
+            alt="SHOPY"
+            width={140}
+            height={40}
+            priority
+            className="h-9 w-auto"
+          />
+        </Link>
+      </div>
+
       {/* Header */}
       <div className="text-center mb-8">
         <span className="text-xs uppercase tracking-widest text-[#495464]/60 block mb-2 font-medium">

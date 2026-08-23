@@ -111,7 +111,14 @@ export default function CartDrawer() {
         <div className="flex-1 overflow-y-auto py-4 divide-y divide-[#BBBFCA]/20">
           {items.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center py-16">
-              <span className="font-serif text-2xl text-[#495464]/60 italic mb-3">
+              <div className="mb-4 opacity-70">
+                <img
+                  src="/logo.svg"
+                  alt="SHOPY"
+                  className="h-6 w-auto"
+                />
+              </div>
+              <span className="font-serif text-2xl text-[#495464]/80 italic mb-3">
                 Your bag is currently empty
               </span>
               <p className="text-xs text-[#495464]/70 max-w-xs mb-8 tracking-wider">
