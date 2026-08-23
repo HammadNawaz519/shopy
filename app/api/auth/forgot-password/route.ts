@@ -2,15 +2,15 @@ import { NextResponse } from "next/server";
 import { ForgotPasswordSchema } from "@/lib/security/validation";
 import { checkRateLimit, getClientIp } from "@/lib/security/rateLimit";
 import { db } from "@/lib/db/store";
-import crypto from "crypto";
+import { sendVerificationOtp } from "@/lib/email/mailer";
 
 export async function POST(req: Request) {
   try {
     const ip = getClientIp(req);
-    const rateLimit = await checkRateLimit(`forgot_pw_${ip}`, { limit: 3, windowMs: 15 * 60 * 1000 });
+    const rateLimit = await checkRateLimit(`forgot_pw_${ip}`, { limit: 5, windowMs: 15 * 60 * 1000 });
     if (!rateLimit.success) {
       return NextResponse.json(
-        { error: "Too many password reset requests. Please try again later." },
+        { error: "Too many verification code requests. Please wait a few minutes before retrying." },
         { status: 429 }
       );
     }
@@ -29,23 +29,31 @@ export async function POST(req: Request) {
     const user = db.findUserByEmail(email);
 
     if (user) {
-      const resetToken = crypto.randomBytes(32).toString("hex");
-      const resetTokenExpiry = Date.now() + 3600000; // 1 hour
+      // Generate 6-digit secure numeric verification code
+      const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const resetTokenExpiry = Date.now() + 10 * 60 * 1000; // 10 minutes
 
       db.updateUser(user.id, {
-        resetToken,
+        resetToken: otpCode,
         resetTokenExpiry,
       });
 
-      console.log(`[AUTH LOG] Password reset token generated for ${user.email}: ${resetToken}`);
+      // Dispatch real email via Gmail SMTP (shopy.otp@gmail.com)
+      try {
+        await sendVerificationOtp(user.email, otpCode, user.name);
+        console.log(`[SMTP SUCCESS] Verification code dispatched to ${user.email}`);
+      } catch (mailErr) {
+        console.error("[SMTP ERROR] Failed to send verification code email:", mailErr);
+      }
     }
 
     return NextResponse.json({
-      message: "If an account exists with that email, instructions have been sent.",
+      success: true,
+      message: "If an account exists with that email, a 6-digit verification code has been dispatched to your inbox.",
     });
   } catch {
     return NextResponse.json(
-      { error: "Failed to process request." },
+      { error: "Failed to process verification code request." },
       { status: 500 }
     );
   }
