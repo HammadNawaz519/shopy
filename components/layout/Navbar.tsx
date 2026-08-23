@@ -126,13 +126,13 @@ export default function Navbar() {
 
             {/* Account */}
             <Link
-              href={user ? "/account" : "/login"}
+              href={user ? (user.role === "admin" ? "/admin" : "/account") : "/login"}
               className="flex items-center gap-1.5 text-[12px] font-normal tracking-wide lowercase hover:opacity-60 transition-opacity whitespace-nowrap"
               aria-label="Account"
             >
               <User className="w-3.5 h-3.5 stroke-[1.5]" />
               <span className="hidden sm:inline">
-                {user ? user.name.split(" ")[0].toLowerCase() : "account"}
+                {user ? (user.role === "admin" ? "admin" : user.name.split(" ")[0].toLowerCase()) : "account"}
               </span>
             </Link>
 

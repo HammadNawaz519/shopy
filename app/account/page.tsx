@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { formatPrice } from "@/lib/utils";
-import { User, Package, LogOut, Loader2, ArrowRight, Clock, ShieldCheck } from "lucide-react";
+import { User, Package, LogOut, Loader2, ArrowRight, ShieldCheck, ExternalLink } from "lucide-react";
 
 export default function AccountPage() {
   const router = useRouter();
@@ -15,33 +15,76 @@ export default function AccountPage() {
 
   useEffect(() => {
     if (!loading && !user) {
-      router.push("/login?redirect=/account");
+      router.replace("/login?redirect=/account");
     }
   }, [user, loading, router]);
 
   useEffect(() => {
+    let isMounted = true;
+
     async function fetchUserOrders() {
       try {
         const res = await fetch("/api/orders");
         if (res.ok) {
           const data = await res.json();
-          setOrders(data.orders || []);
+          if (isMounted) {
+            setOrders(data.orders || []);
+          }
         }
       } catch {
-        // ignore
+        if (isMounted) {
+          setOrders([]);
+        }
       } finally {
-        setLoadingOrders(false);
+        if (isMounted) {
+          setLoadingOrders(false);
+        }
       }
     }
+
     if (user) {
       fetchUserOrders();
+    } else if (!loading) {
+      setLoadingOrders(false);
     }
-  }, [user]);
 
-  if (loading || !user) {
+    return () => {
+      isMounted = false;
+    };
+  }, [user, loading]);
+
+  // If loading authentication state
+  if (loading) {
     return (
-      <div className="pt-36 pb-32 flex justify-center items-center bg-[#F4F4F2] text-[#495464]">
+      <div className="min-h-[60vh] pt-36 pb-32 flex flex-col justify-center items-center bg-[#F4F4F2] text-[#495464] space-y-4">
         <Loader2 className="w-8 h-8 animate-spin text-[#495464]" />
+        <span className="text-xs uppercase tracking-widest text-[#495464]/60">
+          Loading Client Account...
+        </span>
+      </div>
+    );
+  }
+
+  // If unauthenticated, prompt or auto-redirect
+  if (!user) {
+    return (
+      <div className="min-h-[60vh] pt-36 pb-32 flex flex-col justify-center items-center bg-[#F4F4F2] text-[#495464] px-6 text-center space-y-6">
+        <span className="text-xs uppercase tracking-widest text-[#495464]/60 font-medium">
+          ACCOUNT ACCESS REQUIRED
+        </span>
+        <h1 className="font-serif text-3xl font-medium text-[#495464]">
+          Sign in to your client account
+        </h1>
+        <p className="text-xs text-[#495464]/70 tracking-wider uppercase max-w-sm">
+          Please sign in to view your orders, saved preferences, and atelier membership.
+        </p>
+        <Link
+          href="/login?redirect=/account"
+          className="inline-flex items-center gap-2 bg-[#495464] text-[#F4F4F2] px-8 py-3.5 text-xs uppercase tracking-widest font-medium hover:bg-[#363E4B] transition-colors"
+        >
+          <span>Sign In to Account</span>
+          <ArrowRight className="w-3.5 h-3.5" />
+        </Link>
       </div>
     );
   }
@@ -52,7 +95,7 @@ export default function AccountPage() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between py-6 border-b border-[#BBBFCA]/30 mb-12 gap-4">
           <div>
-            <span className="text-xs uppercase tracking-widest text-[#495464]/60 block mb-1">
+            <span className="text-xs uppercase tracking-widest text-[#495464]/60 block mb-1 font-medium">
               CLIENT DASHBOARD
             </span>
             <h1 className="font-serif text-3xl sm:text-4xl font-medium text-[#495464]">
@@ -60,13 +103,25 @@ export default function AccountPage() {
             </h1>
             <p className="text-xs text-[#495464]/70 tracking-wider mt-1">{user.email}</p>
           </div>
-          <button
-            onClick={() => logout()}
-            className="inline-flex items-center gap-2 border border-[#BBBFCA] px-4 py-2 text-xs uppercase tracking-widest text-[#495464] hover:bg-[#495464] hover:text-[#F4F4F2] transition-colors self-start sm:self-auto"
-          >
-            <LogOut className="w-3.5 h-3.5" />
-            <span>Sign Out</span>
-          </button>
+          
+          <div className="flex items-center gap-3">
+            {user.role === "admin" && (
+              <Link
+                href="/admin"
+                className="inline-flex items-center gap-2 bg-[#495464] text-[#F4F4F2] px-4 py-2 text-xs uppercase tracking-widest font-medium hover:bg-[#363E4B] transition-colors"
+              >
+                <span>Admin Operations</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </Link>
+            )}
+            <button
+              onClick={() => logout()}
+              className="inline-flex items-center gap-2 border border-[#BBBFCA] px-4 py-2 text-xs uppercase tracking-widest text-[#495464] hover:bg-[#495464] hover:text-[#F4F4F2] transition-colors"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span>Sign Out</span>
+            </button>
+          </div>
         </div>
 
         {/* Dashboard Grid */}
@@ -90,7 +145,7 @@ export default function AccountPage() {
                 </p>
                 <Link
                   href="/products"
-                  className="inline-block mt-4 bg-[#495464] text-[#F4F4F2] px-6 py-2.5 text-xs uppercase tracking-widest"
+                  className="inline-block mt-4 bg-[#495464] text-[#F4F4F2] px-6 py-2.5 text-xs uppercase tracking-widest hover:bg-[#363E4B] transition-colors"
                 >
                   Browse Catalogue
                 </Link>
@@ -100,7 +155,7 @@ export default function AccountPage() {
                 {orders.map((ord) => (
                   <div
                     key={ord.id}
-                    className="bg-[#E8E8E8]/40 border border-[#BBBFCA]/40 p-6 space-y-4"
+                    className="bg-[#E8E8E8]/40 border border-[#BBBFCA]/40 p-6 space-y-4 shadow-sm"
                   >
                     <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#BBBFCA]/20 pb-3">
                       <div>
@@ -119,20 +174,21 @@ export default function AccountPage() {
                           href={`/order-confirmation/${ord.id}`}
                           className="text-xs uppercase tracking-widest text-[#495464] hover:underline"
                         >
-                          View Receipt →
+                          View Details &rarr;
                         </Link>
                       </div>
                     </div>
 
                     <div className="space-y-2">
-                      {ord.items.map((item: any, idx: number) => (
-                        <div key={idx} className="flex justify-between text-xs tracking-wider">
-                          <span>
-                            {item.quantity}x {item.name} ({item.size})
-                          </span>
-                          <span className="font-medium">{formatPrice(item.price * item.quantity)}</span>
-                        </div>
-                      ))}
+                      {ord.items &&
+                        ord.items.map((item: any, idx: number) => (
+                          <div key={idx} className="flex justify-between text-xs tracking-wider">
+                            <span>
+                              {item.quantity}x {item.name} {item.size ? `(${item.size})` : ""}
+                            </span>
+                            <span className="font-medium">{formatPrice(item.price * item.quantity)}</span>
+                          </div>
+                        ))}
                     </div>
 
                     <div className="flex justify-between items-center pt-3 border-t border-[#BBBFCA]/20 text-xs font-semibold text-[#495464]">
@@ -147,9 +203,9 @@ export default function AccountPage() {
 
           {/* Right: Account Summary */}
           <div className="lg:col-span-4 space-y-6">
-            <div className="bg-[#E8E8E8]/70 border border-[#BBBFCA]/40 p-6 space-y-4">
-              <h3 className="font-serif text-lg font-medium text-[#495464]">Client Details</h3>
-              <div className="text-xs space-y-2 text-[#495464]/80 tracking-wider">
+            <div className="bg-[#E8E8E8]/70 border border-[#BBBFCA]/40 p-6 space-y-4 shadow-sm">
+              <h3 className="font-serif text-lg font-medium text-[#495464]">Client Profile</h3>
+              <div className="text-xs space-y-2.5 text-[#495464]/80 tracking-wider">
                 <p>
                   <span className="font-semibold text-[#495464]">Full Name:</span> {user.name}
                 </p>
@@ -157,7 +213,10 @@ export default function AccountPage() {
                   <span className="font-semibold text-[#495464]">Email:</span> {user.email}
                 </p>
                 <p>
-                  <span className="font-semibold text-[#495464]">Role:</span> {user.role.toUpperCase()}
+                  <span className="font-semibold text-[#495464]">Role:</span>{" "}
+                  <span className="uppercase font-medium bg-[#495464]/10 px-2 py-0.5 text-[#495464]">
+                    {user.role}
+                  </span>
                 </p>
                 <p>
                   <span className="font-semibold text-[#495464]">Currency:</span> PKR (Rs.)
