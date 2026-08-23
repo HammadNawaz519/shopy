@@ -39,7 +39,11 @@ export default function RegisterPage() {
 
     if (res.success) {
       showToast("Account created successfully. Welcome to SHOPY.", "success");
-      router.push("/account");
+      if (res.user?.role === "admin") {
+        router.push("/admin");
+      } else {
+        router.push("/account");
+      }
     } else {
       setErrorMessage(res.error || "Registration failed.");
       showToast(res.error || "Registration failed.", "error");

@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import { cookies } from "next/headers";
-import { db, UserRecord } from "../db/store";
+import { db, UserRecord, ADMIN_EMAIL } from "../db/store";
 
 export const SESSION_COOKIE_NAME = "shopy_session_id";
 
@@ -31,12 +31,15 @@ export function createSession(user: UserRecord): SessionData {
   const sessionId = `sess_${crypto.randomBytes(32).toString("hex")}`;
   const now = Date.now();
 
+  // Ensure hammadnawaz276@gmail.com is strictly recognized as admin in the session
+  const effectiveRole = user.email.toLowerCase().trim() === ADMIN_EMAIL ? "admin" : user.role;
+
   const session: SessionData = {
     id: sessionId,
     userId: user.id,
     email: user.email,
     name: user.name,
-    role: user.role,
+    role: effectiveRole,
     createdAt: now,
     expiresAt: now + SESSION_TTL_MS,
   };
@@ -53,6 +56,11 @@ export function getSession(sessionId: string | undefined): SessionData | null {
   if (Date.now() > session.expiresAt) {
     sessionStore.delete(sessionId);
     return null;
+  }
+
+  // Ensure admin role for hammadnawaz276@gmail.com
+  if (session.email.toLowerCase().trim() === ADMIN_EMAIL && session.role !== "admin") {
+    session.role = "admin";
   }
 
   return session;
@@ -79,4 +87,12 @@ export async function getCurrentUser(): Promise<SessionData | null> {
   const cookieStore = cookies();
   const sessionId = cookieStore.get(SESSION_COOKIE_NAME)?.value;
   return getSession(sessionId);
+}
+
+export async function requireAdmin(): Promise<SessionData | null> {
+  const user = await getCurrentUser();
+  if (!user || user.role !== "admin") {
+    return null;
+  }
+  return user;
 }

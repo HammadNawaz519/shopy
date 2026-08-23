@@ -31,7 +31,9 @@ function LoginForm() {
 
     if (res.success) {
       showToast("Welcome back to SHOPY", "success");
-      if (isValidRedirectUrl(redirect)) {
+      if (res.user?.role === "admin") {
+        router.push("/admin");
+      } else if (isValidRedirectUrl(redirect)) {
         router.push(redirect!);
       } else {
         router.push("/account");
