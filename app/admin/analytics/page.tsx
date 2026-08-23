@@ -26,21 +26,12 @@ export default function AdminAnalyticsPage() {
     fetchAnalytics();
   }, []);
 
-  if (loading) {
-    return (
-      <div className="flex-1 flex flex-col">
-        <AdminHeader
-          title="Executive Analytics"
-          subtitle="Revenue, Conversion & Product Performance Intelligence"
-        />
-        <div className="flex-1 flex items-center justify-center py-32">
-          <Loader2 className="w-8 h-8 animate-spin text-[#495464]" />
-        </div>
-      </div>
-    );
-  }
-
-  const { totalRevenue, totalOrders, aov, topProducts, categoryBreakdown, statusDistribution } = data || {};
+  const totalRevenue = data?.totalRevenue || 0;
+  const totalOrders = data?.totalOrders || 0;
+  const aov = data?.aov || 0;
+  const topProducts = data?.topProducts || [];
+  const categoryBreakdown = data?.categoryBreakdown || [];
+  const statusDistribution = data?.statusDistribution || [];
 
   return (
     <div className="flex-1 flex flex-col">

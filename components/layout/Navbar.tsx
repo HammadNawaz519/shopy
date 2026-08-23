@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { Search, User, ShoppingBag, Menu } from "lucide-react";
 import { useCart } from "@/context/CartContext";
@@ -33,6 +34,11 @@ export default function Navbar() {
     handleScroll();
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  // Do NOT render customer navbar on admin routes
+  if (pathname.startsWith("/admin")) {
+    return null;
+  }
 
   const isTransparent = isHome && !isScrolled;
 
@@ -68,11 +74,19 @@ export default function Navbar() {
             </button>
             <Link
               href="/"
-              className={`font-serif tracking-[0.3em] text-lg font-light ${
+              className={`flex items-center gap-2 font-serif tracking-[0.3em] text-lg font-light ${
                 isTransparent ? "text-white" : "text-[#495464]"
               }`}
             >
-              SHOPY
+              <Image
+                src="/icon.jpg"
+                alt="SHOPY Icon"
+                width={24}
+                height={24}
+                className="w-6 h-6 object-contain rounded-xs"
+                priority
+              />
+              <span>SHOPY</span>
             </Link>
           </div>
 
@@ -80,11 +94,19 @@ export default function Navbar() {
           <div className="hidden lg:flex items-center gap-8 xl:gap-10">
             <Link
               href="/"
-              className={`font-serif tracking-[0.35em] text-xl lg:text-2xl font-light transition-colors whitespace-nowrap ${
+              className={`flex items-center gap-2.5 font-serif tracking-[0.35em] text-xl lg:text-2xl font-light transition-colors whitespace-nowrap ${
                 isTransparent ? "text-white" : "text-[#495464]"
               }`}
             >
-              SHOPY
+              <Image
+                src="/icon.jpg"
+                alt="SHOPY Icon"
+                width={28}
+                height={28}
+                className="w-7 h-7 object-contain rounded-xs"
+                priority
+              />
+              <span>SHOPY</span>
             </Link>
 
             {/* Desktop Navigation Links — Small, lowercase, non-wrapping, clean tracking */}

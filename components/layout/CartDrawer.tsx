@@ -3,12 +3,14 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 import { X, Plus, Minus, Trash2, ArrowRight, ShieldCheck, Tag } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { formatPrice } from "@/lib/utils";
 import { useToast } from "@/context/ToastContext";
 
 export default function CartDrawer() {
+  const pathname = usePathname();
   const {
     items,
     isOpen,
@@ -26,6 +28,10 @@ export default function CartDrawer() {
   const { showToast } = useToast();
   const [promoInput, setPromoInput] = useState("");
   const [promoLoading, setPromoLoading] = useState(false);
+
+  if (pathname.startsWith("/admin")) {
+    return null;
+  }
 
   useEffect(() => {
     if (isOpen) {

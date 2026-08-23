@@ -2,9 +2,18 @@
 
 import React from "react";
 import Link from "next/link";
+import Image from "next/image";
+import { usePathname } from "next/navigation";
 import { Instagram, Facebook, Linkedin, Youtube } from "lucide-react";
 
 export default function Footer() {
+  const pathname = usePathname();
+
+  // Do NOT render customer footer on admin routes
+  if (pathname.startsWith("/admin")) {
+    return null;
+  }
+
   const shopLinks = [
     { name: "View All", href: "/products" },
     { name: "Tops", href: "/collections/tops" },
@@ -37,9 +46,18 @@ export default function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-12 lg:gap-16">
           {/* Brand Manifesto */}
           <div className="col-span-2 lg:col-span-2 space-y-4 pr-6">
-            <span className="font-serif tracking-widest text-xl font-medium block text-[#495464]">
-              HAUTE ATELIER
-            </span>
+            <div className="flex items-center gap-2.5">
+              <Image
+                src="/icon.jpg"
+                alt="SHOPY Icon"
+                width={26}
+                height={26}
+                className="w-6.5 h-6.5 object-contain rounded-xs"
+              />
+              <span className="font-serif tracking-widest text-xl font-medium block text-[#495464]">
+                SHOPY ATELIER
+              </span>
+            </div>
             <p className="text-xs text-[#495464]/80 leading-relaxed max-w-sm tracking-wider uppercase">
               A contemporary editorial house exploring architectural silhouettes, tactile fabrications, and sensory extraits. Crafted for permanence.
             </p>
@@ -83,12 +101,12 @@ export default function Footer() {
             </div>
           </div>
 
-          {/* SHOP Column */}
-          <div className="space-y-4">
-            <h4 className="text-[11px] font-semibold uppercase tracking-widest text-[#495464]">
-              Shop
+          {/* Column 1: Collections */}
+          <div>
+            <h4 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#495464] mb-6">
+              Collections
             </h4>
-            <ul className="space-y-2.5">
+            <ul className="space-y-3">
               {shopLinks.map((link) => (
                 <li key={link.name}>
                   <Link
@@ -102,12 +120,12 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* INFORMATION Column */}
-          <div className="space-y-4">
-            <h4 className="text-[11px] font-semibold uppercase tracking-widest text-[#495464]">
-              Information
+          {/* Column 2: Client Concierge */}
+          <div>
+            <h4 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#495464] mb-6">
+              Concierge
             </h4>
-            <ul className="space-y-2.5">
+            <ul className="space-y-3">
               {infoLinks.map((link) => (
                 <li key={link.name}>
                   <Link
@@ -121,12 +139,12 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* LEGAL Column */}
-          <div className="space-y-4">
-            <h4 className="text-[11px] font-semibold uppercase tracking-widest text-[#495464]">
-              Legal
+          {/* Column 3: Legal & Maison */}
+          <div>
+            <h4 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#495464] mb-6">
+              Maison
             </h4>
-            <ul className="space-y-2.5">
+            <ul className="space-y-3">
               {legalLinks.map((link) => (
                 <li key={link.name}>
                   <Link

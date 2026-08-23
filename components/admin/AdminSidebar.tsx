@@ -79,11 +79,10 @@ export default function AdminSidebar({ mobileOpen = false, onCloseMobile }: Admi
               key={item.name}
               href={item.href}
               onClick={onCloseMobile}
-              className={`flex items-center gap-3 px-3.5 py-2.5 text-xs font-medium tracking-wide transition-colors ${
-                isActive
+              className={`flex items-center gap-3 px-3.5 py-2.5 text-xs font-medium tracking-wide transition-colors ${isActive
                   ? "bg-[#495464] text-[#F4F4F2] font-semibold border-l-2 border-[#F4F4F2]"
                   : "text-[#BBBFCA] hover:bg-[#495464]/30 hover:text-[#F4F4F2]"
-              }`}
+                }`}
             >
               <Icon className="w-4 h-4" />
               <span>{item.name}</span>
