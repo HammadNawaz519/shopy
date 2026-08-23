@@ -43,11 +43,7 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // 3. Guest Flow Optimization: Redirect logged-in users away from /login and /register
-  if ((pathname === "/login" || pathname === "/register") && sessionToken) {
-    return NextResponse.redirect(new URL("/account", request.url));
-  }
-
+  // 3. Guest Flow Optimization: Allow direct access to login/register without blocking
   return NextResponse.next();
 }
 

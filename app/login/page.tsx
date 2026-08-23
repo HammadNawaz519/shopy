@@ -32,11 +32,11 @@ function LoginForm() {
     if (res.success) {
       showToast("Welcome back to SHOPY", "success");
       if (res.user?.role === "admin") {
-        router.push("/admin");
+        window.location.href = "/admin";
       } else if (isValidRedirectUrl(redirect)) {
-        router.push(redirect!);
+        window.location.href = redirect!;
       } else {
-        router.push("/account");
+        window.location.href = "/account";
       }
     } else {
       setErrorMessage(res.error || "Login failed");

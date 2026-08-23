@@ -17,17 +17,19 @@ if (process.env.NODE_ENV === "production") {
     connectionString,
     ssl: { rejectUnauthorized: false },
     max: 20,
-    idleTimeoutMillis: 30000,
+    idleTimeoutMillis: 60000,
     connectionTimeoutMillis: 10000,
+    keepAlive: true,
   });
 } else {
   if (!global.__shopy_pg_pool) {
     global.__shopy_pg_pool = new Pool({
       connectionString,
       ssl: { rejectUnauthorized: false },
-      max: 10,
-      idleTimeoutMillis: 30000,
+      max: 20,
+      idleTimeoutMillis: 60000,
       connectionTimeoutMillis: 10000,
+      keepAlive: true,
     });
   }
   pool = global.__shopy_pg_pool;

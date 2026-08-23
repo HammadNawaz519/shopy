@@ -22,8 +22,17 @@ setInterval(() => {
 
 export async function checkRateLimit(
   identifier: string,
-  options: RateLimitOptions = { limit: 10, windowMs: 60000 }
+  options: RateLimitOptions = { limit: 100, windowMs: 60000 }
 ): Promise<{ success: boolean; limit: number; remaining: number; reset: number }> {
+  // Relax rate limit in development
+  if (process.env.NODE_ENV !== "production") {
+    return {
+      success: true,
+      limit: 1000,
+      remaining: 999,
+      reset: Math.ceil((Date.now() + 60000) / 1000),
+    };
+  }
   // If distributed Upstash Redis credentials are provided, use distributed rate limiting
   const upstashUrl = process.env.UPSTASH_REDIS_REST_URL;
   const upstashToken = process.env.UPSTASH_REDIS_REST_TOKEN;
