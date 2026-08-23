@@ -1,21 +1,27 @@
 import nodemailer from "nodemailer";
 
-const smtpUser = process.env.SMTP_USER || "shopy.otp@gmail.com";
-const smtpPass = (process.env.SMTP_PASS || "ulpm rzis byey ifpf").replace(/\s+/g, "");
-const smtpFrom = process.env.SMTP_FROM || `SHOPY <${smtpUser}>`;
+export function getTransporter() {
+  const smtpUser = (process.env.SMTP_USER || "shopy.otp@gmail.com").replace(/['"\s]+/g, "");
+  const smtpPass = (process.env.SMTP_PASS || "ulpmrzisbyeyifpf").replace(/['"\s]+/g, "");
+  const smtpHost = (process.env.SMTP_HOST || "smtp.gmail.com").replace(/['"\s]+/g, "");
+  const smtpPort = Number(process.env.SMTP_PORT || 465);
+  const smtpSecure = process.env.SMTP_SECURE !== "false";
 
-export const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || "smtp.gmail.com",
-  port: Number(process.env.SMTP_PORT || 465),
-  secure: process.env.SMTP_SECURE !== "false", // true for 465, false for 587
-  auth: {
-    user: smtpUser,
-    pass: smtpPass,
-  },
-  tls: {
-    rejectUnauthorized: false,
-  },
-});
+  return nodemailer.createTransport({
+    host: smtpHost,
+    port: smtpPort,
+    secure: smtpSecure,
+    auth: {
+      user: smtpUser,
+      pass: smtpPass,
+    },
+    tls: {
+      rejectUnauthorized: false,
+    },
+  });
+}
+
+export const transporter = getTransporter();
 
 /**
  * Generates the luxury SHOPY verification code email matching the brand aesthetic:
@@ -160,7 +166,10 @@ Refined presence.
 © 2026 SHOPY
   `.trim();
 
-  return transporter.sendMail({
+  const mailer = getTransporter();
+  const smtpFrom = process.env.SMTP_FROM || `"SHOPY Atelier" <shopy.otp@gmail.com>`;
+
+  return mailer.sendMail({
     from: smtpFrom,
     to,
     subject: `SHOPY — Verification Code [${otpCode}]`,
@@ -275,7 +284,10 @@ export async function sendPasswordResetEmail(to: string, resetUrl: string, name?
 </html>
   `;
 
-  return transporter.sendMail({
+  const mailer = getTransporter();
+  const smtpFrom = process.env.SMTP_FROM || `"SHOPY Atelier" <shopy.otp@gmail.com>`;
+
+  return mailer.sendMail({
     from: smtpFrom,
     to,
     subject: "SHOPY — Password Recovery Request",
