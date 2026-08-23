@@ -13,7 +13,7 @@ export async function GET(req: Request) {
   const search = searchParams.get("search") || undefined;
   const sort = searchParams.get("sort") || undefined;
 
-  const products = db.getProducts({ category, search, sort });
+  const products = await db.getProducts({ category, search, sort });
   return NextResponse.json({ products });
 }
 
@@ -33,11 +33,11 @@ export async function POST(req: Request) {
 
     const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
-    const newProduct = db.addProduct({
+    const newProduct = await db.addProduct({
       name,
       slug,
-      category,
-      categoryLabel: categoryLabel || category.toUpperCase(),
+      category: typeof category === "string" ? category : category.slug,
+      categoryLabel: categoryLabel || (typeof category === "string" ? category.toUpperCase() : category.name),
       price: Number(price),
       originalPrice: originalPrice ? Number(originalPrice) : undefined,
       description: description || "",
@@ -73,7 +73,7 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "Product ID is required." }, { status: 400 });
     }
 
-    const updated = db.updateProduct(id, updates);
+    const updated = await db.updateProduct(id, updates);
     if (!updated) {
       return NextResponse.json({ error: "Product not found." }, { status: 404 });
     }
@@ -98,7 +98,7 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ error: "Product ID is required." }, { status: 400 });
     }
 
-    const success = db.deleteProduct(id);
+    const success = await db.deleteProduct(id);
     return NextResponse.json({ success });
   } catch {
     return NextResponse.json({ error: "Failed to delete product." }, { status: 500 });

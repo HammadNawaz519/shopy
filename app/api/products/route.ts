@@ -13,14 +13,10 @@ export async function GET(req: Request) {
     const minPrice = searchParams.get("minPrice") ? Number(searchParams.get("minPrice")) : undefined;
     const maxPrice = searchParams.get("maxPrice") ? Number(searchParams.get("maxPrice")) : undefined;
 
-    const products = db.getProducts({
+    const products = await db.getProducts({
       category,
       search,
       featured: featured || undefined,
-      tag,
-      sort,
-      minPrice,
-      maxPrice,
     });
 
     return NextResponse.json({ products, total: products.length });

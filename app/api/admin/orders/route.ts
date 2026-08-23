@@ -12,7 +12,7 @@ export async function GET(req: Request) {
   const status = searchParams.get("status");
   const search = searchParams.get("search")?.toLowerCase().trim();
 
-  let orders = db.getAllOrders();
+  let orders = await db.getAllOrders();
 
   if (status && status !== "ALL") {
     orders = orders.filter((o) => o.status === status);
@@ -45,17 +45,17 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "Order ID is required." }, { status: 400 });
     }
 
-    let updatedOrder = db.getOrderById(orderId);
+    let updatedOrder = await db.getOrderById(orderId);
     if (!updatedOrder) {
       return NextResponse.json({ error: "Order not found." }, { status: 404 });
     }
 
     if (status) {
-      updatedOrder = db.updateOrderStatus(orderId, status as OrderStatus, notes);
+      updatedOrder = await db.updateOrderStatus(orderId, status as any, notes);
     }
 
     if (paymentStatus) {
-      updatedOrder = db.updateOrderPaymentStatus(orderId, paymentStatus as PaymentStatus);
+      updatedOrder = await db.updateOrderPaymentStatus(orderId, paymentStatus as any);
     }
 
     return NextResponse.json({ success: true, order: updatedOrder });

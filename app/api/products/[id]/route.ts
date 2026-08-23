@@ -8,7 +8,7 @@ export async function GET(
 ) {
   try {
     const id = sanitizeString(params.id);
-    const product = db.getProductById(id);
+    const product = await db.getProductById(id);
 
     if (!product) {
       return NextResponse.json({ error: "Product not found." }, { status: 404 });

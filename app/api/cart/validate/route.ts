@@ -21,7 +21,7 @@ export async function POST(req: Request) {
     }
 
     const { items, promoCode } = parseResult.data;
-    const validatedCart = db.recalculateCart(items, promoCode);
+    const validatedCart = await db.recalculateCart(items, promoCode);
 
     return NextResponse.json({
       cart: validatedCart,

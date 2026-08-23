@@ -8,9 +8,10 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized: Admin privileges required." }, { status: 403 });
   }
 
-  const orders = db.getAllOrders();
-  const products = db.getProducts();
-  const users = db.getAllUsers();
+  const orders = await db.getAllOrders();
+  const products = await db.getProducts();
+  const users = await db.getAllUsers();
+  const settings = await db.getStoreSettings();
 
   const totalRevenue = orders
     .filter((o) => o.status !== "CANCELLED")
@@ -22,7 +23,7 @@ export async function GET() {
   const deliveredOrders = orders.filter((o) => o.status === "DELIVERED").length;
   const cancelledOrders = orders.filter((o) => o.status === "CANCELLED").length;
 
-  const lowStockThreshold = db.getStoreSettings().inventoryAlertThreshold || 5;
+  const lowStockThreshold = settings.inventoryAlertThreshold || 5;
   const lowStockProducts = products.filter((p) => p.stockCount > 0 && p.stockCount <= lowStockThreshold);
   const outOfStockProducts = products.filter((p) => p.stockCount === 0 || !p.inStock);
 

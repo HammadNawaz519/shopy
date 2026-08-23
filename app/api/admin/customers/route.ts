@@ -11,8 +11,8 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const search = searchParams.get("search")?.toLowerCase().trim();
 
-  const users = db.getAllUsers();
-  const allOrders = db.getAllOrders();
+  const users = await db.getAllUsers();
+  const allOrders = await db.getAllOrders();
 
   let customers = users.map((u) => {
     const userOrders = allOrders.filter((o) => o.userId === u.id || o.shippingAddress.email.toLowerCase() === u.email.toLowerCase());

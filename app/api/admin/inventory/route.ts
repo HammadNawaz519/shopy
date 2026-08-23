@@ -12,8 +12,9 @@ export async function GET(req: Request) {
   const filter = searchParams.get("filter"); // 'low', 'out', 'all'
   const search = searchParams.get("search")?.toLowerCase().trim();
 
-  let products = db.getProducts();
-  const lowStockThreshold = db.getStoreSettings().inventoryAlertThreshold || 5;
+  let products = await db.getProducts();
+  const settings = await db.getStoreSettings();
+  const lowStockThreshold = settings.inventoryAlertThreshold || 5;
 
   if (filter === "low") {
     products = products.filter((p) => p.stockCount > 0 && p.stockCount <= lowStockThreshold);
@@ -27,6 +28,7 @@ export async function GET(req: Request) {
     );
   }
 
+  const allProducts = await db.getProducts();
   const inventoryItems = products.map((p) => ({
     id: p.id,
     name: p.name,
@@ -43,10 +45,10 @@ export async function GET(req: Request) {
   return NextResponse.json({
     inventory: inventoryItems,
     summary: {
-      totalSKUs: db.getProducts().length,
-      lowStockCount: db.getProducts().filter((p) => p.stockCount > 0 && p.stockCount <= lowStockThreshold).length,
-      outOfStockCount: db.getProducts().filter((p) => p.stockCount === 0 || !p.inStock).length,
-      totalUnits: db.getProducts().reduce((sum, p) => sum + p.stockCount, 0),
+      totalSKUs: allProducts.length,
+      lowStockCount: allProducts.filter((p) => p.stockCount > 0 && p.stockCount <= lowStockThreshold).length,
+      outOfStockCount: allProducts.filter((p) => p.stockCount === 0 || !p.inStock).length,
+      totalUnits: allProducts.reduce((sum, p) => sum + p.stockCount, 0),
     },
   });
 }
@@ -66,7 +68,7 @@ export async function PATCH(req: Request) {
     }
 
     const safeStock = Math.max(0, Number(stockCount));
-    const updated = db.updateProduct(id, { stockCount: safeStock });
+    const updated = await db.updateProduct(id, { stockCount: safeStock });
 
     if (!updated) {
       return NextResponse.json({ error: "Product not found." }, { status: 404 });

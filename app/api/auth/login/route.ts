@@ -28,7 +28,7 @@ export async function POST(req: Request) {
     }
 
     const { email, password } = parseResult.data;
-    const user = db.findUserByEmail(email);
+    const user = await db.findUserByEmail(email);
 
     if (!user) {
       return NextResponse.json(

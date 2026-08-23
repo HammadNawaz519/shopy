@@ -27,8 +27,8 @@ export async function POST(req: Request) {
 
     const { items, shippingAddress, paymentMethod, promoCode } = parseResult.data;
 
-    // Zero-trust: Recalculate all totals server-side
-    const recalculated = db.recalculateCart(items, promoCode);
+    // Zero-trust: Recalculate all totals server-side from Supabase PostgreSQL
+    const recalculated = await db.recalculateCart(items, promoCode);
     if (recalculated.items.length === 0) {
       return NextResponse.json(
         { error: "No valid products in order." },
@@ -40,7 +40,7 @@ export async function POST(req: Request) {
     const session = await getCurrentUser();
     const userId = session ? session.userId : undefined;
 
-    const order = db.createOrder({
+    const order = await db.createOrder({
       userId,
       items: recalculated.items,
       subtotal: recalculated.subtotal,
@@ -76,8 +76,8 @@ export async function GET() {
       return NextResponse.json({ error: "Authentication required." }, { status: 401 });
     }
 
-    // IDOR Protection: only fetch current user's orders
-    const orders = db.getOrdersByUserId(session.userId);
+    // IDOR Protection: only fetch current user's orders from PostgreSQL
+    const orders = await db.getOrdersByUserId(session.userId);
     return NextResponse.json({ orders });
   } catch {
     return NextResponse.json(

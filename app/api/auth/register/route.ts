@@ -29,7 +29,7 @@ export async function POST(req: Request) {
 
     const { name, email, password } = parseResult.data;
 
-    const existing = db.findUserByEmail(email);
+    const existing = await db.findUserByEmail(email);
     if (existing) {
       return NextResponse.json(
         { error: "An account with this email already exists." },
@@ -38,7 +38,7 @@ export async function POST(req: Request) {
     }
 
     const passwordHash = await hashPassword(password);
-    const newUser = db.createUser({
+    const newUser = await db.createUser({
       name,
       email,
       passwordHash,

@@ -8,7 +8,7 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized: Admin privileges required." }, { status: 403 });
   }
 
-  const reviews = db.getReviews();
+  const reviews = await db.getReviews();
   return NextResponse.json({ reviews });
 }
 
@@ -26,7 +26,7 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "Review ID and status are required." }, { status: 400 });
     }
 
-    const updated = db.updateReviewStatus(id, status);
+    const updated = await db.updateReviewStatus(id, status);
     if (!updated) {
       return NextResponse.json({ error: "Review not found." }, { status: 404 });
     }
@@ -51,7 +51,7 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ error: "Review ID is required." }, { status: 400 });
     }
 
-    const success = db.deleteReview(id);
+    const success = await db.deleteReview(id);
     return NextResponse.json({ success });
   } catch {
     return NextResponse.json({ error: "Failed to delete review." }, { status: 500 });

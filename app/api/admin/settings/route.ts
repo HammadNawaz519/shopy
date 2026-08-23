@@ -8,7 +8,7 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized: Admin privileges required." }, { status: 403 });
   }
 
-  const settings = db.getStoreSettings();
+  const settings = await db.getStoreSettings();
   return NextResponse.json({ settings });
 }
 
@@ -20,7 +20,7 @@ export async function PATCH(req: Request) {
 
   try {
     const body = await req.json();
-    const updated = db.updateStoreSettings(body);
+    const updated = await db.updateStoreSettings(body);
     return NextResponse.json({ success: true, settings: updated });
   } catch {
     return NextResponse.json({ error: "Failed to update store settings." }, { status: 500 });

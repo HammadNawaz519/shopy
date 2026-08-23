@@ -32,7 +32,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const user = db.findUserByEmail(email);
+    const user = await db.findUserByEmail(email);
     if (!user) {
       return NextResponse.json(
         { error: "Invalid email or verification code." },
@@ -57,7 +57,7 @@ export async function POST(req: Request) {
 
     // Password reset successful: hash new password and clear token
     const passwordHash = await hashPassword(newPassword);
-    db.updateUser(user.id, {
+    await db.updateUser(user.id, {
       passwordHash,
       resetToken: undefined,
       resetTokenExpiry: undefined,

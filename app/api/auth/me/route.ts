@@ -10,7 +10,7 @@ export async function GET() {
       return NextResponse.json({ user: null }, { status: 200 });
     }
 
-    const user = db.findUserById(session.userId);
+    const user = await db.findUserById(session.userId);
     if (!user) {
       return NextResponse.json({ user: null }, { status: 200 });
     }

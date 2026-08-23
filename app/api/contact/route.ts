@@ -24,7 +24,7 @@ export async function POST(req: Request) {
       );
     }
 
-    db.addInquiry(parseResult.data);
+    await db.addInquiry(parseResult.data);
 
     return NextResponse.json({
       success: true,

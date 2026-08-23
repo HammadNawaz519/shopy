@@ -26,14 +26,14 @@ export async function POST(req: Request) {
     }
 
     const { email } = parseResult.data;
-    const user = db.findUserByEmail(email);
+    const user = await db.findUserByEmail(email);
 
     if (user) {
       // Generate 6-digit secure numeric verification code
       const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
       const resetTokenExpiry = Date.now() + 10 * 60 * 1000; // 10 minutes
 
-      db.updateUser(user.id, {
+      await db.updateUser(user.id, {
         resetToken: otpCode,
         resetTokenExpiry,
       });

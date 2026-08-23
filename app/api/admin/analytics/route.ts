@@ -8,8 +8,8 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized: Admin privileges required." }, { status: 403 });
   }
 
-  const orders = db.getAllOrders();
-  const products = db.getProducts();
+  const orders = await db.getAllOrders();
+  const products = await db.getProducts();
 
   const totalRevenue = orders
     .filter((o) => o.status !== "CANCELLED")
@@ -25,19 +25,20 @@ export async function GET() {
   for (const order of orders) {
     if (order.status === "CANCELLED") continue;
     for (const item of order.items) {
-      if (!productSalesMap[item.productId]) {
-        productSalesMap[item.productId] = {
+      const pid = item.productId || item.name;
+      if (!productSalesMap[pid]) {
+        productSalesMap[pid] = {
           name: item.name,
           quantity: 0,
           revenue: 0,
-          image: item.image,
+          image: item.image || "",
         };
       }
-      productSalesMap[item.productId].quantity += item.quantity;
-      productSalesMap[item.productId].revenue += item.price * item.quantity;
+      productSalesMap[pid].quantity += item.quantity;
+      productSalesMap[pid].revenue += item.price * item.quantity;
 
       const prod = products.find((p) => p.id === item.productId);
-      const cat = prod?.categoryLabel || "Other";
+      const cat = prod?.categoryLabel || "Tops";
       categorySalesMap[cat] = (categorySalesMap[cat] || 0) + item.price * item.quantity;
     }
   }

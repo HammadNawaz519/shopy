@@ -25,7 +25,7 @@ export async function POST(req: Request) {
     }
 
     const { email } = parseResult.data;
-    const isNew = db.subscribeNewsletter(email);
+    const isNew = await db.subscribeNewsletter(email);
 
     return NextResponse.json({
       success: true,

@@ -21,7 +21,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ results: [], query: "" });
     }
 
-    const results = db.getProducts({ search: q });
+    const results = await db.getProducts({ search: q });
     return NextResponse.json({ results: results.slice(0, 10), query: q });
   } catch {
     return NextResponse.json(

@@ -3,7 +3,7 @@ import { db } from "@/lib/db/store";
 
 export async function GET() {
   try {
-    const categories = db.getCategories();
+    const categories = await db.getCategories();
     return NextResponse.json({ categories });
   } catch {
     return NextResponse.json(

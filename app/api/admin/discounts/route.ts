@@ -8,7 +8,7 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized: Admin privileges required." }, { status: 403 });
   }
 
-  const discounts = db.getDiscounts();
+  const discounts = await db.getDiscounts();
   return NextResponse.json({ discounts });
 }
 
@@ -26,7 +26,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Code and discount value are required." }, { status: 400 });
     }
 
-    const newDiscount = db.addDiscount({
+    const newDiscount = await db.addDiscount({
       code,
       type: type || "percentage",
       value: Number(value),
@@ -48,13 +48,14 @@ export async function PATCH(req: Request) {
 
   try {
     const body = await req.json();
-    const { code, ...updates } = body;
+    const { id, code, ...updates } = body;
 
-    if (!code) {
-      return NextResponse.json({ error: "Code is required." }, { status: 400 });
+    const discountId = id || code;
+    if (!discountId) {
+      return NextResponse.json({ error: "Code or ID is required." }, { status: 400 });
     }
 
-    const updated = db.updateDiscount(code, updates);
+    const updated = await db.updateDiscount(discountId, updates);
     if (!updated) {
       return NextResponse.json({ error: "Coupon not found." }, { status: 404 });
     }
@@ -73,13 +74,13 @@ export async function DELETE(req: Request) {
 
   try {
     const { searchParams } = new URL(req.url);
-    const code = searchParams.get("code");
+    const id = searchParams.get("id") || searchParams.get("code");
 
-    if (!code) {
-      return NextResponse.json({ error: "Code is required." }, { status: 400 });
+    if (!id) {
+      return NextResponse.json({ error: "Code or ID is required." }, { status: 400 });
     }
 
-    const success = db.deleteDiscount(code);
+    const success = await db.deleteDiscount(id);
     return NextResponse.json({ success });
   } catch {
     return NextResponse.json({ error: "Failed to delete discount." }, { status: 500 });
