@@ -93,7 +93,7 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="pt-32 pb-32 bg-[#F4F4F2] text-[#495464] flex items-center justify-center">
+    <div className="pt-20 pb-16 min-h-[calc(100vh-4rem)] bg-[#F4F4F2] text-[#495464] flex items-center justify-center">
       <div className="max-w-md w-full mx-auto px-6">
         <div className="text-center mb-8">
           <h1 className="font-serif text-3xl sm:text-4xl font-medium tracking-tight text-[#495464]">

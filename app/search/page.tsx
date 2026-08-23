@@ -91,7 +91,7 @@ function SearchContent() {
 
 export default function SearchPage() {
   return (
-    <div className="pt-28 pb-32 bg-[#F4F4F2] text-[#495464]">
+    <div className="pt-20 pb-20 bg-[#F4F4F2] text-[#495464]">
       <Suspense
         fallback={
           <div className="py-20 text-center">

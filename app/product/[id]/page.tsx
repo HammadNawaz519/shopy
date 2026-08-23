@@ -55,7 +55,7 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
   };
 
   return (
-    <div className="pt-28 pb-32 bg-[#F4F4F2] text-[#495464]">
+    <div className="pt-20 pb-20 bg-[#F4F4F2] text-[#495464]">
       <div className="max-w-[1720px] mx-auto px-6 lg:px-12">
         {/* Breadcrumb */}
         <div className="mb-8 flex items-center gap-2 text-xs uppercase tracking-widest text-[#495464]/60">

@@ -25,7 +25,7 @@ export default function FAQPage() {
   ];
 
   return (
-    <div className="pt-28 pb-32 bg-[#F4F4F2] text-[#495464]">
+    <div className="pt-20 pb-20 bg-[#F4F4F2] text-[#495464]">
       <div className="max-w-4xl mx-auto px-6">
         <div className="text-center py-16 border-b border-[#BBBFCA]/30 mb-16">
           <span className="text-xs uppercase tracking-widest text-[#495464]/60 block mb-2 font-medium">

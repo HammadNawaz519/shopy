@@ -6,7 +6,7 @@ import { CATEGORIES } from "@/lib/data/categories";
 
 export default function CollectionsOverviewPage() {
   return (
-    <div className="pt-28 pb-32 bg-[#F4F4F2] text-[#495464]">
+    <div className="pt-20 pb-20 bg-[#F4F4F2] text-[#495464]">
       <div className="max-w-[1720px] mx-auto px-6 lg:px-12">
         {/* Page Header */}
         <div className="text-center py-12 border-b border-[#BBBFCA]/30 mb-16">
