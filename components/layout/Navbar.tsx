@@ -74,19 +74,11 @@ export default function Navbar() {
             </button>
             <Link
               href="/"
-              className={`flex items-center gap-2 font-serif tracking-[0.3em] text-lg font-light ${
+              className={`font-serif tracking-[0.3em] text-lg font-light ${
                 isTransparent ? "text-white" : "text-[#495464]"
               }`}
             >
-              <Image
-                src="/icon.jpg"
-                alt="SHOPY Icon"
-                width={24}
-                height={24}
-                className="w-6 h-6 object-contain rounded-xs"
-                priority
-              />
-              <span>SHOPY</span>
+              SHOPY
             </Link>
           </div>
 
@@ -94,19 +86,11 @@ export default function Navbar() {
           <div className="hidden lg:flex items-center gap-8 xl:gap-10">
             <Link
               href="/"
-              className={`flex items-center gap-2.5 font-serif tracking-[0.35em] text-xl lg:text-2xl font-light transition-colors whitespace-nowrap ${
+              className={`font-serif tracking-[0.35em] text-xl lg:text-2xl font-light transition-colors whitespace-nowrap ${
                 isTransparent ? "text-white" : "text-[#495464]"
               }`}
             >
-              <Image
-                src="/icon.jpg"
-                alt="SHOPY Icon"
-                width={28}
-                height={28}
-                className="w-7 h-7 object-contain rounded-xs"
-                priority
-              />
-              <span>SHOPY</span>
+              SHOPY
             </Link>
 
             {/* Desktop Navigation Links — Small, lowercase, non-wrapping, clean tracking */}
