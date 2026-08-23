@@ -107,16 +107,21 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     [items, promoCode]
   );
 
-  // Automatically recalculate server price when items change
+  // Recalculate server price only when cart drawer is active or promoCode is applied
   useEffect(() => {
-    if (isHydrated && items.length > 0) {
+    if (isHydrated && items.length > 0 && (isOpen || promoCode)) {
       validateWithServer();
     } else if (items.length === 0) {
       setServerCalculation(null);
     }
-  }, [items, isHydrated, validateWithServer]);
+  }, [items, isHydrated, isOpen, promoCode, validateWithServer]);
 
-  const openCart = () => setIsOpen(true);
+  const openCart = () => {
+    setIsOpen(true);
+    if (items.length > 0) {
+      validateWithServer();
+    }
+  };
   const closeCart = () => setIsOpen(false);
 
   const addItem = (product: Product, size: string, color: string, quantity = 1) => {

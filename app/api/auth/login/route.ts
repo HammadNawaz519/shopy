@@ -4,15 +4,14 @@ import { verifyPassword } from "@/lib/security/auth";
 import { createSession, SESSION_COOKIE_NAME, getSessionCookieOptions } from "@/lib/security/session";
 import { checkRateLimit, getClientIp } from "@/lib/security/rateLimit";
 import { db } from "@/lib/db/store";
-import { cookies } from "next/headers";
 
 export async function POST(req: Request) {
   try {
     const ip = getClientIp(req);
-    const rateLimit = await checkRateLimit(`login_${ip}`, { limit: 5, windowMs: 10 * 60 * 1000 });
+    const rateLimit = await checkRateLimit(`login_${ip}`, { limit: 20, windowMs: 10 * 60 * 1000 });
     if (!rateLimit.success) {
       return NextResponse.json(
-        { error: "Too many login attempts. Please wait 10 minutes before retrying." },
+        { error: "Too many login attempts. Please wait a few minutes before retrying." },
         { status: 429 }
       );
     }
@@ -45,20 +44,23 @@ export async function POST(req: Request) {
       );
     }
 
-    // Create opaque server session
+    // Create cryptographically signed stateless session
     const session = createSession(user);
-    const cookieStore = cookies();
-    cookieStore.set(SESSION_COOKIE_NAME, session.id, getSessionCookieOptions());
 
-    return NextResponse.json({
+    const response = NextResponse.json({
+      success: true,
       user: {
         id: user.id,
         name: user.name,
         email: user.email,
-        role: user.role,
+        role: session.role,
       },
     });
-  } catch {
+
+    response.cookies.set(SESSION_COOKIE_NAME, session.id, getSessionCookieOptions());
+    return response;
+  } catch (err: any) {
+    console.error("Login route error:", err);
     return NextResponse.json(
       { error: "An unexpected error occurred during sign in." },
       { status: 500 }

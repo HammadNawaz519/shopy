@@ -14,7 +14,9 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; user?: User; error?: string }>;
-  register: (name: string, email: string, password: string) => Promise<{ success: boolean; user?: User; error?: string }>;
+  register: (name: string, email: string, password: string) => Promise<{ success: boolean; requiresOtp?: boolean; user?: User; error?: string }>;
+  verifyRegisterOtp: (email: string, otpCode: string) => Promise<{ success: boolean; user?: User; error?: string }>;
+  resendRegisterOtp: (email: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -74,8 +76,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!res.ok) {
         return { success: false, error: data.error || "Registration failed" };
       }
+      if (data.requiresOtp) {
+        return { success: true, requiresOtp: true };
+      }
       setUser(data.user);
       return { success: true, user: data.user };
+    } catch {
+      return { success: false, error: "Network error. Please try again." };
+    }
+  };
+
+  const verifyRegisterOtp = async (email: string, otpCode: string) => {
+    try {
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, otpCode, action: "verify" }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        return { success: false, error: data.error || "Verification failed" };
+      }
+      setUser(data.user);
+      return { success: true, user: data.user };
+    } catch {
+      return { success: false, error: "Network error. Please try again." };
+    }
+  };
+
+  const resendRegisterOtp = async (email: string) => {
+    try {
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, action: "resend" }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        return { success: false, error: data.error || "Failed to resend code" };
+      }
+      return { success: true };
     } catch {
       return { success: false, error: "Network error. Please try again." };
     }
@@ -92,7 +132,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, refreshUser }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        login,
+        register,
+        verifyRegisterOtp,
+        resendRegisterOtp,
+        logout,
+        refreshUser,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

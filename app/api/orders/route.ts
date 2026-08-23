@@ -3,6 +3,7 @@ import { CheckoutSchema } from "@/lib/security/validation";
 import { db } from "@/lib/db/store";
 import { getCurrentUser } from "@/lib/security/session";
 import { checkRateLimit, getClientIp } from "@/lib/security/rateLimit";
+import { sendOrderConfirmationEmail, sendAdminNewOrderNotification } from "@/lib/email/mailer";
 
 export async function POST(req: Request) {
   try {
@@ -50,6 +51,18 @@ export async function POST(req: Request) {
       paymentMethod,
       shippingAddress,
     });
+
+    // Dispatch background order confirmation & admin notification emails (non-blocking)
+    try {
+      sendOrderConfirmationEmail(order).catch((err) =>
+        console.error("[ORDER EMAIL ERROR] Customer confirmation failed:", err)
+      );
+      sendAdminNewOrderNotification(order).catch((err) =>
+        console.error("[ORDER EMAIL ERROR] Admin notification failed:", err)
+      );
+    } catch {
+      // Prevent email transport issues from failing order checkout
+    }
 
     return NextResponse.json(
       {

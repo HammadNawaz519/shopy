@@ -48,8 +48,9 @@ export function middleware(request: NextRequest) {
 }
 
 /**
- * Strict Matcher:
- * Ensures Vercel Edge serves all public pages, assets, and APIs directly without middleware invocation.
+ * Strict Protected Route Matcher:
+ * Ensures Vercel Edge ONLY executes middleware for genuinely protected private routes.
+ * 100% of public pages, static assets, images, and public APIs bypass Edge Middleware.
  */
 export const config = {
   matcher: [
@@ -57,7 +58,5 @@ export const config = {
     "/admin/:path*",
     "/account",
     "/account/:path*",
-    "/login",
-    "/register",
   ],
 };

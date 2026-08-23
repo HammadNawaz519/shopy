@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/security/session";
 import { db, OrderStatus, PaymentStatus } from "@/lib/db/store";
+import { sendOrderStatusUpdateEmail } from "@/lib/email/mailer";
 
 export async function GET(req: Request) {
   const admin = await requireAdmin();
@@ -45,17 +46,28 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "Order ID is required." }, { status: 400 });
     }
 
-    let updatedOrder = await db.getOrderById(orderId);
-    if (!updatedOrder) {
+    const previousOrder = await db.getOrderById(orderId);
+    if (!previousOrder) {
       return NextResponse.json({ error: "Order not found." }, { status: 404 });
     }
 
-    if (status) {
-      updatedOrder = await db.updateOrderStatus(orderId, status as any, notes);
+    let updatedOrder = previousOrder;
+
+    if (status && status !== previousOrder.status) {
+      updatedOrder = (await db.updateOrderStatus(orderId, status as any, notes)) || updatedOrder;
+      
+      // Dispatch status update email to customer (non-blocking)
+      try {
+        sendOrderStatusUpdateEmail(updatedOrder, status, previousOrder.status, notes).catch((err) =>
+          console.error("[STATUS EMAIL ERROR] Failed to send status update:", err)
+        );
+      } catch {
+        // Prevent email issue from failing status update
+      }
     }
 
     if (paymentStatus) {
-      updatedOrder = await db.updateOrderPaymentStatus(orderId, paymentStatus as any);
+      updatedOrder = (await db.updateOrderPaymentStatus(orderId, paymentStatus as any)) || updatedOrder;
     }
 
     return NextResponse.json({ success: true, order: updatedOrder });
