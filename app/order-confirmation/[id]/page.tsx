@@ -57,17 +57,6 @@ export default function OrderConfirmationPage({ params }: { params: { id: string
   return (
     <div className="pt-28 pb-32 bg-[#F4F4F2] text-[#495464]">
       <div className="max-w-3xl mx-auto px-6">
-        {/* Centered Brand Logo */}
-        <div className="flex justify-center mb-6">
-          <Link href="/" className="inline-block hover:opacity-85 transition-opacity">
-            <img
-              src="/logo.svg"
-              alt="SHOPY"
-              className="h-8 w-auto"
-            />
-          </Link>
-        </div>
-
         {/* Success Header */}
         <div className="text-center py-8 border-b border-[#BBBFCA]/30 space-y-4">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#E8E8E8] text-[#495464] mb-2 border border-[#BBBFCA]/50 animate-fadeIn">

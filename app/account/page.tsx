@@ -49,17 +49,6 @@ export default function AccountPage() {
   return (
     <div className="pt-28 pb-32 bg-[#F4F4F2] text-[#495464]">
       <div className="max-w-[1400px] mx-auto px-6 lg:px-12">
-        {/* Centered Brand Signature */}
-        <div className="flex justify-center mb-6">
-          <Link href="/" className="inline-block hover:opacity-85 transition-opacity">
-            <img
-              src="/logo.svg"
-              alt="SHOPY"
-              className="h-8 w-auto"
-            />
-          </Link>
-        </div>
-
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between py-6 border-b border-[#BBBFCA]/30 mb-12 gap-4">
           <div>

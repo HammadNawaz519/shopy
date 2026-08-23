@@ -32,17 +32,6 @@ export default function Footer() {
 
   return (
     <footer className="relative bg-[#F4F4F2] text-[#495464] pt-16 pb-0 border-t border-[#BBBFCA]/30 overflow-hidden select-none">
-      {/* Brand Logo Header */}
-      <div className="max-w-[1720px] mx-auto px-6 lg:px-16 mb-12 flex justify-start">
-        <Link href="/" className="inline-block hover:opacity-85 transition-opacity">
-          <img
-            src="/logo.svg"
-            alt="SHOPY"
-            className="h-8 w-auto"
-          />
-        </Link>
-      </div>
-
       {/* Upper Footer Navigation Grid */}
       <div className="max-w-[1720px] mx-auto px-6 lg:px-16 mb-20">
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-12 lg:gap-16">

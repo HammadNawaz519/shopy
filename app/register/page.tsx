@@ -53,17 +53,10 @@ export default function RegisterPage() {
   return (
     <div className="pt-32 pb-32 bg-[#F4F4F2] text-[#495464] flex items-center justify-center">
       <div className="max-w-md w-full mx-auto px-6">
-        {/* Centered Brand Logo */}
+        {/* Centered Brand Signature */}
         <div className="flex justify-center mb-8">
-          <Link href="/" className="inline-block hover:opacity-85 transition-opacity">
-            <Image
-              src="/logo.svg"
-              alt="SHOPY"
-              width={140}
-              height={40}
-              priority
-              className="h-9 w-auto"
-            />
+          <Link href="/" className="font-serif text-2xl tracking-[0.35em] font-light text-[#495464] hover:opacity-85 transition-opacity">
+            SHOPY
           </Link>
         </div>
 
