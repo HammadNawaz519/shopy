@@ -39,10 +39,10 @@ export const metadata: Metadata = {
   authors: [{ name: "SHOPY Atelier" }],
   icons: {
     icon: [
-      { url: "/icon.jpg", type: "image/jpeg" },
+      { url: "/icon.png", type: "image/png" },
     ],
-    shortcut: "/icon.jpg",
-    apple: "/apple-icon.jpg",
+    shortcut: "/icon.png",
+    apple: "/apple-icon.png",
   },
   openGraph: {
     title: "SHOPY — Editorial Fashion & Modern Essentials",
