@@ -2,15 +2,13 @@
 
 import React, { useState, Suspense } from "react";
 import Link from "next/link";
-import Image from "next/image";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
 import { Lock, Mail, ArrowRight, Loader2 } from "lucide-react";
 import { isValidRedirectUrl } from "@/lib/security/sanitize";
 
 function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get("redirect");
   const { login } = useAuth();
@@ -26,7 +24,7 @@ function LoginForm() {
     setErrorMessage("");
     setLoading(true);
 
-    const res = await login(email, password);
+    const res = await login(email.trim(), password);
     setLoading(false);
 
     if (res.success) {
@@ -46,18 +44,8 @@ function LoginForm() {
 
   return (
     <div className="max-w-md w-full mx-auto px-6">
-      {/* Centered Brand Signature */}
-      <div className="flex justify-center mb-8">
-        <Link href="/" className="font-serif text-2xl tracking-[0.35em] font-light text-[#495464] hover:opacity-85 transition-opacity">
-          SHOPY
-        </Link>
-      </div>
-
-      {/* Header */}
+      {/* Clean Header without redundant logos/sub-tags */}
       <div className="text-center mb-8">
-        <span className="text-xs uppercase tracking-widest text-[#495464]/60 block mb-2 font-medium">
-          CLIENT ACCESS
-        </span>
         <h1 className="font-serif text-3xl sm:text-4xl font-medium tracking-tight text-[#495464]">
           Sign In
         </h1>
@@ -105,7 +93,7 @@ function LoginForm() {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
+              placeholder="Password"
               className="w-full bg-[#F4F4F2] border border-[#BBBFCA] pl-10 pr-4 py-3 text-xs text-[#495464] focus:outline-none focus:border-[#495464]"
             />
           </div>

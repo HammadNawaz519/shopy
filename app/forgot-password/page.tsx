@@ -95,17 +95,7 @@ export default function ForgotPasswordPage() {
   return (
     <div className="pt-32 pb-32 bg-[#F4F4F2] text-[#495464] flex items-center justify-center">
       <div className="max-w-md w-full mx-auto px-6">
-        {/* Centered Brand Signature */}
-        <div className="flex justify-center mb-8">
-          <Link href="/" className="font-serif text-2xl tracking-[0.35em] font-light text-[#495464] hover:opacity-85 transition-opacity">
-            SHOPY
-          </Link>
-        </div>
-
         <div className="text-center mb-8">
-          <span className="text-xs uppercase tracking-widest text-[#495464]/60 block mb-2 font-medium">
-            ACCOUNT SECURITY
-          </span>
           <h1 className="font-serif text-3xl sm:text-4xl font-medium tracking-tight text-[#495464]">
             {step === "complete"
               ? "Password Reset"
