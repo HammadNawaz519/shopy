@@ -11,7 +11,7 @@ export default function Hero() {
       {/* Editorial Hero Photography — Rich, warm color fashion editorial */}
       <div className="absolute inset-0 w-full h-full">
         <Image
-          src="https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&q=95&w=2400"
+          src="https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&q=85&w=2000"
           alt="SHOPY Editorial Autumn Winter Campaign"
           fill
           priority

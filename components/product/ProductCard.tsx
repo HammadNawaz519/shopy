@@ -11,11 +11,13 @@ import { Plus } from "lucide-react";
 
 interface ProductCardProps {
   product: Product;
+  priority?: boolean;
 }
 
-export default function ProductCard({ product }: ProductCardProps) {
+export default function ProductCard({ product, priority = false }: ProductCardProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [showQuickAdd, setShowQuickAdd] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
   const { addItem } = useCart();
   const { showToast } = useToast();
 
@@ -38,18 +40,20 @@ export default function ProductCard({ product }: ProductCardProps) {
         setShowQuickAdd(false);
       }}
     >
-      {/* Image Container */}
+      {/* Image Container with Elegant Tonal Placeholder */}
       <div className="relative aspect-[3/4] w-full bg-[#E8E8E8] overflow-hidden">
         <Link href={`/product/${product.id}`} className="block w-full h-full">
-          {/* Primary Image */}
+          {/* Primary Image with Crisp Retina Delivery & Fade-in */}
           <Image
             src={product.images[0]}
             alt={product.name}
             fill
+            priority={priority}
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-            className={`object-cover object-center transition-opacity duration-700 ${
-              hasSecondImage && isHovered ? "opacity-0" : "opacity-100"
-            }`}
+            onLoad={() => setIsLoaded(true)}
+            className={`object-cover object-center transition-all duration-700 ${
+              isLoaded ? "opacity-100 scale-100" : "opacity-0 scale-[1.02]"
+            } ${hasSecondImage && isHovered ? "!opacity-0" : ""}`}
           />
 
           {/* Secondary Hover Image */}
@@ -59,7 +63,7 @@ export default function ProductCard({ product }: ProductCardProps) {
               alt={`${product.name} alternate view`}
               fill
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-              className={`object-cover object-center transition-opacity duration-700 absolute inset-0 ${
+              className={`object-cover object-center transition-all duration-700 absolute inset-0 ${
                 isHovered ? "opacity-100 scale-105" : "opacity-0 scale-100"
               }`}
             />
