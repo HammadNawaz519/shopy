@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Solid Dark Slate Background #495464 -->
+  <rect width="512" height="512" fill="#495464"/>
+  
+  <!-- Subtle Inner Hairline Frame #BBBFCA -->
+  <rect x="24" y="24" width="464" height="464" stroke="#BBBFCA" stroke-width="1.5" fill="none" opacity="0.3"/>
+  
+  <!-- SHOPY Typographic Wordmark in Warm Off-White #F4F4F2 -->
+  <text 
+    x="256" 
+    y="272" 
+    text-anchor="middle" 
+    fill="#F4F4F2" 
+    font-family="'Cormorant Garamond', 'Playfair Display', 'Georgia', serif" 
+    font-size="82" 
+    font-weight="300" 
+    letter-spacing="22"
+  >SHOPY</text>
+</svg>

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Solid Dark Slate Background #495464 -->
+  <rect width="64" height="64" rx="12" fill="#495464"/>
+  
+  <!-- Subtle Border #BBBFCA -->
+  <rect x="1" y="1" width="62" height="62" rx="11" stroke="#BBBFCA" stroke-width="1" fill="none" opacity="0.4"/>
+  
+  <!-- S Monogram / SHOPY Identity in #F4F4F2 -->
+  <text 
+    x="32" 
+    y="44" 
+    text-anchor="middle" 
+    fill="#F4F4F2" 
+    font-family="'Cormorant Garamond', 'Georgia', serif" 
+    font-size="34" 
+    font-weight="300"
+  >S</text>
+</svg>

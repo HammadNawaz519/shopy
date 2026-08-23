@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 300" width="800" height="300">
+  <!-- Clean Warm Off-White Outer Background #F4F4F2 -->
+  <rect width="800" height="300" fill="#F4F4F2"/>
+  
+  <!-- Premium Dark Label Box in Deep Slate #495464 -->
+  <rect x="80" y="60" width="640" height="180" rx="4" fill="#495464"/>
+  
+  <!-- Subtle Muted Inner Accent Border #BBBFCA -->
+  <rect x="90" y="70" width="620" height="160" rx="2" stroke="#BBBFCA" stroke-width="1" fill="none" opacity="0.4"/>
+  
+  <!-- SHOPY Pure Editorial Serif Wordmark in #F4F4F2 -->
+  <text 
+    x="400" 
+    y="166" 
+    text-anchor="middle" 
+    fill="#F4F4F2" 
+    font-family="'Cormorant Garamond', 'Playfair Display', 'Georgia', serif" 
+    font-size="68" 
+    font-weight="300" 
+    letter-spacing="24"
+  >SHOPY</text>
+  
+  <!-- Small Atelier Tagline in #BBBFCA -->
+  <text 
+    x="400" 
+    y="198" 
+    text-anchor="middle" 
+    fill="#BBBFCA" 
+    font-family="'Plus Jakarta Sans', 'Inter', sans-serif" 
+    font-size="11" 
+    font-weight="400" 
+    letter-spacing="8"
+  >ATELIER • EST. 2026</text>
+</svg>
