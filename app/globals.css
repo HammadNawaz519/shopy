@@ -1,0 +1,63 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-primary: #F4F4F2;
+  --surface-secondary: #E8E8E8;
+  --accent-muted: #BBBFCA;
+  --dark-primary: #495464;
+  --dark-accent: #363E4B;
+}
+
+@layer base {
+  * {
+    border-color: #BBBFCA;
+  }
+  
+  html {
+    scroll-behavior: smooth;
+    background-color: var(--bg-primary);
+    color: var(--dark-primary);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    background-color: var(--bg-primary);
+    color: var(--dark-primary);
+    overflow-x: hidden;
+  }
+
+  ::selection {
+    background-color: #495464;
+    color: #F4F4F2;
+  }
+}
+
+/* Custom Editorial Utilities */
+.tracking-editorial {
+  letter-spacing: 0.15em;
+}
+
+.tracking-widest-plus {
+  letter-spacing: 0.25em;
+}
+
+/* Custom Thin Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #F4F4F2;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #BBBFCA;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #495464;
+}
