@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 
 export interface User {
   id: string;
@@ -21,31 +21,69 @@ interface AuthContextType {
   refreshUser: () => Promise<void>;
 }
 
+const AUTH_STORAGE_KEY = "shopy_auth_user";
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Optimistic initial hydration from localStorage for instant 0ms rendering
+  const [user, setUser] = useState<User | null>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem(AUTH_STORAGE_KEY);
+        return cached ? JSON.parse(cached) : null;
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  });
 
-  const refreshUser = async () => {
+  const [loading, setLoading] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem(AUTH_STORAGE_KEY);
+        return !cached; // If cached user exists, don't block the UI
+      } catch {
+        return true;
+      }
+    }
+    return true;
+  });
+
+  // Background silent revalidation with server
+  const refreshUser = useCallback(async () => {
     try {
       const res = await fetch("/api/auth/me");
       if (res.ok) {
         const data = await res.json();
-        setUser(data.user);
+        if (data.user) {
+          setUser(data.user);
+          try {
+            localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(data.user));
+          } catch {}
+        } else {
+          setUser(null);
+          try {
+            localStorage.removeItem(AUTH_STORAGE_KEY);
+          } catch {}
+        }
       } else {
         setUser(null);
+        try {
+          localStorage.removeItem(AUTH_STORAGE_KEY);
+        } catch {}
       }
     } catch {
-      setUser(null);
+      // Network hiccup: preserve optimistic state if present
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     refreshUser();
-  }, []);
+  }, [refreshUser]);
 
   const login = async (email: string, password: string) => {
     try {
@@ -55,10 +93,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify({ email, password }),
       });
       const data = await res.json();
-      if (!res.ok) {
+      if (!res.ok || !data.success) {
         return { success: false, error: data.error || "Login failed" };
       }
       setUser(data.user);
+      try {
+        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(data.user));
+      } catch {}
       return { success: true, user: data.user };
     } catch {
       return { success: false, error: "Network error. Please try again." };
@@ -79,7 +120,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (data.requiresOtp) {
         return { success: true, requiresOtp: true };
       }
-      setUser(data.user);
+      if (data.user) {
+        setUser(data.user);
+        try {
+          localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(data.user));
+        } catch {}
+      }
       return { success: true, user: data.user };
     } catch {
       return { success: false, error: "Network error. Please try again." };
@@ -94,10 +140,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify({ email, otpCode, action: "verify" }),
       });
       const data = await res.json();
-      if (!res.ok) {
+      if (!res.ok || !data.success) {
         return { success: false, error: data.error || "Verification failed" };
       }
       setUser(data.user);
+      try {
+        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(data.user));
+      } catch {}
       return { success: true, user: data.user };
     } catch {
       return { success: false, error: "Network error. Please try again." };
@@ -123,11 +172,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     try {
-      await fetch("/api/auth/logout", { method: "POST" });
       setUser(null);
+      try {
+        localStorage.removeItem(AUTH_STORAGE_KEY);
+      } catch {}
+      await fetch("/api/auth/logout", { method: "POST" });
       window.location.href = "/";
     } catch {
       setUser(null);
+      try {
+        localStorage.removeItem(AUTH_STORAGE_KEY);
+      } catch {}
+      window.location.href = "/";
     }
   };
 

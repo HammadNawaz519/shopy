@@ -43,26 +43,28 @@ export default function AdminDashboardPage() {
     fetchMetrics();
   }, []);
 
-  if (loading) {
-    return (
-      <div className="flex-1 flex flex-col">
-        <AdminHeader
-          title="Dashboard Overview"
-          subtitle="Real-time E-commerce Operations"
-        />
-        <div className="flex-1 flex items-center justify-center py-32">
-          <Loader2 className="w-8 h-8 animate-spin text-[#495464]" />
-        </div>
-      </div>
-    );
-  }
-
-  const { metrics, pipeline, recentOrders, lowStockProducts } = data || {
-    metrics: {},
-    pipeline: {},
-    recentOrders: [],
-    lowStockProducts: [],
+  const metrics = data?.metrics || {
+    totalRevenue: 0,
+    totalOrders: 0,
+    pendingOrders: 0,
+    processingOrders: 0,
+    shippedOrders: 0,
+    deliveredOrders: 0,
+    cancelledOrders: 0,
+    totalCustomers: 0,
+    totalProducts: 0,
+    lowStockCount: 0,
+    outOfStockCount: 0,
   };
+  const pipeline = data?.pipeline || {
+    pending: 0,
+    processing: 0,
+    shipped: 0,
+    delivered: 0,
+    cancelled: 0,
+  };
+  const recentOrders = data?.recentOrders || [];
+  const lowStockProducts = data?.lowStockProducts || [];
 
   return (
     <div className="flex-1 flex flex-col">

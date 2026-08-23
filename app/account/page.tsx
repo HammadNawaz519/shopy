@@ -13,12 +13,14 @@ export default function AccountPage() {
   const [orders, setOrders] = useState<any[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(true);
 
+  // Background check for unauthorized visitors
   useEffect(() => {
     if (!loading && !user) {
       router.replace("/login?redirect=/account");
     }
   }, [user, loading, router]);
 
+  // Fetch orders immediately on mount
   useEffect(() => {
     let isMounted = true;
 
@@ -42,19 +44,15 @@ export default function AccountPage() {
       }
     }
 
-    if (user) {
-      fetchUserOrders();
-    } else if (!loading) {
-      setLoadingOrders(false);
-    }
+    fetchUserOrders();
 
     return () => {
       isMounted = false;
     };
-  }, [user, loading]);
+  }, []);
 
-  // If loading authentication state
-  if (loading) {
+  // If initial load with no cached user and still validating
+  if (loading && !user) {
     return (
       <div className="min-h-[60vh] pt-36 pb-32 flex flex-col justify-center items-center bg-[#F4F4F2] text-[#495464] space-y-4">
         <Loader2 className="w-8 h-8 animate-spin text-[#495464]" />
@@ -65,7 +63,7 @@ export default function AccountPage() {
     );
   }
 
-  // If unauthenticated, prompt or auto-redirect
+  // If verified unauthenticated
   if (!user) {
     return (
       <div className="min-h-[60vh] pt-36 pb-32 flex flex-col justify-center items-center bg-[#F4F4F2] text-[#495464] px-6 text-center space-y-6">
@@ -103,7 +101,7 @@ export default function AccountPage() {
             </h1>
             <p className="text-xs text-[#495464]/70 tracking-wider mt-1">{user.email}</p>
           </div>
-          
+
           <div className="flex items-center gap-3">
             {user.role === "admin" && (
               <Link
@@ -129,12 +127,21 @@ export default function AccountPage() {
           {/* Left: Orders History */}
           <div className="lg:col-span-8 space-y-6">
             <h2 className="font-serif text-2xl font-medium text-[#495464] pb-2 border-b border-[#BBBFCA]/30">
-              Order History ({orders.length})
+              Order History {loadingOrders ? "" : `(${orders.length})`}
             </h2>
 
             {loadingOrders ? (
-              <div className="py-12 text-center">
-                <Loader2 className="w-6 h-6 animate-spin text-[#495464] mx-auto" />
+              <div className="space-y-4">
+                {[1, 2].map((n) => (
+                  <div
+                    key={n}
+                    className="bg-[#E8E8E8]/30 border border-[#BBBFCA]/30 p-6 animate-pulse space-y-3"
+                  >
+                    <div className="h-4 bg-[#BBBFCA]/40 rounded w-1/3"></div>
+                    <div className="h-3 bg-[#BBBFCA]/30 rounded w-1/2"></div>
+                    <div className="h-10 bg-[#BBBFCA]/20 rounded"></div>
+                  </div>
+                ))}
               </div>
             ) : orders.length === 0 ? (
               <div className="bg-[#E8E8E8]/40 border border-[#BBBFCA]/40 p-8 text-center space-y-3">
