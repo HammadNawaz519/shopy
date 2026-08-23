@@ -123,10 +123,10 @@ export default function AccountPage() {
         </div>
 
         {/* Dashboard Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* Left: Orders History */}
           <div className="lg:col-span-8 space-y-6">
-            <h2 className="font-serif text-2xl font-medium text-[#495464] pb-2 border-b border-[#BBBFCA]/30">
+            <h2 className="font-serif text-xl font-medium text-[#495464] pb-2 border-b border-[#BBBFCA]/30">
               Order History {loadingOrders ? "" : `(${orders.length})`}
             </h2>
 
@@ -210,29 +210,27 @@ export default function AccountPage() {
 
           {/* Right: Account Summary */}
           <div className="lg:col-span-4 space-y-6">
-            <div className="bg-[#E8E8E8]/70 border border-[#BBBFCA]/40 p-6 space-y-4 shadow-sm">
-              <h3 className="font-serif text-lg font-medium text-[#495464]">Client Profile</h3>
-              <div className="text-xs space-y-2.5 text-[#495464]/80 tracking-wider">
-                <p>
-                  <span className="font-semibold text-[#495464]">Full Name:</span> {user.name}
-                </p>
-                <p>
-                  <span className="font-semibold text-[#495464]">Email:</span> {user.email}
-                </p>
-                <p>
-                  <span className="font-semibold text-[#495464]">Role:</span>{" "}
-                  <span className="uppercase font-medium bg-[#495464]/10 px-2 py-0.5 text-[#495464]">
-                    {user.role}
+            <h2 className="font-serif text-xl font-medium text-[#495464] pb-2 border-b border-[#BBBFCA]/30">
+              Client Profile
+            </h2>
+            <div className="bg-[#E8E8E8]/40 border border-[#BBBFCA]/40 p-6 space-y-4 shadow-sm">
+              <div className="text-xs space-y-3.5 text-[#495464]/80 tracking-wider">
+                <div>
+                  <span className="text-[10px] uppercase tracking-widest text-[#495464]/60 font-semibold block mb-0.5">
+                    Full Name
                   </span>
-                </p>
-                <p>
-                  <span className="font-semibold text-[#495464]">Currency:</span> PKR (Rs.)
-                </p>
-              </div>
-
-              <div className="pt-4 border-t border-[#BBBFCA]/30 flex items-center gap-2 text-[10px] text-[#495464]/60 tracking-wider">
-                <ShieldCheck className="w-4 h-4 text-[#495464]" />
-                <span>Protected by IDOR Guard &amp; Session Isolation</span>
+                  <span className="font-medium text-[#495464] text-sm block">
+                    {user.name}
+                  </span>
+                </div>
+                <div className="pt-3 border-t border-[#BBBFCA]/20">
+                  <span className="text-[10px] uppercase tracking-widest text-[#495464]/60 font-semibold block mb-0.5">
+                    Email Address
+                  </span>
+                  <span className="font-medium text-[#495464] text-sm block break-all">
+                    {user.email}
+                  </span>
+                </div>
               </div>
             </div>
           </div>

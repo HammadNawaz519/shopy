@@ -170,7 +170,6 @@ export default function Footer() {
         <div className="max-w-[1720px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
           <span>© 2026 SHOPY — ALL RIGHTS RESERVED</span>
           <div className="flex items-center gap-6">
-            <span>PAKISTAN / PKR (RS.)</span>
             <span>SECURE CHECKOUT</span>
           </div>
         </div>
