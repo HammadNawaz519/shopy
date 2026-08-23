@@ -39,10 +39,14 @@ export const metadata: Metadata = {
   authors: [{ name: "SHOPY Atelier" }],
   icons: {
     icon: [
-      { url: "/icon.png?v=3", type: "image/png" },
+      { url: "/favicon-32x32.png?v=4", sizes: "32x32", type: "image/png" },
+      { url: "/favicon-16x16.png?v=4", sizes: "16x16", type: "image/png" },
+      { url: "/favicon.ico?v=4", sizes: "any" },
     ],
-    shortcut: "/icon.png?v=3",
-    apple: "/apple-icon.png?v=3",
+    shortcut: "/favicon-32x32.png?v=4",
+    apple: [
+      { url: "/apple-touch-icon.png?v=4", sizes: "180x180", type: "image/png" },
+    ],
   },
   openGraph: {
     title: "SHOPY — Editorial Fashion & Modern Essentials",
@@ -63,9 +67,10 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${cormorant.variable} ${jakarta.variable}`}>
       <head>
-        <link rel="icon" href="/icon.png?v=3" type="image/png" sizes="any" />
-        <link rel="shortcut icon" href="/icon.png?v=3" type="image/png" />
-        <link rel="apple-touch-icon" href="/apple-icon.png?v=3" />
+        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png?v=4" />
+        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png?v=4" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=4" />
+        <link rel="shortcut icon" href="/favicon.ico?v=4" />
       </head>
       <body className="font-sans antialiased min-h-screen flex flex-col bg-[#F4F4F2] text-[#495464]">
         <AuthProvider>
