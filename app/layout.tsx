@@ -39,10 +39,10 @@ export const metadata: Metadata = {
   authors: [{ name: "SHOPY Atelier" }],
   icons: {
     icon: [
-      { url: "/icon.png", type: "image/png" },
+      { url: "/icon.png?v=3", type: "image/png" },
     ],
-    shortcut: "/icon.png",
-    apple: "/apple-icon.png",
+    shortcut: "/icon.png?v=3",
+    apple: "/apple-icon.png?v=3",
   },
   openGraph: {
     title: "SHOPY — Editorial Fashion & Modern Essentials",
@@ -62,6 +62,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${cormorant.variable} ${jakarta.variable}`}>
+      <head>
+        <link rel="icon" href="/icon.png?v=3" type="image/png" sizes="any" />
+        <link rel="shortcut icon" href="/icon.png?v=3" type="image/png" />
+        <link rel="apple-touch-icon" href="/apple-icon.png?v=3" />
+      </head>
       <body className="font-sans antialiased min-h-screen flex flex-col bg-[#F4F4F2] text-[#495464]">
         <AuthProvider>
           <CartProvider>
