@@ -435,25 +435,28 @@ class SupabaseDataStore {
   }
 
   async updateCategory(id: string, updates: Partial<{ name: string; slug: string; tagline?: string; image?: string; description?: string; featured?: boolean }>) {
+    const current = await query(`SELECT * FROM categories WHERE id = $1`, [id]);
+    if (current.rows.length === 0) return undefined;
+    const row = current.rows[0];
+
+    const newName = updates.name !== undefined ? updates.name : row.name;
+    const newSlug = updates.slug !== undefined ? updates.slug : row.slug;
+    const newTagline = updates.tagline !== undefined ? updates.tagline : row.tagline;
+    const newImage = updates.image !== undefined ? updates.image : row.image;
+    const newDesc = updates.description !== undefined ? updates.description : row.description;
+    const newFeatured = updates.featured !== undefined ? Boolean(updates.featured) : Boolean(row.featured);
+
     const res = await query(
       `UPDATE categories SET
-        name = COALESCE($2, name),
-        slug = COALESCE($3, slug),
-        tagline = COALESCE($4, tagline),
-        image = COALESCE($5, image),
-        description = COALESCE($6, description),
-        featured = COALESCE($7, featured)
+        name = $2,
+        slug = $3,
+        tagline = $4,
+        image = $5,
+        description = $6,
+        featured = $7
       WHERE id = $1
       RETURNING *;`,
-      [
-        id,
-        updates.name || null,
-        updates.slug || null,
-        updates.tagline !== undefined ? updates.tagline : null,
-        updates.image || null,
-        updates.description !== undefined ? updates.description : null,
-        updates.featured !== undefined ? updates.featured : null,
-      ]
+      [id, newName, newSlug, newTagline, newImage, newDesc, newFeatured]
     );
     if (res.rows.length === 0) return undefined;
     return res.rows[0];

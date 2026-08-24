@@ -373,7 +373,7 @@ export default function AdminNavigationPage() {
                         </button>
                         <button
                           onClick={() => handleDelete(item.id, item.name)}
-                          className="p-1.5 text-rose-600 hover:bg-rose-50 transition-colors"
+                          className="p-1.5 text-[#495464] hover:text-black hover:bg-[#BBBFCA]/40 transition-colors"
                           title="Delete Link"
                         >
                           <Trash2 className="w-4 h-4" />

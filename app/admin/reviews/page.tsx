@@ -154,7 +154,7 @@ export default function AdminReviewsPage() {
                         )}
                         <button
                           onClick={() => handleDelete(r.id)}
-                          className="p-1.5 text-red-700 hover:bg-red-50"
+                          className="p-1.5 text-[#495464] hover:text-black hover:bg-[#BBBFCA]/40 transition-colors"
                           title="Delete"
                         >
                           <Trash2 className="w-3.5 h-3.5" />

@@ -31,11 +31,14 @@ export default function CollectionGrid() {
     };
   }, []);
 
-  if (isLoaded && categories.length === 0) {
+  const featuredCategories = categories.filter((c) => Boolean(c.featured));
+  const displayedCategories = featuredCategories.length > 0 ? featuredCategories : categories;
+
+  if (isLoaded && displayedCategories.length === 0) {
     return null;
   }
 
-  if (categories.length === 0) {
+  if (displayedCategories.length === 0) {
     return null;
   }
 
@@ -61,9 +64,9 @@ export default function CollectionGrid() {
           </Link>
         </div>
 
-        {/* 6 Category Lookbook Grid */}
+        {/* Featured Category Lookbook Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
-          {categories.map((category) => (
+          {displayedCategories.map((category) => (
             <Link
               key={category.id}
               href={`/collections/${category.slug}`}

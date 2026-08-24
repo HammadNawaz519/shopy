@@ -13,6 +13,7 @@ import {
   Star,
   ExternalLink,
   Layers,
+  RefreshCw,
 } from "lucide-react";
 import AdminHeader from "@/components/admin/AdminHeader";
 import { useToast } from "@/context/ToastContext";
@@ -170,6 +171,33 @@ export default function AdminCategoriesPage() {
     }
   };
 
+  const handleToggleFeatured = async (cat: CategoryItem) => {
+    try {
+      const res = await fetch("/api/admin/categories", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: cat.id,
+          featured: !cat.featured,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showToast(
+          !cat.featured
+            ? `"${cat.name}" is now featured on Homepage Grid.`
+            : `"${cat.name}" removed from Homepage Grid.`,
+          "success"
+        );
+        fetchCategories();
+      } else {
+        showToast(data.error || "Failed to update status.", "error");
+      }
+    } catch {
+      showToast("Network error updating category.", "error");
+    }
+  };
+
   const handleDelete = async (id: string, name: string, productCount: number) => {
     if (productCount > 0) {
       alert(
@@ -181,7 +209,7 @@ export default function AdminCategoriesPage() {
     if (!confirm(`Are you sure you want to permanently delete category "${name}"?`)) return;
 
     try {
-      const res = await fetch(`/api/admin/categories?id=${id}`, {
+      const res = await fetch(`/api/admin/categories?id=${encodeURIComponent(id)}`, {
         method: "DELETE",
       });
       const data = await res.json();
@@ -197,27 +225,36 @@ export default function AdminCategoriesPage() {
   };
 
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="flex-1 flex flex-col bg-[#F4F4F2]">
       <AdminHeader
         title="Category & Collection Architecture"
         subtitle="Organize Lookbooks, Collections, and Category Hierarchy"
       />
 
       <main className="flex-1 p-6 lg:p-10 max-w-[1720px] w-full mx-auto space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#F4F4F2] border border-[#BBBFCA]/40 p-4 lg:p-6 shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#BBBFCA]/40 pb-6 mb-8">
           <div>
-            <h2 className="font-serif text-lg font-medium text-[#495464]">Active Store Collections</h2>
+            <h2 className="font-serif text-2xl font-medium text-[#495464]">Active Store Collections</h2>
             <p className="text-xs text-[#495464]/60">
               {categories.length} total collections configured in PostgreSQL
             </p>
           </div>
-          <button
-            onClick={openAddModal}
-            className="inline-flex items-center gap-2 bg-[#495464] text-[#F4F4F2] px-5 py-2.5 text-xs uppercase tracking-widest font-medium hover:bg-[#363E4B] transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Add Category</span>
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={fetchCategories}
+              className="p-2 bg-[#E8E8E8] border border-[#BBBFCA]/60 text-[#495464] hover:bg-[#BBBFCA]/30 transition-colors"
+              title="Refresh categories"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+            </button>
+            <button
+              onClick={openAddModal}
+              className="inline-flex items-center gap-2 bg-[#495464] text-[#F4F4F2] px-5 py-2.5 text-xs uppercase tracking-widest font-medium hover:bg-[#363E4B] transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add Category</span>
+            </button>
+          </div>
         </div>
 
         {loading ? (
@@ -241,12 +278,23 @@ export default function AdminCategoriesPage() {
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
                   
-                  {cat.featured && (
-                    <div className="absolute top-3 left-3 bg-amber-400 text-black px-2 py-0.5 text-[9px] uppercase font-bold tracking-wider flex items-center gap-1">
-                      <Star className="w-3 h-3 fill-black" />
-                      <span>Featured</span>
-                    </div>
-                  )}
+                  {/* Featured on Homepage Badge / Interactive Toggle */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleToggleFeatured(cat);
+                    }}
+                    className={`absolute top-3 left-3 px-2.5 py-1 text-[9px] uppercase font-medium tracking-wider flex items-center gap-1.5 transition-all shadow-xs ${
+                      cat.featured
+                        ? "bg-[#495464] text-[#F4F4F2]"
+                        : "bg-black/60 text-white/80 hover:bg-black/80"
+                    }`}
+                    title="Click to toggle Homepage Grid feature"
+                  >
+                    <Star className={`w-3 h-3 ${cat.featured ? "fill-[#F4F4F2]" : ""}`} />
+                    <span>{cat.featured ? "Featured On Grid" : "Feature On Grid"}</span>
+                  </button>
 
                   <div className="absolute bottom-3 left-3 right-3 text-white">
                     <span className="font-serif text-xl font-medium tracking-wide block">{cat.name}</span>
@@ -271,14 +319,14 @@ export default function AdminCategoriesPage() {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => openEditModal(cat)}
-                        className="p-1.5 text-[#495464] hover:bg-[#BBBFCA]/30 transition-colors"
+                        className="p-1.5 text-[#495464] hover:text-black hover:bg-[#BBBFCA]/40 transition-colors"
                         title="Edit Category"
                       >
                         <Edit2 className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleDelete(cat.id, cat.name, cat.productCount)}
-                        className="p-1.5 text-rose-600 hover:bg-rose-50 transition-colors"
+                        className="p-1.5 text-[#495464] hover:text-black hover:bg-[#BBBFCA]/40 transition-colors"
                         title="Delete Category"
                       >
                         <Trash2 className="w-4 h-4" />
