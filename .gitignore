@@ -26,7 +26,9 @@ yarn-error.log*
 .env*.local
 .env
 *auth*.json
-Shopy-Auth.json
+*new*.json
+Shopy-*.json
+*.json.local
 
 # typescript
 *.tsbuildinfo
