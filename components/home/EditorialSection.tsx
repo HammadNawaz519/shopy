@@ -44,51 +44,48 @@ export default function EditorialSection() {
   }, []);
 
   return (
-    <section className="py-20 lg:py-32 bg-[#E8E8E8] text-[#495464] overflow-hidden select-none border-t border-[#BBBFCA]/40">
-      <div className="max-w-[1720px] mx-auto px-6 lg:px-12">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
+    <section className="py-16 sm:py-20 lg:py-24 bg-[#E8E8E8] text-[#495464] overflow-hidden select-none border-t border-[#BBBFCA]/40">
+      <div className="max-w-6xl mx-auto px-5 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
           
           {/* Left Column: Dynamic Psychological & High-Converting Narrative */}
-          <div className="lg:col-span-5 flex flex-col justify-center space-y-7 lg:pr-8 order-2 lg:order-1">
+          <div className="lg:col-span-5 flex flex-col justify-center space-y-5 sm:space-y-6 order-2 lg:order-1">
             
             {/* Minimalist Sub-header with Solid Dark Static Dot */}
-            <div className="flex items-center gap-2.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#181a1d]" />
-              <span className="text-[10px] uppercase tracking-[0.3em] text-[#495464]/80 font-semibold">
+            <div className="flex items-center gap-2">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#181a1d] flex-shrink-0" />
+              <span className="text-[10px] uppercase tracking-[0.25em] text-[#495464]/80 font-semibold font-mono">
                 {quoteData.theme || "THE PSYCHOLOGY OF DISTINCTION"}
               </span>
             </div>
 
             {/* Dynamic Psychological & Magnetic Headline */}
             <h2
-              className={`font-serif text-[#495464] leading-[1.08] tracking-tight font-light transition-opacity duration-500 ${
+              className={`font-serif text-[#181a1d] leading-[1.12] tracking-tight font-light transition-opacity duration-500 text-2xl sm:text-3xl lg:text-[2.2rem] ${
                 isLoading ? "opacity-40" : "opacity-100"
               }`}
-              style={{ fontSize: "clamp(2.1rem, 4.3vw, 3.5rem)" }}
             >
               {quoteData.headline}
               {quoteData.subHeadline && (
                 <>
                   <br />
-                  <span className="italic font-normal">{quoteData.subHeadline}</span>
+                  <span className="italic font-normal text-[#495464]">{quoteData.subHeadline}</span>
                 </>
               )}
             </h2>
 
             {/* Dynamic AI Psychological Pull-Quote */}
-            <blockquote className={`font-serif text-lg sm:text-xl text-[#2B3542] italic font-normal leading-snug transition-opacity duration-500 ${
+            <blockquote className={`font-serif text-sm sm:text-base text-[#2B3542] italic font-normal leading-relaxed transition-opacity duration-500 ${
               isLoading ? "opacity-40" : "opacity-100"
             }`}>
               &ldquo;{quoteData.quote}&rdquo;
             </blockquote>
 
-
-
             {/* High-Impact Persuasive CTA */}
             <div className="pt-2">
               <Link
                 href="/products"
-                className="group inline-flex items-center gap-3.5 px-8 py-4 bg-[#495464] text-[#F4F4F2] text-[11px] tracking-[0.25em] uppercase font-light hover:bg-[#1A1A1A] transition-all duration-300 shadow-md hover:shadow-lg"
+                className="group inline-flex items-center gap-3 px-7 py-3.5 bg-[#495464] text-[#F4F4F2] text-[10px] tracking-[0.22em] uppercase font-medium hover:bg-[#1A1A1A] transition-all duration-300 shadow-sm"
               >
                 <span>{quoteData.ctaText || "Claim Your Signature Silhouette"}</span>
                 <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1.5 transition-transform duration-300" />
@@ -98,14 +95,14 @@ export default function EditorialSection() {
           </div>
 
           {/* Right Column: Tactile Ultra-Luxury Material Craftsmanship (No Human, No Shop) */}
-          <div className="lg:col-span-7 relative aspect-[4/3] sm:aspect-[16/11] bg-[#BBBFCA]/30 overflow-hidden shadow-md order-1 lg:order-2 group">
+          <div className="lg:col-span-7 relative aspect-[4/3] sm:aspect-[16/11] bg-[#BBBFCA]/20 overflow-hidden shadow-sm border border-[#BBBFCA]/30 order-1 lg:order-2 group">
             <Image
-              src="/atelier-still-life.jpg"
+              src="/atelier-still-life.jpg?v=2"
               alt="SHOPY Tactile Material & High-Precision Wool Weave Craftsmanship"
               fill
               priority
-              sizes="(max-width: 1024px) 100vw, 58vw"
-              className="object-cover object-center transform group-hover:scale-103 transition-transform duration-700 ease-out"
+              sizes="(max-width: 1024px) 100vw, 55vw"
+              className="object-cover object-center transform group-hover:scale-102 transition-transform duration-700 ease-out"
             />
           </div>
 

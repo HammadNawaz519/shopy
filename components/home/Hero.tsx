@@ -24,12 +24,16 @@ export default function Hero({ initialConfig }: HeroProps) {
     heroCtaLink: initialConfig?.heroCtaLink || "/products",
   });
 
+  const heroImgSrc = hero.heroImage.startsWith("/") && !hero.heroImage.includes("?")
+    ? `${hero.heroImage}?v=20260825`
+    : hero.heroImage;
+
   return (
     <section className="relative w-full h-[94vh] min-h-[620px] max-h-[1100px] flex items-center justify-center overflow-hidden bg-[#181a1d] select-none">
       {/* Editorial Hero Photography — Minimalist Warm Beige Architectural Luxury */}
       <div className="absolute inset-0 w-full h-full">
         <Image
-          src={hero.heroImage}
+          src={heroImgSrc}
           alt="SHOPY Editorial Campaign"
           fill
           priority
