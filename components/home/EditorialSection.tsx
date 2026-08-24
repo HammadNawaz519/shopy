@@ -95,17 +95,7 @@ export default function EditorialSection() {
               &ldquo;{quoteData.quote}&rdquo;
             </blockquote>
 
-            {/* Evocative Persuasive Buying Narrative */}
-            <div className={`space-y-3.5 pt-2 border-t border-[#BBBFCA]/50 transition-opacity duration-500 ${
-              isLoading ? "opacity-40" : "opacity-100"
-            }`}>
-              <p className="text-xs sm:text-[13px] text-[#495464] leading-relaxed tracking-wide font-light">
-                {quoteData.reflection}
-              </p>
-              <p className="text-[11px] uppercase tracking-[0.24em] text-[#2B3542] font-semibold">
-                Refuse compromise. Elevate your presence today.
-              </p>
-            </div>
+
 
             {/* High-Impact Persuasive CTA */}
             <div className="pt-2">
