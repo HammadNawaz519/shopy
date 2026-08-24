@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin, getCurrentUser } from "@/lib/security/session";
+import { db } from "@/lib/db/store";
 import sharp from "sharp";
 import path from "path";
 import fs from "fs/promises";
@@ -50,52 +51,56 @@ export async function POST(req: Request) {
 
     const rawBuffer = Buffer.from(await file.arrayBuffer());
 
-    // Crystal-clear image processing pipeline using Sharp
-    // 1. Auto-rotate based on EXIF
-    // 2. High-quality resampling with Lanczos3
-    // 3. Crisp unsharp-masking for ultra-high authenticity and definition
-    // 4. Output as modern WebP with high quality
+    // Super-Fast, Ultra-High Quality WebP pipeline with Sharp:
+    // 1. Auto-orient based on EXIF
+    // 2. High-performance resampling
+    // 3. Crisp unsharp-mask definition
+    // 4. Compact WebP compression (~35KB-75KB) for lightning-fast storefront loading
     const processedBuffer = await sharp(rawBuffer)
-      .rotate() // Auto-orient according to EXIF
+      .rotate()
       .resize({
-        width: 1600,
-        height: 2000,
+        width: 1400,
+        height: 1600,
         fit: "inside",
         withoutEnlargement: true,
       })
       .sharpen({
-        sigma: 1.2,
+        sigma: 1.0,
         m1: 0.8,
-        m2: 2.2,
+        m2: 2.0,
       })
       .webp({
-        quality: 92,
-        effort: 5,
+        quality: 86,
+        effort: 4,
         smartSubsample: true,
       })
       .toBuffer();
-
-    // Ensure uploads directory exists
-    const uploadsDir = path.join(process.cwd(), "public", "uploads");
-    await fs.mkdir(uploadsDir, { recursive: true });
 
     const safeName = file.name
       .replace(/\.[^/.]+$/, "")
       .replace(/[^a-zA-Z0-9_-]/g, "_")
       .toLowerCase();
-    const filename = `img_${Date.now()}_${safeName.substring(0, 20)}.webp`;
-    const filePath = path.join(uploadsDir, filename);
+    const assetId = `med_${Date.now()}_${safeName.substring(0, 15)}`;
+    const filename = `${assetId}.webp`;
 
-    await fs.writeFile(filePath, processedBuffer);
+    // 1. Persist directly to PostgreSQL database bucket (100% persistent on Vercel)
+    const mediaUrl = await db.saveMediaAsset(assetId, filename, "image/webp", processedBuffer);
 
-    const publicUrl = `/uploads/${filename}`;
+    // 2. Also write to local public/uploads directory if environment allows
+    try {
+      const uploadsDir = path.join(process.cwd(), "public", "uploads");
+      await fs.mkdir(uploadsDir, { recursive: true });
+      await fs.writeFile(path.join(uploadsDir, filename), processedBuffer);
+    } catch {
+      // Ephemeral disk environments (like Vercel serverless) are safely caught
+    }
 
     return NextResponse.json({
       success: true,
-      url: publicUrl,
+      url: mediaUrl,
       filename,
       size: processedBuffer.length,
-      message: "Image processed & crystal-clarity enhanced with Sharp.",
+      message: "Image optimized, compressed with Sharp, and saved to PostgreSQL DB bucket.",
     });
   } catch (error: any) {
     console.error("[SHARP UPLOAD ERROR]", error);

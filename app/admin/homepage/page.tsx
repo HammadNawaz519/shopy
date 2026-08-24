@@ -60,6 +60,7 @@ export default function AdminHomepagePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [localHeroPreview, setLocalHeroPreview] = useState("");
 
   const fetchConfig = async () => {
     try {
@@ -69,6 +70,7 @@ export default function AdminHomepagePage() {
         const data = await res.json();
         if (data.config) {
           setConfig(data.config);
+          setLocalHeroPreview(data.config.heroImage || "");
         }
       }
     } catch {
@@ -88,7 +90,7 @@ export default function AdminHomepagePage() {
 
     // Instant local demo preview
     const localDemoUrl = URL.createObjectURL(file);
-    setConfig((prev) => ({ ...prev, heroImage: localDemoUrl }));
+    setLocalHeroPreview(localDemoUrl);
 
     setUploading(true);
     try {
@@ -103,7 +105,8 @@ export default function AdminHomepagePage() {
       const data = await res.json();
       if (res.ok && data.success && data.url) {
         setConfig((prev) => ({ ...prev, heroImage: data.url }));
-        showToast("Hero campaign visual processed with Sharp crystal-clarity.", "success");
+        setLocalHeroPreview(data.url);
+        showToast("Hero image compressed & saved to DB bucket.", "success");
       } else {
         showToast(data.error || "Image upload failed.", "error");
       }
@@ -116,6 +119,17 @@ export default function AdminHomepagePage() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (uploading) {
+      showToast("Please wait for hero image optimization to complete.", "error");
+      return;
+    }
+
+    if (config.heroImage.startsWith("blob:")) {
+      showToast("Image is still optimizing, please wait a moment.", "error");
+      return;
+    }
+
     setSaving(true);
     try {
       const res = await fetch("/api/admin/homepage", {
@@ -184,7 +198,7 @@ export default function AdminHomepagePage() {
                   <div className="relative aspect-[3/4] w-full bg-[#E8E8E8] border border-[#BBBFCA]/40 overflow-hidden shadow-xs">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={config.heroImage}
+                      src={localHeroPreview || config.heroImage}
                       alt="Hero Preview Demo"
                       className="w-full h-full object-cover"
                     />

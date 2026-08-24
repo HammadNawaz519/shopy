@@ -47,6 +47,7 @@ export default function AdminProductsPage() {
     tag: "NEW",
     featured: false,
   });
+  const [localPreviewUrl, setLocalPreviewUrl] = useState("");
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -54,7 +55,7 @@ export default function AdminProductsPage() {
 
     // Instant local preview demo
     const localDemoUrl = URL.createObjectURL(file);
-    setFormData((prev) => ({ ...prev, imageUrl: localDemoUrl }));
+    setLocalPreviewUrl(localDemoUrl);
 
     setUploadingImage(true);
     try {
@@ -69,7 +70,8 @@ export default function AdminProductsPage() {
       const data = await res.json();
       if (res.ok && data.success && data.url) {
         setFormData((prev) => ({ ...prev, imageUrl: data.url }));
-        showToast("Image enhanced with Sharp & uploaded crystals clear!", "success");
+        setLocalPreviewUrl(data.url);
+        showToast("Product photo compressed & saved to DB bucket.", "success");
       } else {
         showToast(data.error || "Failed to upload image.", "error");
       }
@@ -140,6 +142,7 @@ export default function AdminProductsPage() {
       tag: "NEW",
       featured: false,
     });
+    setLocalPreviewUrl("");
     if (fileInputRef.current) fileInputRef.current.value = "";
     setModalOpen(true);
   };
@@ -158,6 +161,8 @@ export default function AdminProductsPage() {
       tag: prod.tag || "NEW",
       featured: Boolean(prod.featured),
     });
+    setLocalPreviewUrl(prod.images[0] || "");
+    if (fileInputRef.current) fileInputRef.current.value = "";
     setModalOpen(true);
   };
 
@@ -165,6 +170,16 @@ export default function AdminProductsPage() {
     e.preventDefault();
     if (!formData.name || !formData.price) {
       showToast("Please fill in required fields.", "error");
+      return;
+    }
+
+    if (uploadingImage) {
+      showToast("Please wait for image compression to complete.", "error");
+      return;
+    }
+
+    if (formData.imageUrl.startsWith("blob:")) {
+      showToast("Image is still optimizing, please wait a moment.", "error");
       return;
     }
 
@@ -591,24 +606,24 @@ export default function AdminProductsPage() {
                   </div>
 
                   {/* Compact Picture Demo Preview Box */}
-                  {formData.imageUrl && (
+                  {(localPreviewUrl || formData.imageUrl) && (
                     <div className="flex items-center justify-between gap-3 p-2 bg-[#E8E8E8] border border-[#BBBFCA] shadow-xs">
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="relative w-12 h-12 bg-[#BBBFCA]/40 flex-shrink-0 overflow-hidden border border-[#BBBFCA]">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
-                            src={formData.imageUrl}
+                            src={localPreviewUrl || formData.imageUrl}
                             alt="Product Preview Demo"
                             className="w-full h-full object-cover"
                           />
                         </div>
                         <div className="min-w-0">
                           <span className="text-[10px] uppercase tracking-wider font-semibold text-[#495464] flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                            {uploadingImage ? "Sharpening..." : "Picture Demo Ready"}
+                            <span className={`w-1.5 h-1.5 rounded-full ${uploadingImage ? "bg-amber-500 animate-pulse" : "bg-emerald-500"}`} />
+                            {uploadingImage ? "Compressing & Saving to DB..." : "Picture Ready"}
                           </span>
                           <p className="text-[10px] text-[#495464]/60 truncate font-mono max-w-[240px] sm:max-w-[340px]">
-                            {formData.imageUrl}
+                            {formData.imageUrl || "Optimizing with Sharp..."}
                           </p>
                         </div>
                       </div>
@@ -616,6 +631,7 @@ export default function AdminProductsPage() {
                         type="button"
                         onClick={() => {
                           setFormData((prev) => ({ ...prev, imageUrl: "" }));
+                          setLocalPreviewUrl("");
                           if (fileInputRef.current) fileInputRef.current.value = "";
                         }}
                         className="text-[10px] uppercase tracking-wider text-[#495464] hover:text-black px-2.5 py-1 bg-[#BBBFCA]/40 hover:bg-[#BBBFCA]/70 transition-colors flex-shrink-0 font-medium"

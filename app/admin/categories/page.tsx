@@ -43,6 +43,7 @@ export default function AdminCategoriesPage() {
   const [tagline, setTagline] = useState("");
   const [description, setDescription] = useState("");
   const [image, setImage] = useState("");
+  const [localPreviewUrl, setLocalPreviewUrl] = useState("");
   const [featured, setFeatured] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -72,6 +73,7 @@ export default function AdminCategoriesPage() {
     setTagline("");
     setDescription("");
     setImage("");
+    setLocalPreviewUrl("");
     setFeatured(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
     setModalOpen(true);
@@ -83,6 +85,7 @@ export default function AdminCategoriesPage() {
     setTagline(cat.tagline || "");
     setDescription(cat.description || "");
     setImage(cat.image || "");
+    setLocalPreviewUrl(cat.image || "");
     setFeatured(Boolean(cat.featured));
     if (fileInputRef.current) fileInputRef.current.value = "";
     setModalOpen(true);
@@ -92,9 +95,9 @@ export default function AdminCategoriesPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Instant local preview demo so user sees their picture immediately
-    const localDemoUrl = URL.createObjectURL(file);
-    setImage(localDemoUrl);
+    // Instant local preview demo for immediate visual confirmation
+    const localDemo = URL.createObjectURL(file);
+    setLocalPreviewUrl(localDemo);
 
     setUploading(true);
     try {
@@ -109,7 +112,8 @@ export default function AdminCategoriesPage() {
       const data = await res.json();
       if (res.ok && data.success && data.url) {
         setImage(data.url);
-        showToast("Image processed with Sharp crystal-clarity.", "success");
+        setLocalPreviewUrl(data.url);
+        showToast("Image compressed & saved to DB bucket.", "success");
       } else {
         showToast(data.error || "Image upload failed.", "error");
       }
@@ -123,6 +127,21 @@ export default function AdminCategoriesPage() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
+
+    if (uploading) {
+      showToast("Please wait for image optimization to complete.", "error");
+      return;
+    }
+
+    if (!image.trim()) {
+      showToast("Please provide or upload a category cover image.", "error");
+      return;
+    }
+
+    if (image.startsWith("blob:")) {
+      showToast("Image is still optimizing, please wait a moment.", "error");
+      return;
+    }
 
     setSaving(true);
     try {
@@ -424,24 +443,24 @@ export default function AdminCategoriesPage() {
                   </div>
 
                   {/* Compact Picture Demo Preview Box */}
-                  {image && (
+                  {(localPreviewUrl || image) && (
                     <div className="flex items-center justify-between gap-3 p-2 bg-[#E8E8E8] border border-[#BBBFCA] shadow-xs">
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="relative w-12 h-12 bg-[#BBBFCA]/40 flex-shrink-0 overflow-hidden border border-[#BBBFCA]">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
-                            src={image}
+                            src={localPreviewUrl || image}
                             alt="Category Preview Demo"
                             className="w-full h-full object-cover"
                           />
                         </div>
                         <div className="min-w-0">
                           <span className="text-[10px] uppercase tracking-wider font-semibold text-[#495464] flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                            {uploading ? "Sharpening..." : "Picture Demo Ready"}
+                            <span className={`w-1.5 h-1.5 rounded-full ${uploading ? "bg-amber-500 animate-pulse" : "bg-emerald-500"}`} />
+                            {uploading ? "Compressing & Saving to DB..." : "Picture Ready"}
                           </span>
                           <p className="text-[10px] text-[#495464]/60 truncate font-mono max-w-[200px] sm:max-w-[260px]">
-                            {image}
+                            {image || "Optimizing with Sharp..."}
                           </p>
                         </div>
                       </div>
@@ -449,6 +468,7 @@ export default function AdminCategoriesPage() {
                         type="button"
                         onClick={() => {
                           setImage("");
+                          setLocalPreviewUrl("");
                           if (fileInputRef.current) fileInputRef.current.value = "";
                         }}
                         className="text-[10px] uppercase tracking-wider text-[#495464] hover:text-black px-2.5 py-1 bg-[#BBBFCA]/40 hover:bg-[#BBBFCA]/70 transition-colors flex-shrink-0 font-medium"

@@ -487,6 +487,53 @@ class SupabaseDataStore {
   }
 
   // --------------------------------------------------------------------------
+  // MEDIA ASSETS (PostgreSQL Ultra-Fast High-Definition Image Storage)
+  // --------------------------------------------------------------------------
+  async saveMediaAsset(id: string, filename: string, mimeType: string, buffer: Buffer) {
+    try {
+      await query(`
+        CREATE TABLE IF NOT EXISTS media_assets (
+          id VARCHAR(100) PRIMARY KEY,
+          filename VARCHAR(255) NOT NULL,
+          mime_type VARCHAR(50) NOT NULL,
+          data BYTEA NOT NULL,
+          size_bytes INTEGER NOT NULL,
+          created_at TIMESTAMPTZ DEFAULT NOW()
+        );
+      `);
+      await query(
+        `INSERT INTO media_assets (id, filename, mime_type, data, size_bytes)
+         VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (id) DO UPDATE SET
+           filename = EXCLUDED.filename,
+           mime_type = EXCLUDED.mime_type,
+           data = EXCLUDED.data,
+           size_bytes = EXCLUDED.size_bytes,
+           created_at = NOW();`,
+        [id, filename, mimeType, buffer, buffer.length]
+      );
+      return `/api/media/${id}`;
+    } catch (err) {
+      console.error("[DB MEDIA ASSET ERROR]", err);
+      throw err;
+    }
+  }
+
+  async getMediaAsset(id: string) {
+    try {
+      const cleanId = id.replace(/\.(webp|png|jpg|jpeg|avif)$/i, "");
+      const res = await query(
+        `SELECT id, filename, mime_type, data, size_bytes FROM media_assets WHERE id = $1 LIMIT 1;`,
+        [cleanId]
+      );
+      if (res.rows.length === 0) return null;
+      return res.rows[0];
+    } catch {
+      return null;
+    }
+  }
+
+  // --------------------------------------------------------------------------
   // USERS & AUTHENTICATION
   // --------------------------------------------------------------------------
   async findUserByEmail(email: string): Promise<UserRecord | undefined> {
