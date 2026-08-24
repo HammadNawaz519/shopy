@@ -25,7 +25,7 @@ export default function Hero({ initialConfig }: HeroProps) {
   });
 
   const heroImgSrc = hero.heroImage.startsWith("/") && !hero.heroImage.includes("?")
-    ? `${hero.heroImage}?v=c16993d`
+    ? `${hero.heroImage}?v=ultrasharp`
     : hero.heroImage;
 
   return (
