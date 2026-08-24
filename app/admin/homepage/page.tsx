@@ -86,6 +86,10 @@ export default function AdminHomepagePage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Instant local demo preview
+    const localDemoUrl = URL.createObjectURL(file);
+    setConfig((prev) => ({ ...prev, heroImage: localDemoUrl }));
+
     setUploading(true);
     try {
       const formData = new FormData();
@@ -99,7 +103,7 @@ export default function AdminHomepagePage() {
       const data = await res.json();
       if (res.ok && data.success && data.url) {
         setConfig((prev) => ({ ...prev, heroImage: data.url }));
-        showToast("Hero image optimized and ready to save.", "success");
+        showToast("Hero campaign visual processed with Sharp crystal-clarity.", "success");
       } else {
         showToast(data.error || "Image upload failed.", "error");
       }
@@ -124,119 +128,116 @@ export default function AdminHomepagePage() {
         setConfig(data.config);
         showToast("Homepage editorial & hero content published live.", "success");
       } else {
-        showToast(data.error || "Failed to update homepage settings.", "error");
+        showToast(data.error || "Failed to update homepage.", "error");
       }
     } catch {
-      showToast("Network error updating homepage settings.", "error");
+      showToast("Network error saving homepage configuration.", "error");
     } finally {
       setSaving(false);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex-1 flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="w-8 h-8 animate-spin text-[#495464]" />
-      </div>
-    );
-  }
-
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="flex-1 flex flex-col bg-[#F4F4F2]">
       <AdminHeader
-        title="Homepage Content Control"
-        subtitle="Manage Hero Campaign, Editorial Storytelling, Headlines & Imagery"
+        title="Homepage & Campaign Management"
+        subtitle="Control Hero Visuals, Taglines, Editorial Storytelling & Newsletters"
       />
 
       <main className="flex-1 p-6 lg:p-10 max-w-[1720px] w-full mx-auto space-y-8">
-        <form onSubmit={handleSave} className="space-y-8">
-          {/* Top Save Bar */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#F4F4F2] border border-[#BBBFCA]/40 p-4 lg:p-6 shadow-xs">
-            <div>
-              <h2 className="font-serif text-lg font-medium text-[#495464]">Storefront Homepage Settings</h2>
-              <p className="text-xs text-[#495464]/60">
-                Modifications here synchronize live with the customer landing page.
-              </p>
-            </div>
-            <button
-              type="submit"
-              disabled={saving}
-              className="inline-flex items-center gap-2 bg-[#495464] text-[#F4F4F2] px-6 py-2.5 text-xs uppercase tracking-widest font-medium hover:bg-[#363E4B] transition-colors disabled:opacity-50"
-            >
-              <Save className="w-4 h-4" />
-              <span>{saving ? "Publishing..." : "Save & Publish"}</span>
-            </button>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#BBBFCA]/40 pb-6">
+          <div>
+            <h2 className="font-serif text-2xl font-medium text-[#495464]">Customer Storefront Control</h2>
+            <p className="text-xs text-[#495464]/60">
+              Live configuration synchronized directly with PostgreSQL
+            </p>
           </div>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="inline-flex items-center gap-2 bg-[#495464] text-[#F4F4F2] px-6 py-2.5 text-xs uppercase tracking-widest font-medium hover:bg-[#363E4B] transition-colors shadow-sm disabled:opacity-50"
+          >
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            <span>{saving ? "Publishing..." : "Save & Publish Live"}</span>
+          </button>
+        </div>
 
-          {/* SECTION 1: HERO CAMPAIGN */}
-          <div className="bg-[#F4F4F2] border border-[#BBBFCA]/40 p-6 lg:p-8 shadow-xs space-y-6">
-            <div className="flex items-center gap-2 pb-3 border-b border-[#BBBFCA]/30">
-              <Sparkles className="w-4 h-4 text-[#495464]" />
-              <h3 className="font-serif text-base font-medium text-[#495464]">
-                1. Hero Campaign Showcase
-              </h3>
-            </div>
+        {loading ? (
+          <div className="flex justify-center py-24">
+            <Loader2 className="w-8 h-8 animate-spin text-[#495464]" />
+          </div>
+        ) : (
+          <form onSubmit={handleSave} className="space-y-8">
+            {/* 1. Hero Campaign Section */}
+            <div className="bg-[#F4F4F2] border border-[#BBBFCA]/40 p-6 lg:p-8 shadow-xs space-y-6">
+              <div className="flex items-center gap-2.5 pb-4 border-b border-[#BBBFCA]/30">
+                <Sliders className="w-4 h-4 text-[#495464]" />
+                <h3 className="font-serif text-lg font-medium text-[#495464]">1. Hero Section (Header Campaign)</h3>
+              </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-              {/* Hero Image Preview & Upload */}
-              <div className="lg:col-span-5 space-y-3">
-                <label className="block text-[10px] uppercase font-semibold text-[#495464]">
-                  Campaign Hero Visual
-                </label>
-                <div className="relative aspect-[3/4] w-full bg-[#E8E8E8] border border-[#BBBFCA]/40 overflow-hidden shadow-xs">
-                  <Image
-                    src={config.heroImage}
-                    alt="Hero Preview"
-                    fill
-                    sizes="500px"
-                    className="object-cover"
-                  />
-                  <div className="absolute inset-0 bg-black/20" />
-                  <div className="absolute bottom-4 left-4 right-4 text-white">
-                    <span className="text-[10px] tracking-widest uppercase block opacity-80">
-                      {config.heroSubtitle}
-                    </span>
-                    <h4 className="font-serif text-xl font-light tracking-wide leading-tight">
-                      {config.heroTitle}
-                    </h4>
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                {/* Hero Image Preview & Upload */}
+                <div className="lg:col-span-5 space-y-3">
+                  <label className="block text-[10px] uppercase font-semibold text-[#495464]">
+                    Campaign Hero Visual
+                  </label>
+                  <div className="relative aspect-[3/4] w-full bg-[#E8E8E8] border border-[#BBBFCA]/40 overflow-hidden shadow-xs">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={config.heroImage}
+                      alt="Hero Preview Demo"
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-black/20" />
+                    <div className="absolute bottom-4 left-4 right-4 text-white">
+                      <span className="text-[10px] tracking-widest uppercase block opacity-80">
+                        {config.heroSubtitle}
+                      </span>
+                      <h4 className="font-serif text-xl font-light tracking-wide leading-tight">
+                        {config.heroTitle}
+                      </h4>
+                    </div>
+                    <div className="absolute top-2 left-2 bg-black/75 text-white text-[9px] uppercase px-2 py-0.5 tracking-widest flex items-center gap-1.5">
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                      <span>{uploading ? "Sharpening..." : "Live Hero Demo"}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleHeroFileUpload}
+                      accept="image/*"
+                      className="hidden"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploading}
+                      className="flex-1 inline-flex items-center justify-center gap-2 bg-[#495464] text-[#F4F4F2] py-2 px-3 text-[11px] uppercase tracking-wider font-medium hover:bg-[#363E4B] transition-colors"
+                    >
+                      {uploading ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Upload className="w-3.5 h-3.5" />
+                      )}
+                      <span>{uploading ? "Sharpening..." : "Upload from Computer"}</span>
+                    </button>
+                  </div>
+                  <div>
+                    <input
+                      type="text"
+                      value={config.heroImage}
+                      onChange={(e) => setConfig({ ...config, heroImage: e.target.value })}
+                      placeholder="Or enter direct image URL..."
+                      className="w-full bg-[#E8E8E8] border border-[#BBBFCA] p-2 text-xs font-mono"
+                    />
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleHeroFileUpload}
-                    accept="image/*"
-                    className="hidden"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={uploading}
-                    className="flex-1 inline-flex items-center justify-center gap-2 bg-[#181A1D] text-[#F4F4F2] py-2 px-3 text-[11px] uppercase tracking-wider font-medium hover:bg-[#363E4B] transition-colors"
-                  >
-                    {uploading ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <Upload className="w-3.5 h-3.5" />
-                    )}
-                    <span>{uploading ? "Sharpening..." : "Upload from Computer"}</span>
-                  </button>
-                </div>
-                <div>
-                  <input
-                    type="text"
-                    value={config.heroImage}
-                    onChange={(e) => setConfig({ ...config, heroImage: e.target.value })}
-                    placeholder="Or enter direct image URL..."
-                    className="w-full bg-[#E8E8E8] border border-[#BBBFCA] p-2 text-xs font-mono"
-                  />
-                </div>
-              </div>
-
-              {/* Hero Copy Fields */}
-              <div className="lg:col-span-7 space-y-4 text-xs">
+                {/* Hero Copy Fields */}
+                <div className="lg:col-span-7 space-y-4 text-xs">
                 <div>
                   <label className="block text-[10px] uppercase font-semibold mb-1 text-[#495464]">
                     Hero Season Tagline / Subtitle
@@ -419,7 +420,8 @@ export default function AdminHomepagePage() {
             </button>
           </div>
         </form>
-      </main>
-    </div>
-  );
+      )}
+    </main>
+  </div>
+);
 }

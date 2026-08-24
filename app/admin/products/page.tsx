@@ -43,7 +43,7 @@ export default function AdminProductsPage() {
     originalPrice: "",
     stockCount: "15",
     description: "",
-    imageUrl: "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&q=80&w=600",
+    imageUrl: "",
     tag: "NEW",
     featured: false,
   });
@@ -51,6 +51,10 @@ export default function AdminProductsPage() {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // Instant local preview demo
+    const localDemoUrl = URL.createObjectURL(file);
+    setFormData((prev) => ({ ...prev, imageUrl: localDemoUrl }));
 
     setUploadingImage(true);
     try {
@@ -63,7 +67,7 @@ export default function AdminProductsPage() {
       });
 
       const data = await res.json();
-      if (res.ok && data.success) {
+      if (res.ok && data.success && data.url) {
         setFormData((prev) => ({ ...prev, imageUrl: data.url }));
         showToast("Image enhanced with Sharp & uploaded crystals clear!", "success");
       } else {
@@ -126,16 +130,17 @@ export default function AdminProductsPage() {
     setEditingProduct(null);
     setFormData({
       name: "",
-      category: "tops",
-      categoryLabel: "Tops",
+      category: categories.length > 0 ? categories[0].slug : "tops",
+      categoryLabel: categories.length > 0 ? categories[0].name : "Tops",
       price: "",
       originalPrice: "",
       stockCount: "15",
       description: "",
-      imageUrl: "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&q=80&w=600",
+      imageUrl: "",
       tag: "NEW",
       featured: false,
     });
+    if (fileInputRef.current) fileInputRef.current.value = "";
     setModalOpen(true);
   };
 
@@ -577,56 +582,73 @@ export default function AdminProductsPage() {
 
                   {!isCustomUrl ? (
                     <div className="space-y-3">
-                      <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+                      {/* Image Preview & Enhancement Demo Box */}
+                      {formData.imageUrl ? (
+                        <div className="relative aspect-video w-full bg-[#E8E8E8] border border-[#BBBFCA] overflow-hidden group shadow-xs">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={formData.imageUrl}
+                            alt="Product Preview Demo"
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+                            <button
+                              type="button"
+                              onClick={() => fileInputRef.current?.click()}
+                              disabled={uploadingImage}
+                              className="bg-white text-black px-3 py-1.5 text-[10px] uppercase font-medium tracking-wider hover:bg-gray-200 transition-colors"
+                            >
+                              Change Picture
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setFormData((prev) => ({ ...prev, imageUrl: "" }));
+                                if (fileInputRef.current) fileInputRef.current.value = "";
+                              }}
+                              className="bg-[#495464] text-[#F4F4F2] px-3 py-1.5 text-[10px] uppercase font-medium tracking-wider hover:bg-black transition-colors"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                          <div className="absolute bottom-2 left-2 bg-black/75 text-white text-[9px] uppercase px-2 py-0.5 tracking-widest flex items-center gap-1.5">
+                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                            <span>{uploadingImage ? "Sharpening..." : "Live Picture Demo"}</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div
+                          onClick={() => fileInputRef.current?.click()}
+                          className="border-2 border-dashed border-[#BBBFCA] hover:border-[#495464] p-6 text-center cursor-pointer transition-colors bg-[#E8E8E8]/30 hover:bg-[#E8E8E8]/60"
+                        >
+                          <UploadCloud className="w-6 h-6 text-[#495464]/60 mx-auto mb-2" />
+                          <p className="text-xs text-[#495464] font-medium uppercase tracking-wider">
+                            {uploadingImage ? "Optimizing & Sharpening..." : "Click to upload product photo from computer"}
+                          </p>
+                          <p className="text-[10px] text-[#495464]/60 mt-1">
+                            JPG, PNG, WebP, AVIF — Auto-enhanced with Sharp
+                          </p>
+                        </div>
+                      )}
+
+                      <div className="flex items-center gap-2 pt-1">
                         <button
                           type="button"
                           disabled={uploadingImage}
                           onClick={() => fileInputRef.current?.click()}
-                          className="h-10 flex items-center justify-center gap-2 bg-[#495464] text-[#F4F4F2] px-5 text-xs uppercase tracking-wider font-medium hover:bg-[#363E4B] transition-all shadow-sm disabled:opacity-50 cursor-pointer"
+                          className="inline-flex items-center gap-1.5 bg-[#495464] text-[#F4F4F2] px-3 py-1.5 text-[10px] uppercase tracking-wider font-medium hover:bg-[#363E4B] transition-colors"
                         >
-                          {uploadingImage ? (
-                            <>
-                              <Loader2 className="w-4 h-4 animate-spin text-[#F4F4F2]" />
-                              <span>Sharpening &amp; Optimizing...</span>
-                            </>
-                          ) : (
-                            <>
-                              <UploadCloud className="w-4 h-4" />
-                              <span>Upload from Computer</span>
-                            </>
-                          )}
+                          {uploadingImage ? <Loader2 className="w-3 h-3 animate-spin" /> : <UploadCloud className="w-3 h-3" />}
+                          <span>{uploadingImage ? "Sharpening..." : "Upload from Computer"}</span>
                         </button>
-
-                        <span className="text-[11px] text-[#495464]/60 tracking-wide">
-                          Auto-enhanced to crystal clarity via Sharp
-                        </span>
+                        <input
+                          type="text"
+                          value={formData.imageUrl}
+                          onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
+                          placeholder="Or paste external image URL..."
+                          className="flex-1 bg-[#E8E8E8] border border-[#BBBFCA] p-1.5 text-xs font-mono text-[#495464]"
+                        />
                       </div>
-
-                      {/* Image Preview & Enhancement Indicator */}
-                      {formData.imageUrl && (
-                        <div className="flex items-center gap-4 p-3 bg-[#E8E8E8]/70 border border-[#BBBFCA]/60">
-                          <div className="relative w-14 h-16 bg-[#E8E8E8] flex-shrink-0 overflow-hidden border border-[#BBBFCA]">
-                            <Image
-                              src={formData.imageUrl}
-                              alt="Product Preview"
-                              fill
-                              sizes="56px"
-                              className="object-cover"
-                            />
-                          </div>
-                          <div className="flex-1 min-w-0 space-y-1">
-                            <div className="flex items-center gap-1.5">
-                              <Sparkles className="w-3.5 h-3.5 text-amber-700" />
-                              <span className="text-[11px] font-semibold text-[#495464] uppercase tracking-wider">
-                                Crystal Clear Preview
-                              </span>
-                            </div>
-                            <p className="text-[10px] text-[#495464]/60 truncate font-mono">
-                              {formData.imageUrl}
-                            </p>
-                          </div>
-                        </div>
-                      )}
                     </div>
                   ) : (
                     <div>
@@ -635,7 +657,7 @@ export default function AdminProductsPage() {
                         required
                         value={formData.imageUrl}
                         onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-                        placeholder="https://images.unsplash.com/..."
+                        placeholder="https://..."
                         className="h-10 w-full bg-[#E8E8E8] border border-[#BBBFCA] px-3.5 text-xs text-[#495464] focus:outline-none focus:border-[#495464] transition-colors"
                       />
                     </div>

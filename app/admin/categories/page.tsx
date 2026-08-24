@@ -71,8 +71,9 @@ export default function AdminCategoriesPage() {
     setName("");
     setTagline("");
     setDescription("");
-    setImage("https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&q=80&w=800");
+    setImage("");
     setFeatured(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
     setModalOpen(true);
   };
 
@@ -81,14 +82,19 @@ export default function AdminCategoriesPage() {
     setName(cat.name);
     setTagline(cat.tagline || "");
     setDescription(cat.description || "");
-    setImage(cat.image);
+    setImage(cat.image || "");
     setFeatured(Boolean(cat.featured));
+    if (fileInputRef.current) fileInputRef.current.value = "";
     setModalOpen(true);
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // Instant local preview demo so user sees their picture immediately
+    const localDemoUrl = URL.createObjectURL(file);
+    setImage(localDemoUrl);
 
     setUploading(true);
     try {
@@ -103,7 +109,7 @@ export default function AdminCategoriesPage() {
       const data = await res.json();
       if (res.ok && data.success && data.url) {
         setImage(data.url);
-        showToast("Category image optimized and ready.", "success");
+        showToast("Image processed with Sharp crystal-clarity.", "success");
       } else {
         showToast(data.error || "Image upload failed.", "error");
       }
@@ -384,34 +390,85 @@ export default function AdminCategoriesPage() {
                   />
                 </div>
 
-                {/* Image Upload & Input */}
+                {/* Image Upload & Live Demo Preview */}
                 <div className="space-y-2">
-                  <label className="block text-[10px] uppercase font-semibold mb-1">
-                    Category Cover Image
+                  <label className="block text-[10px] uppercase font-semibold text-[#495464]">
+                    Category Cover Image *
                   </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="file"
-                      ref={fileInputRef}
-                      onChange={handleImageUpload}
-                      accept="image/*"
-                      className="hidden"
-                    />
+
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleImageUpload}
+                    accept="image/*"
+                    className="hidden"
+                  />
+
+                  {/* Visual Picture Demo Box */}
+                  {image ? (
+                    <div className="relative aspect-video w-full bg-[#E8E8E8] border border-[#BBBFCA] overflow-hidden group shadow-xs">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={image}
+                        alt="Category Cover Preview"
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={uploading}
+                          className="bg-white text-black px-3 py-1.5 text-[10px] uppercase font-medium tracking-wider hover:bg-gray-200 transition-colors"
+                        >
+                          Change Picture
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setImage("");
+                            if (fileInputRef.current) fileInputRef.current.value = "";
+                          }}
+                          className="bg-[#495464] text-[#F4F4F2] px-3 py-1.5 text-[10px] uppercase font-medium tracking-wider hover:bg-black transition-colors"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                      <div className="absolute bottom-2 left-2 bg-black/75 text-white text-[9px] uppercase px-2 py-0.5 tracking-widest flex items-center gap-1.5">
+                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                        <span>{uploading ? "Sharpening..." : "Live Picture Demo"}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div
+                      onClick={() => fileInputRef.current?.click()}
+                      className="border-2 border-dashed border-[#BBBFCA] hover:border-[#495464] p-6 text-center cursor-pointer transition-colors bg-[#E8E8E8]/30 hover:bg-[#E8E8E8]/60"
+                    >
+                      <Upload className="w-6 h-6 text-[#495464]/60 mx-auto mb-2" />
+                      <p className="text-xs text-[#495464] font-medium uppercase tracking-wider">
+                        {uploading ? "Optimizing & Sharpening..." : "Click to upload picture from computer"}
+                      </p>
+                      <p className="text-[10px] text-[#495464]/60 mt-1">
+                        JPG, PNG, WebP, AVIF — Crystal clarity enhanced automatically
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-2 pt-1">
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
                       disabled={uploading}
-                      className="inline-flex items-center gap-1.5 bg-[#181A1D] text-[#F4F4F2] px-3 py-1.5 text-[10px] uppercase tracking-wider font-medium hover:bg-[#363E4B] transition-colors"
+                      className="inline-flex items-center gap-1.5 bg-[#495464] text-[#F4F4F2] px-3 py-1.5 text-[10px] uppercase tracking-wider font-medium hover:bg-[#363E4B] transition-colors"
                     >
                       {uploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
-                      <span>{uploading ? "Sharpening..." : "Upload File"}</span>
+                      <span>{uploading ? "Sharpening..." : "Upload from Computer"}</span>
                     </button>
                     <input
                       type="text"
                       value={image}
                       onChange={(e) => setImage(e.target.value)}
-                      placeholder="Or paste image URL..."
-                      className="flex-1 bg-[#E8E8E8] border border-[#BBBFCA] p-2 text-xs font-mono"
+                      placeholder="Or paste external image URL..."
+                      className="flex-1 bg-[#E8E8E8] border border-[#BBBFCA] p-1.5 text-xs font-mono text-[#495464]"
                     />
                   </div>
                 </div>
