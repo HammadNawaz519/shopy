@@ -90,10 +90,10 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
   };
 
   return (
-    <div className="pt-12 sm:pt-16 pb-16 bg-[#F4F4F2] text-[#495464]">
+    <div className="pt-24 sm:pt-28 lg:pt-32 pb-20 bg-[#F4F4F2] text-[#495464]">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Breadcrumb */}
-        <div className="mb-6 flex items-center gap-2 text-[11px] uppercase tracking-wider text-[#495464]/60">
+        <div className="mb-6 flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-wider text-[#495464]/60">
           <Link href="/products" className="hover:text-[#495464] flex items-center gap-1">
             <ArrowLeft className="w-3 h-3" />
             <span>Catalogue</span>
@@ -103,7 +103,7 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
             {product.categoryLabel}
           </Link>
           <span>/</span>
-          <span className="text-[#495464] font-medium truncate max-w-xs">{product.name}</span>
+          <span className="text-[#495464] font-medium truncate max-w-[180px] sm:max-w-xs">{product.name}</span>
         </div>
 
         {/* Main Product Layout: 2 Columns */}
