@@ -17,7 +17,7 @@ interface HeroProps {
 
 export default function Hero({ initialConfig }: HeroProps) {
   const [hero] = useState({
-    heroImage: initialConfig?.heroImage || "/hero-beige-male.jpg",
+    heroImage: initialConfig?.heroImage || "/hero-beige.jpg",
     heroSubtitle: initialConfig?.heroSubtitle || "EDITION 01 • AUTUMN / WINTER 2026",
     heroTitle: initialConfig?.heroTitle || "ARCHITECTURAL ELEGANCE",
     heroCtaText: initialConfig?.heroCtaText || "Explore Collection",

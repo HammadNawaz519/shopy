@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, Sparkles, RefreshCw } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { EditorialQuote } from "@/lib/groq";
 
 const DEFAULT_QUOTE: EditorialQuote = {
@@ -51,25 +51,12 @@ export default function EditorialSection() {
           {/* Left Column: Dynamic Psychological & High-Converting Narrative */}
           <div className="lg:col-span-5 flex flex-col justify-center space-y-7 lg:pr-8 order-2 lg:order-1">
             
-            {/* Minimalist Sub-header & Dynamic Refresh Button */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <span className="h-1.5 w-1.5 rounded-full bg-[#495464] animate-pulse" />
-                <span className="text-[10px] uppercase tracking-[0.3em] text-[#495464]/80 font-semibold">
-                  {quoteData.theme || "THE PSYCHOLOGY OF DISTINCTION"}
-                </span>
-              </div>
-
-              <button
-                onClick={fetchQuote}
-                disabled={isLoading}
-                title="Generate another AI psychological insight"
-                className="group inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-[#495464]/70 hover:text-[#1A1A1A] transition-colors disabled:opacity-50 cursor-pointer"
-              >
-                <Sparkles className="w-3 h-3 text-[#495464] group-hover:scale-110 transition-transform" />
-                <span className="hidden sm:inline">AI Insight</span>
-                <RefreshCw className={`w-3 h-3 ${isLoading ? "animate-spin" : "group-hover:rotate-45 transition-transform"}`} />
-              </button>
+            {/* Minimalist Sub-header with Solid Dark Static Dot */}
+            <div className="flex items-center gap-2.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#181a1d]" />
+              <span className="text-[10px] uppercase tracking-[0.3em] text-[#495464]/80 font-semibold">
+                {quoteData.theme || "THE PSYCHOLOGY OF DISTINCTION"}
+              </span>
             </div>
 
             {/* Dynamic Psychological & Magnetic Headline */}
