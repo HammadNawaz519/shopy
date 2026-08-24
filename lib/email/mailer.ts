@@ -1,9 +1,9 @@
 /**
  * SHOPY Centralized Mailer Entrypoint
- * Provides backward compatibility and unified access to the email service.
+ * Provides backward compatibility and unified access to the 3-tier email system.
  */
 
-import { getEmailTransporter } from "./transporter";
+import { getEmailTransporter, sendEmailSafe, verifyAllSmtpConnections } from "./transporter";
 import {
   sendVerificationOtpEmail,
   sendLoginOtpEmail,
@@ -12,23 +12,39 @@ import {
   sendOrderConfirmationEmail,
   sendOrderStatusUpdateEmail,
   sendAdminNewOrderNotification,
+  sendContactFormEmails,
 } from "./service";
 import { generateSecureOtp, generateSecureToken } from "./security";
+import { EmailAccountType, EmailType } from "./types";
 
-// Re-export core transporter singleton
 export const getTransporter = getEmailTransporter;
-export const transporter = getEmailTransporter();
 
-// Backward compatibility aliases
+// Backward compatibility alias
 export const sendVerificationOtp = sendVerificationOtpEmail;
+
 export {
+  // Transporter & core dispatch
+  getEmailTransporter,
+  sendEmailSafe,
+  verifyAllSmtpConnections,
+
+  // Authentication & OTP (shopy.otp@gmail.com)
   sendVerificationOtpEmail,
   sendLoginOtpEmail,
   sendPasswordResetEmail,
   sendWelcomeEmail,
+
+  // Orders (shopy.orderupdate@gmail.com)
   sendOrderConfirmationEmail,
   sendOrderStatusUpdateEmail,
   sendAdminNewOrderNotification,
+
+  // Support & Concierge (shopy.support@gmail.com)
+  sendContactFormEmails,
+
+  // Security Helpers
   generateSecureOtp,
   generateSecureToken,
 };
+
+export type { EmailAccountType, EmailType };

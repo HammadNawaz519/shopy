@@ -1238,13 +1238,14 @@ class SupabaseDataStore {
   // --------------------------------------------------------------------------
   // INQUIRIES & NEWSLETTER
   // --------------------------------------------------------------------------
-  async addInquiry(inquiry: { name: string; email: string; subject: string; message: string }) {
-    await query(
+  async addInquiry(inquiry: { name: string; email: string; subject: string; message: string }): Promise<{ id: number; name: string; email: string; subject: string; message: string }> {
+    const res = await query(
       `INSERT INTO inquiries (name, email, subject, message)
-       VALUES ($1, $2, $3, $4);`,
+       VALUES ($1, $2, $3, $4)
+       RETURNING *;`,
       [inquiry.name, inquiry.email, inquiry.subject, inquiry.message]
     );
-    return true;
+    return res.rows[0];
   }
 
   async subscribeNewsletter(email: string): Promise<boolean> {

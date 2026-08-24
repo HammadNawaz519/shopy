@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { ContactSchema } from "@/lib/security/validation";
 import { checkRateLimit, getClientIp } from "@/lib/security/rateLimit";
 import { db } from "@/lib/db/store";
+import { sendContactFormEmails } from "@/lib/email/mailer";
 
 export async function POST(req: Request) {
   try {
@@ -24,15 +25,41 @@ export async function POST(req: Request) {
       );
     }
 
-    await db.addInquiry(parseResult.data);
+    const { name, email, subject, message } = parseResult.data;
+
+    // 1. Save inquiry in database
+    let inquiryId: number | undefined;
+    try {
+      const savedInquiry = await db.addInquiry({ name, email, subject, message });
+      inquiryId = savedInquiry?.id;
+    } catch (dbErr) {
+      console.error("[CONTACT DB ERROR] Failed to save inquiry:", dbErr);
+    }
+
+    // 2. Dispatch email via Support SMTP sender (shopy.support@gmail.com)
+    // Non-blocking safe dispatch with Reply-To customer email
+    try {
+      sendContactFormEmails({
+        name,
+        email,
+        subject,
+        message,
+        inquiryId,
+      }).catch((emailErr) => {
+        console.error("[CONTACT EMAIL ERROR] Failed to dispatch support emails:", emailErr);
+      });
+    } catch {
+      // Prevent email transport issues from failing user request
+    }
 
     return NextResponse.json({
       success: true,
       message: "Your message has been delivered to our concierge team.",
     });
-  } catch {
+  } catch (error: any) {
+    console.error("[CONTACT HANDLER ERROR]", error);
     return NextResponse.json(
-      { error: "Failed to send message." },
+      { error: "Unable to send the message right now. Please try again." },
       { status: 500 }
     );
   }

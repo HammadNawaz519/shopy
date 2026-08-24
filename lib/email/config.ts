@@ -1,9 +1,17 @@
 /**
- * SHOPY SMTP Email Configuration
- * Server-only environment variable parsing with validation and zero-leak guarantees.
+ * SHOPY Multi-Account SMTP Email Configuration
+ * Server-only environment variable parsing with zero-leak guarantees.
+ *
+ * Responsibilities:
+ * - OTP / Security -> SMTP_OTP_*
+ * - Order Lifecycle -> SMTP_ORDER_*
+ * - Support & Concierge -> SMTP_SUPPORT_*
  */
 
-export interface SmtpConfig {
+import { EmailAccountType } from "./types";
+
+export interface SmtpAccountConfig {
+  accountType: EmailAccountType;
   host: string;
   port: number;
   secure: boolean;
@@ -12,6 +20,12 @@ export interface SmtpConfig {
   fromName: string;
   fromAddress: string;
   fromHeader: string;
+}
+
+export interface EmailSystemConfig {
+  otp: SmtpAccountConfig;
+  order: SmtpAccountConfig;
+  support: SmtpAccountConfig;
   adminEmail: string;
   appUrl: string;
   appName: string;
@@ -22,21 +36,55 @@ function cleanEnv(value: string | undefined, fallback: string = ""): string {
   return value.trim().replace(/^['"]|['"]$/g, "");
 }
 
-export function getSmtpConfig(): SmtpConfig {
-  const host = cleanEnv(process.env.SMTP_HOST, "smtp.gmail.com");
-  const port = Number(cleanEnv(process.env.SMTP_PORT, "465")) || 465;
-  const secure = cleanEnv(process.env.SMTP_SECURE, "true") !== "false";
-  const user = cleanEnv(process.env.SMTP_USER, "shopy.otp@gmail.com");
-  const pass = cleanEnv(process.env.SMTP_PASS || process.env.SMTP_PASSWORD, "ulpmrzisbyeyifpf").replace(/\s+/g, "");
-  
-  const fromName = cleanEnv(process.env.SMTP_FROM_NAME, "SHOPY Atelier");
+function buildAccountConfig(
+  accountType: EmailAccountType,
+  envPrefix: string,
+  defaultEmail: string,
+  defaultFromName: string
+): SmtpAccountConfig {
+  const host = cleanEnv(
+    process.env[`${envPrefix}_HOST`] || process.env.SMTP_HOST,
+    "smtp.gmail.com"
+  );
+  const port = Number(
+    cleanEnv(
+      process.env[`${envPrefix}_PORT`] || process.env.SMTP_PORT,
+      "465"
+    )
+  ) || 465;
+  const secure =
+    cleanEnv(
+      process.env[`${envPrefix}_SECURE`] || process.env.SMTP_SECURE,
+      "true"
+    ) !== "false";
+
+  // Account specific credentials with backward-compatible fallback for OTP account
+  const user = cleanEnv(
+    process.env[`${envPrefix}_USER`] ||
+      (accountType === "OTP" ? process.env.SMTP_USER : undefined),
+    defaultEmail
+  );
+
+  const pass = cleanEnv(
+    process.env[`${envPrefix}_PASSWORD`] ||
+      process.env[`${envPrefix}_PASS`] ||
+      (accountType === "OTP"
+        ? process.env.SMTP_PASSWORD || process.env.SMTP_PASS
+        : undefined),
+    ""
+  ).replace(/\s+/g, "");
+
+  const fromName = cleanEnv(
+    process.env[`${envPrefix}_FROM_NAME`] || process.env.SMTP_FROM_NAME,
+    defaultFromName
+  );
+
   const defaultFrom = `"${fromName}" <${user}>`;
-  const rawFrom = cleanEnv(process.env.SMTP_FROM, defaultFrom);
-  
-  // Format clean fromHeader: ensure format "Name <email@domain.com>"
+  const rawFrom = cleanEnv(process.env[`${envPrefix}_FROM`], defaultFrom);
+
   let fromAddress = user;
-  let fromHeader = rawFrom;
-  
+  let fromHeader = defaultFrom;
+
   const emailMatch = rawFrom.match(/<([^>]+)>/);
   if (emailMatch && emailMatch[1]) {
     fromAddress = emailMatch[1].trim();
@@ -44,15 +92,10 @@ export function getSmtpConfig(): SmtpConfig {
   } else if (rawFrom.includes("@")) {
     fromAddress = rawFrom;
     fromHeader = `"${fromName}" <${rawFrom}>`;
-  } else {
-    fromHeader = defaultFrom;
   }
 
-  const adminEmail = cleanEnv(process.env.ADMIN_EMAIL, "hammadnawaz276@gmail.com");
-  const appUrl = cleanEnv(process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL, "http://localhost:3000");
-  const appName = cleanEnv(process.env.NEXT_PUBLIC_APP_NAME, "SHOPY");
-
   return {
+    accountType,
     host,
     port,
     secure,
@@ -61,8 +104,58 @@ export function getSmtpConfig(): SmtpConfig {
     fromName,
     fromAddress,
     fromHeader,
+  };
+}
+
+export function getEmailSystemConfig(): EmailSystemConfig {
+  const otp = buildAccountConfig(
+    "OTP",
+    "SMTP_OTP",
+    "shopy.otp@gmail.com",
+    "SHOPY Security"
+  );
+
+  const order = buildAccountConfig(
+    "ORDER",
+    "SMTP_ORDER",
+    "shopy.orderupdate@gmail.com",
+    "SHOPY Orders"
+  );
+
+  const support = buildAccountConfig(
+    "SUPPORT",
+    "SMTP_SUPPORT",
+    "shopy.support@gmail.com",
+    "SHOPY Concierge"
+  );
+
+  const adminEmail = cleanEnv(process.env.ADMIN_EMAIL, "hammadnawaz276@gmail.com");
+  const appUrl = cleanEnv(
+    process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL,
+    "http://localhost:3000"
+  );
+  const appName = cleanEnv(process.env.NEXT_PUBLIC_APP_NAME, "SHOPY");
+
+  return {
+    otp,
+    order,
+    support,
     adminEmail,
     appUrl,
     appName,
   };
+}
+
+export function getAccountConfig(accountType: EmailAccountType): SmtpAccountConfig {
+  const config = getEmailSystemConfig();
+  switch (accountType) {
+    case "OTP":
+      return config.otp;
+    case "ORDER":
+      return config.order;
+    case "SUPPORT":
+      return config.support;
+    default:
+      return config.otp;
+  }
 }

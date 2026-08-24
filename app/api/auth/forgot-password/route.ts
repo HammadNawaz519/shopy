@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { ForgotPasswordSchema } from "@/lib/security/validation";
 import { checkRateLimit, getClientIp } from "@/lib/security/rateLimit";
 import { db } from "@/lib/db/store";
-import { sendVerificationOtpEmail, generateSecureOtp } from "@/lib/email/mailer";
+import { sendPasswordResetEmail, generateSecureOtp } from "@/lib/email/mailer";
 
 export async function POST(req: Request) {
   try {
@@ -38,11 +38,15 @@ export async function POST(req: Request) {
         resetTokenExpiry,
       });
 
-      // Dispatch real email via secure SMTP service (non-blocking server error protection)
+      // Dispatch password recovery email via dedicated OTP SMTP sender (shopy.otp@gmail.com)
       try {
-        await sendVerificationOtpEmail(user.email, otpCode, user.name, 10);
+        await sendPasswordResetEmail(user.email, {
+          otpCode,
+          name: user.name,
+          expiresInMinutes: 10,
+        });
       } catch (mailErr) {
-        console.error("[SMTP ERROR] Failed to send verification code email:", mailErr);
+        console.error("[SMTP ERROR] Failed to send password reset email:", mailErr);
       }
     }
 
@@ -50,9 +54,10 @@ export async function POST(req: Request) {
       success: true,
       message: "If an account exists with that email, a 6-digit verification code has been dispatched to your inbox.",
     });
-  } catch {
+  } catch (error: any) {
+    console.error("[FORGOT PASSWORD ERROR]", error);
     return NextResponse.json(
-      { error: "Failed to process verification code request." },
+      { error: "Unable to process the request right now. Please try again." },
       { status: 500 }
     );
   }

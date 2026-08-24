@@ -209,11 +209,14 @@ export function renderOrderStatusUpdateEmail({
   const subject = `SHOPY — Order #${safeOrderNumber} Status: ${safeStatus}`;
 
   const statusDescriptions: Record<string, string> = {
+    PENDING: "Your order is pending confirmation.",
     CONFIRMED: "Your order has been verified and confirmed.",
     PROCESSING: "Your order is currently being tailored and carefully packaged.",
-    SHIPPED: "Your order has departed our atelier and is in transit.",
+    SHIPPED: "Your order has departed our atelier and is in transit with our logistics partner.",
+    OUT_FOR_DELIVERY: "Your order is out for delivery today and will arrive shortly.",
     DELIVERED: "Your order has been successfully delivered. Enjoy your pieces.",
     CANCELLED: "Your order has been cancelled.",
+    REFUNDED: "Your order payment has been successfully refunded.",
   };
 
   const statusMessage = statusDescriptions[newStatus.toUpperCase()] || `Your order status has been updated to ${safeStatus}.`;
