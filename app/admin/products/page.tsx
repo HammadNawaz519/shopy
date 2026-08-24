@@ -426,9 +426,10 @@ export default function AdminProductsPage() {
                 </button>
               </div>
 
-              <form onSubmit={handleSaveProduct} className="space-y-4 text-xs">
+              <form onSubmit={handleSaveProduct} className="space-y-5 text-xs">
+                {/* 1. Product Title */}
                 <div>
-                  <label className="block text-[10px] uppercase tracking-widest font-semibold mb-1">
+                  <label className="block text-[10px] uppercase tracking-widest font-semibold text-[#495464] mb-1.5">
                     Product Title *
                   </label>
                   <input
@@ -437,19 +438,20 @@ export default function AdminProductsPage() {
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     placeholder="e.g. Architectural Linen Overshirt"
-                    className="w-full bg-[#E8E8E8] border border-[#BBBFCA] px-3 py-2 focus:outline-none"
+                    className="h-10 w-full bg-[#E8E8E8] border border-[#BBBFCA] px-3.5 text-xs text-[#495464] focus:outline-none focus:border-[#495464] transition-colors"
                   />
                 </div>
 
+                {/* 2. Category & Tag Row */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[10px] uppercase tracking-widest font-semibold mb-1">
+                    <label className="block text-[10px] uppercase tracking-widest font-semibold text-[#495464] mb-1.5">
                       Category *
                     </label>
                     <select
                       value={formData.category}
                       onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                      className="w-full bg-[#E8E8E8] border border-[#BBBFCA] px-3 py-2 uppercase"
+                      className="h-10 w-full bg-[#E8E8E8] border border-[#BBBFCA] px-3.5 text-xs text-[#495464] uppercase focus:outline-none focus:border-[#495464] transition-colors"
                     >
                       <option value="tops">Tops</option>
                       <option value="bottoms">Bottoms</option>
@@ -461,13 +463,13 @@ export default function AdminProductsPage() {
                   </div>
 
                   <div>
-                    <label className="block text-[10px] uppercase tracking-widest font-semibold mb-1">
+                    <label className="block text-[10px] uppercase tracking-widest font-semibold text-[#495464] mb-1.5">
                       Tag / Badge
                     </label>
                     <select
                       value={formData.tag}
                       onChange={(e) => setFormData({ ...formData, tag: e.target.value })}
-                      className="w-full bg-[#E8E8E8] border border-[#BBBFCA] px-3 py-2 uppercase"
+                      className="h-10 w-full bg-[#E8E8E8] border border-[#BBBFCA] px-3.5 text-xs text-[#495464] uppercase focus:outline-none focus:border-[#495464] transition-colors"
                     >
                       <option value="NEW">NEW</option>
                       <option value="SALE">SALE</option>
@@ -477,9 +479,10 @@ export default function AdminProductsPage() {
                   </div>
                 </div>
 
+                {/* 3. Price, Original Price, Stock Count (Aligned on exact same baseline) */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-[10px] uppercase tracking-widest font-semibold mb-1">
+                    <label className="h-6 flex items-end text-[10px] uppercase tracking-widest font-semibold text-[#495464] mb-1.5">
                       Price (PKR) *
                     </label>
                     <input
@@ -488,12 +491,12 @@ export default function AdminProductsPage() {
                       value={formData.price}
                       onChange={(e) => setFormData({ ...formData, price: e.target.value })}
                       placeholder="8500"
-                      className="w-full bg-[#E8E8E8] border border-[#BBBFCA] px-3 py-2"
+                      className="h-10 w-full bg-[#E8E8E8] border border-[#BBBFCA] px-3.5 text-xs text-[#495464] focus:outline-none focus:border-[#495464] transition-colors"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-[10px] uppercase tracking-widest font-semibold mb-1">
+                    <label className="h-6 flex items-end text-[10px] uppercase tracking-widest font-semibold text-[#495464] mb-1.5">
                       Original Price (Optional)
                     </label>
                     <input
@@ -501,12 +504,12 @@ export default function AdminProductsPage() {
                       value={formData.originalPrice}
                       onChange={(e) => setFormData({ ...formData, originalPrice: e.target.value })}
                       placeholder="10500"
-                      className="w-full bg-[#E8E8E8] border border-[#BBBFCA] px-3 py-2"
+                      className="h-10 w-full bg-[#E8E8E8] border border-[#BBBFCA] px-3.5 text-xs text-[#495464] focus:outline-none focus:border-[#495464] transition-colors"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-[10px] uppercase tracking-widest font-semibold mb-1">
+                    <label className="h-6 flex items-end text-[10px] uppercase tracking-widest font-semibold text-[#495464] mb-1.5">
                       Stock Count *
                     </label>
                     <input
@@ -514,21 +517,21 @@ export default function AdminProductsPage() {
                       required
                       value={formData.stockCount}
                       onChange={(e) => setFormData({ ...formData, stockCount: e.target.value })}
-                      className="w-full bg-[#E8E8E8] border border-[#BBBFCA] px-3 py-2"
+                      className="h-10 w-full bg-[#E8E8E8] border border-[#BBBFCA] px-3.5 text-xs text-[#495464] focus:outline-none focus:border-[#495464] transition-colors"
                     />
                   </div>
                 </div>
 
-                {/* Product Image Upload with Sharp processing & Preview */}
+                {/* 4. Product Image Upload with Sharp processing & Preview */}
                 <div className="space-y-3 pt-1">
                   <div className="flex items-center justify-between">
-                    <label className="block text-[10px] uppercase tracking-widest font-semibold">
+                    <label className="block text-[10px] uppercase tracking-widest font-semibold text-[#495464]">
                       Product Photography *
                     </label>
                     <button
                       type="button"
                       onClick={() => setIsCustomUrl(!isCustomUrl)}
-                      className="text-[10px] uppercase tracking-wider text-[#495464]/70 hover:text-[#495464] underline"
+                      className="text-[10px] uppercase tracking-wider text-[#495464]/70 hover:text-[#495464] underline cursor-pointer"
                     >
                       {isCustomUrl ? "Switch to Computer Upload" : "Or enter direct URL"}
                     </button>
@@ -545,12 +548,12 @@ export default function AdminProductsPage() {
 
                   {!isCustomUrl ? (
                     <div className="space-y-3">
-                      <div className="flex flex-col sm:flex-row gap-3 items-center">
+                      <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
                         <button
                           type="button"
                           disabled={uploadingImage}
                           onClick={() => fileInputRef.current?.click()}
-                          className="w-full sm:w-auto flex items-center justify-center gap-2 bg-[#495464] text-[#F4F4F2] px-5 py-2.5 text-xs uppercase tracking-wider font-medium hover:bg-[#363E4B] transition-all shadow-sm disabled:opacity-50"
+                          className="h-10 flex items-center justify-center gap-2 bg-[#495464] text-[#F4F4F2] px-5 text-xs uppercase tracking-wider font-medium hover:bg-[#363E4B] transition-all shadow-sm disabled:opacity-50 cursor-pointer"
                         >
                           {uploadingImage ? (
                             <>
@@ -573,12 +576,12 @@ export default function AdminProductsPage() {
                       {/* Image Preview & Enhancement Indicator */}
                       {formData.imageUrl && (
                         <div className="flex items-center gap-4 p-3 bg-[#E8E8E8]/70 border border-[#BBBFCA]/60">
-                          <div className="relative w-16 h-20 bg-[#E8E8E8] flex-shrink-0 overflow-hidden border border-[#BBBFCA]">
+                          <div className="relative w-14 h-16 bg-[#E8E8E8] flex-shrink-0 overflow-hidden border border-[#BBBFCA]">
                             <Image
                               src={formData.imageUrl}
                               alt="Product Preview"
                               fill
-                              sizes="64px"
+                              sizes="56px"
                               className="object-cover"
                             />
                           </div>
@@ -604,14 +607,15 @@ export default function AdminProductsPage() {
                         value={formData.imageUrl}
                         onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
                         placeholder="https://images.unsplash.com/..."
-                        className="w-full bg-[#E8E8E8] border border-[#BBBFCA] px-3 py-2 text-xs text-[#495464] focus:outline-none"
+                        className="h-10 w-full bg-[#E8E8E8] border border-[#BBBFCA] px-3.5 text-xs text-[#495464] focus:outline-none focus:border-[#495464] transition-colors"
                       />
                     </div>
                   )}
                 </div>
 
+                {/* 5. Description */}
                 <div>
-                  <label className="block text-[10px] uppercase tracking-widest font-semibold mb-1">
+                  <label className="block text-[10px] uppercase tracking-widest font-semibold text-[#495464] mb-1.5">
                     Description
                   </label>
                   <textarea
@@ -619,35 +623,37 @@ export default function AdminProductsPage() {
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     placeholder="Editorial product composition and craftsmanship notes..."
-                    className="w-full bg-[#E8E8E8] border border-[#BBBFCA] p-3"
+                    className="w-full bg-[#E8E8E8] border border-[#BBBFCA] p-3 text-xs text-[#495464] focus:outline-none focus:border-[#495464] transition-colors"
                   />
                 </div>
 
-                <div className="flex items-center gap-2 pt-2">
+                {/* 6. Feature on Homepage */}
+                <div className="flex items-center gap-2.5 pt-1">
                   <input
                     type="checkbox"
                     id="featuredCheckbox"
                     checked={formData.featured}
                     onChange={(e) => setFormData({ ...formData, featured: e.target.checked })}
-                    className="w-4 h-4"
+                    className="w-4 h-4 accent-[#495464] cursor-pointer"
                   />
-                  <label htmlFor="featuredCheckbox" className="text-xs uppercase tracking-wider font-semibold cursor-pointer">
+                  <label htmlFor="featuredCheckbox" className="text-xs uppercase tracking-wider font-semibold text-[#495464] cursor-pointer">
                     Feature on Homepage Carousel
                   </label>
                 </div>
 
+                {/* 7. Footer Actions */}
                 <div className="flex justify-end gap-3 pt-4 border-t border-[#BBBFCA]/40">
                   <button
                     type="button"
                     onClick={() => setModalOpen(false)}
-                    className="px-4 py-2 border border-[#BBBFCA] uppercase tracking-wider hover:bg-[#E8E8E8]"
+                    className="h-10 px-5 border border-[#BBBFCA] text-xs uppercase tracking-wider font-medium hover:bg-[#E8E8E8] transition-colors cursor-pointer"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={saving}
-                    className="bg-[#495464] text-[#F4F4F2] px-6 py-2 uppercase tracking-wider font-medium hover:bg-[#363E4B] disabled:opacity-50"
+                    className="h-10 bg-[#495464] text-[#F4F4F2] px-6 text-xs uppercase tracking-wider font-medium hover:bg-[#363E4B] transition-colors disabled:opacity-50 shadow-sm cursor-pointer"
                   >
                     {saving ? "Saving..." : "Save Product to DB"}
                   </button>
