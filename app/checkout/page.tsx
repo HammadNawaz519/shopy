@@ -36,6 +36,10 @@ export default function CheckoutPage() {
   });
 
   useEffect(() => {
+    document.title = "Checkout | SHOPY";
+  }, []);
+
+  useEffect(() => {
     if (user && !formData.email) {
       const names = user.name.split(" ");
       setFormData((prev) => ({

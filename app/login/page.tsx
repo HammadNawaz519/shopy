@@ -22,6 +22,10 @@ function LoginForm() {
   const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
+    document.title = "Sign In | SHOPY";
+  }, []);
+
+  useEffect(() => {
     if (errorParam) {
       if (errorParam === "google_cancelled") {
         setErrorMessage("Google sign-in was cancelled.");

@@ -25,6 +25,10 @@ export default function CartPage() {
   const [promoInput, setPromoInput] = useState("");
   const [promoLoading, setPromoLoading] = useState(false);
 
+  React.useEffect(() => {
+    document.title = "Bag | SHOPY";
+  }, []);
+
   const handleApplyPromo = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!promoInput.trim()) return;

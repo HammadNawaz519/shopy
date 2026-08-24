@@ -11,6 +11,10 @@ export default function OrderConfirmationPage({ params }: { params: { id: string
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    document.title = "Order Confirmed | SHOPY";
+  }, []);
+
+  useEffect(() => {
     async function fetchOrder() {
       try {
         const res = await fetch(`/api/orders/${params.id}`);

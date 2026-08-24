@@ -4,6 +4,10 @@ import Link from "next/link";
 import { ArrowRight, Sparkles } from "lucide-react";
 import { db } from "@/lib/db/store";
 
+export const metadata = {
+  title: "Collections",
+};
+
 export const revalidate = 60; // 60s ISR edge cache with on-demand admin revalidation
 
 export default async function CollectionsOverviewPage() {

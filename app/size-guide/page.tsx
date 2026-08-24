@@ -1,5 +1,9 @@
 import React from "react";
 
+export const metadata = {
+  title: "Size Guide",
+};
+
 export default function SizeGuidePage() {
   return (
     <div className="pt-20 pb-20 bg-[#F4F4F2] text-[#495464]">

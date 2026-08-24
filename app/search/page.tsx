@@ -14,6 +14,10 @@ function SearchContent() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    document.title = query ? `Search: ${query} | SHOPY` : "Search | SHOPY";
+  }, [query]);
+
+  useEffect(() => {
     async function performSearch(q: string) {
       if (!q.trim()) {
         setResults([]);

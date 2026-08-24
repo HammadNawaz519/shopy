@@ -1,5 +1,9 @@
 import React from "react";
 
+export const metadata = {
+  title: "Terms",
+};
+
 export default function TermsPage() {
   return (
     <div className="pt-20 pb-20 bg-[#F4F4F2] text-[#495464]">

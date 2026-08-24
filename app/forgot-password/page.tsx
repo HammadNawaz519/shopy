@@ -17,6 +17,10 @@ export default function ForgotPasswordPage() {
 
   const { showToast } = useToast();
 
+  React.useEffect(() => {
+    document.title = "Reset Password | SHOPY";
+  }, []);
+
   // Step 1: Request 6-Digit OTP via SMTP
   const handleRequestOtp = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -23,20 +23,11 @@ const jakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "SHOPY — Editorial Fashion & Modern Essentials",
-  description:
-    "SHOPY is an architectural fashion and lifestyle maison. Explore tailored silhouettes, heavyweight knitwear, handcrafted footwear, and artisanal fragrances.",
-  keywords: [
-    "SHOPY",
-    "Fashion",
-    "Editorial",
-    "Luxury Clothing",
-    "Modern Essentials",
-    "Extrait de Parfum",
-    "Tracksuits",
-    "Tailored Trousers",
-  ],
-  authors: [{ name: "SHOPY Atelier" }],
+  title: {
+    default: "SHOPY",
+    template: "%s | SHOPY",
+  },
+  description: "SHOPY Atelier",
   icons: {
     icon: [
       { url: "/favicon-32x32.png?v=7", sizes: "32x32", type: "image/png" },
@@ -49,9 +40,8 @@ export const metadata: Metadata = {
     ],
   },
   openGraph: {
-    title: "SHOPY — Editorial Fashion & Modern Essentials",
-    description:
-      "Architectural silhouettes, tactile fabrics, and artisanal fragrances crafted for permanence.",
+    title: "SHOPY",
+    description: "SHOPY Atelier",
     url: "https://shopy.fashion",
     siteName: "SHOPY",
     locale: "en_PK",

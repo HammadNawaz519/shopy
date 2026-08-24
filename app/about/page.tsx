@@ -3,6 +3,10 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
+export const metadata = {
+  title: "About",
+};
+
 export default function AboutPage() {
   return (
     <div className="pt-20 pb-20 bg-[#F4F4F2] text-[#495464]">

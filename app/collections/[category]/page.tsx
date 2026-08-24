@@ -15,6 +15,19 @@ interface CategoryPageProps {
   };
 }
 
+export async function generateMetadata({ params }: CategoryPageProps) {
+  try {
+    const dbCats = await db.getCategories();
+    const found = dbCats.find(
+      (c) => c.slug.toLowerCase() === params.category.toLowerCase()
+    );
+    if (found) {
+      return { title: found.name };
+    }
+  } catch {}
+  return { title: params.category.toUpperCase() };
+}
+
 export const revalidate = 60; // 60s ISR edge cache with on-demand admin revalidation
 
 export default async function CategoryPage({ params }: CategoryPageProps) {

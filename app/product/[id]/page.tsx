@@ -4,13 +4,28 @@ import { db } from "@/lib/db/store";
 import { PRODUCTS } from "@/lib/data/products";
 import ProductDetailClientView from "@/components/product/ProductDetailClientView";
 
-export const revalidate = 60; // 60s ISR edge cache with on-demand admin revalidation
-
 interface ProductDetailPageProps {
   params: {
     id: string;
   };
 }
+
+export async function generateMetadata({ params }: ProductDetailPageProps) {
+  try {
+    const dbProducts = await db.getProducts();
+    const product = dbProducts.find((p) => p.id === params.id || p.slug === params.id);
+    if (product) {
+      return { title: product.name };
+    }
+  } catch {}
+  const fallback = PRODUCTS.find((p) => p.id === params.id || p.slug === params.id);
+  if (fallback) {
+    return { title: fallback.name };
+  }
+  return { title: "Product" };
+}
+
+export const revalidate = 60; // 60s ISR edge cache with on-demand admin revalidation
 
 export default async function ProductDetailPage({ params }: ProductDetailPageProps) {
   let product: any = null;

@@ -4,8 +4,8 @@ import { getCurrentUser } from "@/lib/security/session";
 import AdminLayoutClient from "@/components/admin/AdminLayoutClient";
 
 export const metadata = {
-  title: "SHOPY Atelier — Admin Operations System",
-  description: "Enterprise e-commerce operations, order fulfillment, catalog, and inventory management.",
+  title: "Admin",
+  description: "SHOPY Admin",
 };
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {

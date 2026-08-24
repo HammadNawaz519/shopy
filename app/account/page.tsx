@@ -13,6 +13,10 @@ export default function AccountPage() {
   const [orders, setOrders] = useState<any[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(true);
 
+  useEffect(() => {
+    document.title = "Account | SHOPY";
+  }, []);
+
   // Background check for unauthorized visitors
   useEffect(() => {
     if (!loading && !user) {

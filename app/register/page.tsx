@@ -20,6 +20,10 @@ export default function RegisterPage() {
   const [resending, setResending] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
+  React.useEffect(() => {
+    document.title = "Register | SHOPY";
+  }, []);
+
   const hasUpperCase = /[A-Z]/.test(password);
   const hasLowerCase = /[a-z]/.test(password);
   const hasNumber = /[0-9]/.test(password);

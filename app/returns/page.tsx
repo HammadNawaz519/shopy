@@ -1,5 +1,9 @@
 import React from "react";
 
+export const metadata = {
+  title: "Returns",
+};
+
 export default function ReturnsPage() {
   return (
     <div className="pt-20 pb-20 bg-[#F4F4F2] text-[#495464]">
