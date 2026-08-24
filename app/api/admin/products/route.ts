@@ -140,6 +140,8 @@ export async function DELETE(req: Request) {
       revalidatePath("/products");
       revalidatePath("/collections");
       revalidatePath(`/product/${id}`);
+      revalidatePath("/admin/products");
+      revalidatePath("/admin/inventory");
     } catch {}
 
     return NextResponse.json(result);

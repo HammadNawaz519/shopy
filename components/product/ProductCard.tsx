@@ -71,48 +71,56 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
         </Link>
 
         {/* Status Badges */}
-        {product.tag && (
+        {(product.stockCount <= 0 || product.inStock === false) ? (
+          <span className="absolute top-3 left-3 bg-[#181a1d] text-[#F4F4F2] text-[9px] uppercase tracking-widest font-semibold px-2.5 py-1 z-10">
+            SOLD OUT
+          </span>
+        ) : product.tag ? (
           <span className="absolute top-3 left-3 bg-[#495464] text-[#F4F4F2] text-[9px] uppercase tracking-widest font-semibold px-2.5 py-1 z-10">
             {product.tag}
           </span>
+        ) : null}
+
+        {/* Quick Add Slide-up Overlay (Only available when in stock) */}
+        {product.stockCount > 0 && product.inStock !== false && (
+          <div
+            className={`absolute inset-x-0 bottom-0 p-3 bg-[#F4F4F2]/95 backdrop-blur-sm border-t border-[#BBBFCA]/30 transition-transform duration-300 z-20 ${
+              showQuickAdd ? "translate-y-0" : "translate-y-full"
+            }`}
+          >
+            <p className="text-[10px] uppercase tracking-widest text-[#495464]/80 text-center mb-2 font-medium">
+              Select Size
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-1.5">
+              {product.sizes.map((size) => (
+                <button
+                  key={size}
+                  onClick={(e) => handleQuickAdd(e, size)}
+                  className="px-2.5 py-1 text-xs border border-[#495464]/40 hover:bg-[#495464] hover:text-[#F4F4F2] text-[#495464] transition-colors"
+                >
+                  {size}
+                </button>
+              ))}
+            </div>
+          </div>
         )}
 
-        {/* Quick Add Slide-up Overlay */}
-        <div
-          className={`absolute inset-x-0 bottom-0 p-3 bg-[#F4F4F2]/95 backdrop-blur-sm border-t border-[#BBBFCA]/30 transition-transform duration-300 z-20 ${
-            showQuickAdd ? "translate-y-0" : "translate-y-full"
-          }`}
-        >
-          <p className="text-[10px] uppercase tracking-widest text-[#495464]/80 text-center mb-2 font-medium">
-            Select Size
-          </p>
-          <div className="flex flex-wrap items-center justify-center gap-1.5">
-            {product.sizes.map((size) => (
-              <button
-                key={size}
-                onClick={(e) => handleQuickAdd(e, size)}
-                className="px-2.5 py-1 text-xs border border-[#495464]/40 hover:bg-[#495464] hover:text-[#F4F4F2] text-[#495464] transition-colors"
-              >
-                {size}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Quick Add Toggle Button (visible on hover) */}
-        <button
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            setShowQuickAdd(!showQuickAdd);
-          }}
-          className={`absolute bottom-3 right-3 w-8 h-8 bg-white/90 text-[#495464] flex items-center justify-center shadow-md transition-all duration-300 z-10 hover:bg-[#495464] hover:text-white ${
-            isHovered ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2 pointer-events-none"
-          }`}
-          aria-label="Quick add size"
-        >
-          <Plus className="w-4 h-4" />
-        </button>
+        {/* Quick Add Toggle Button (visible on hover when in stock) */}
+        {product.stockCount > 0 && product.inStock !== false && (
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setShowQuickAdd(!showQuickAdd);
+            }}
+            className={`absolute bottom-3 right-3 w-8 h-8 bg-white/90 text-[#495464] flex items-center justify-center shadow-md transition-all duration-300 z-10 hover:bg-[#495464] hover:text-white ${
+              isHovered ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2 pointer-events-none"
+            }`}
+            aria-label="Quick add size"
+          >
+            <Plus className="w-4 h-4" />
+          </button>
+        )}
       </div>
 
       {/* Product Information */}

@@ -512,6 +512,19 @@ class SupabaseDataStore {
     );
 
     if (Array.isArray(updates.images)) {
+      // Clean up media assets for any removed image URLs
+      try {
+        const oldImages = await this.getProductImages(id);
+        const newUrls = updates.images.filter(Boolean);
+        for (const oldImg of oldImages) {
+          if (oldImg.imageUrl && !newUrls.includes(oldImg.imageUrl)) {
+            if (oldImg.imageUrl.includes("/api/media/")) {
+              await this.deleteMediaAsset(oldImg.imageUrl);
+            }
+          }
+        }
+      } catch {}
+
       await this.syncProductImages(id, updates.images);
     }
 
@@ -523,42 +536,38 @@ class SupabaseDataStore {
   }
 
   async deleteProduct(id: string): Promise<boolean> {
-    const res = await query(`DELETE FROM products WHERE id = $1;`, [id]);
-    return (res.rowCount || 0) > 0;
+    try {
+      await this.ensureTablesExist();
+
+      // 1. Find all product images and clean up any uploaded media assets from database & disk
+      const images = await this.getProductImages(id);
+      for (const img of images) {
+        if (img.imageUrl && img.imageUrl.includes("/api/media/")) {
+          await this.deleteMediaAsset(img.imageUrl);
+        }
+      }
+
+      // 2. Delete product_images rows
+      await query(`DELETE FROM product_images WHERE product_id = $1;`, [id]);
+
+      // 3. Delete product reviews
+      await query(`DELETE FROM reviews WHERE product_id = $1;`, [id]);
+
+      // 4. Delete product row (order_items.product_id is set to NULL automatically via ON DELETE SET NULL, preserving all historical order invoices)
+      const res = await query(`DELETE FROM products WHERE id = $1;`, [id]);
+      return (res.rowCount || 0) > 0;
+    } catch (err) {
+      console.error("[DELETE PRODUCT ERROR]", err);
+      return false;
+    }
   }
 
   async safeDeleteProduct(id: string): Promise<{ success: boolean; archived: boolean; message: string }> {
-    // Check if product is referenced in order_items
-    try {
-      const orderCheck = await query(`SELECT COUNT(*)::int as count FROM order_items WHERE product_id = $1;`, [id]);
-      const refCount = orderCheck.rows[0]?.count || 0;
-
-      if (refCount > 0) {
-        // Safely archive product so historical order receipts remain intact
-        await query(
-          `UPDATE products SET
-             stock_count = 0,
-             in_stock = false,
-             featured = false,
-             updated_at = NOW()
-           WHERE id = $1;`,
-          [id]
-        );
-        return {
-          success: true,
-          archived: true,
-          message: `Product is referenced in ${refCount} past order(s). It was safely archived and hidden from the catalog to protect invoice history.`,
-        };
-      }
-    } catch {
-      // If table check fails, proceed to delete
-    }
-
-    const res = await query(`DELETE FROM products WHERE id = $1;`, [id]);
+    const deleted = await this.deleteProduct(id);
     return {
-      success: (res.rowCount || 0) > 0,
+      success: deleted,
       archived: false,
-      message: "Product permanently deleted.",
+      message: deleted ? "Product and owned media assets permanently deleted. Order history preserved." : "Failed to delete product.",
     };
   }
 
@@ -586,8 +595,8 @@ class SupabaseDataStore {
     }));
   }
 
-  async addCategory(cat: { name: string; slug: string; tagline?: string; image: string; description?: string; featured?: boolean }) {
-    const id = `cat_${Date.now()}`;
+  async addCategory(cat: { id?: string; name: string; slug: string; tagline?: string; image: string; description?: string; featured?: boolean }) {
+    const id = cat.id || `cat_${Date.now()}`;
     const res = await query(
       `INSERT INTO categories (id, name, slug, tagline, image, description, featured)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -598,9 +607,16 @@ class SupabaseDataStore {
   }
 
   async updateCategory(id: string, updates: Partial<{ name: string; slug: string; tagline?: string; image?: string; description?: string; featured?: boolean }>) {
-    const current = await query(`SELECT * FROM categories WHERE id = $1`, [id]);
+    const current = await query(`SELECT * FROM categories WHERE id = $1 OR slug = $1 LIMIT 1;`, [id]);
     if (current.rows.length === 0) return undefined;
     const row = current.rows[0];
+
+    // If image is being replaced, clean up old media asset
+    if (updates.image && row.image && updates.image !== row.image) {
+      if (row.image.includes("/api/media/")) {
+        await this.deleteMediaAsset(row.image);
+      }
+    }
 
     const newName = updates.name !== undefined ? updates.name : row.name;
     const newSlug = updates.slug !== undefined ? updates.slug : row.slug;
@@ -617,36 +633,50 @@ class SupabaseDataStore {
         image = $5,
         description = $6,
         featured = $7
-      WHERE id = $1
+      WHERE id = $1 OR slug = $1
       RETURNING *;`,
-      [id, newName, newSlug, newTagline, newImage, newDesc, newFeatured]
+      [row.id, newName, newSlug, newTagline, newImage, newDesc, newFeatured]
     );
     if (res.rows.length === 0) return undefined;
     return res.rows[0];
   }
 
-  async deleteCategory(id: string): Promise<{ success: boolean; error?: string }> {
+  async deleteCategory(idOrSlug: string): Promise<{ success: boolean; error?: string }> {
     try {
-      const catRes = await query(`SELECT slug FROM categories WHERE id = $1 LIMIT 1;`, [id]);
-      const slug = catRes.rows[0]?.slug;
-
-      const prodCheck = await query(
-        `SELECT COUNT(*)::int as count FROM products WHERE category_id = $1 OR ($2::text IS NOT NULL AND LOWER(category_slug) = LOWER($2));`,
-        [id, slug || null]
-      );
-      const count = prodCheck.rows[0]?.count || 0;
-      if (count > 0) {
-        return {
-          success: false,
-          error: `Cannot delete category: ${count} product(s) are currently assigned to it. Please reassign or delete these products first.`,
-        };
+      await this.ensureTablesExist();
+      const catRes = await query(`SELECT id, slug, image FROM categories WHERE id = $1 OR slug = $1 LIMIT 1;`, [idOrSlug]);
+      if (catRes.rows.length === 0) {
+        return { success: false, error: "Category not found." };
       }
-    } catch {
-      // ignore
-    }
+      const cat = catRes.rows[0];
 
-    const res = await query(`DELETE FROM categories WHERE id = $1;`, [id]);
-    return { success: (res.rowCount || 0) > 0 };
+      // 1. If category image was an uploaded media asset, clean it up
+      if (cat.image && cat.image.includes("/api/media/")) {
+        await this.deleteMediaAsset(cat.image);
+      }
+
+      // 2. Decouple products safely: set category_id = NULL and category_slug = 'uncategorized'
+      // NEVER delete products belonging to the category!
+      await query(
+        `UPDATE products 
+         SET category_id = NULL, category_slug = 'uncategorized', category_label = 'Uncategorized', updated_at = NOW() 
+         WHERE category_id = $1 OR LOWER(category_slug) = LOWER($2);`,
+        [cat.id, cat.slug]
+      );
+
+      // 3. Remove navigation item linking to this category
+      await query(
+        `DELETE FROM navigation_items WHERE category_slug = $1 OR LOWER(category_slug) = LOWER($2);`,
+        [cat.slug, cat.slug]
+      );
+
+      // 4. Delete the category record
+      const res = await query(`DELETE FROM categories WHERE id = $1;`, [cat.id]);
+      return { success: (res.rowCount || 0) > 0 };
+    } catch (err: any) {
+      console.error("[DELETE CATEGORY ERROR]", err);
+      return { success: false, error: err.message || "Failed to delete category." };
+    }
   }
 
   // --------------------------------------------------------------------------
@@ -693,6 +723,34 @@ class SupabaseDataStore {
       return res.rows[0];
     } catch {
       return null;
+    }
+  }
+
+  async deleteMediaAsset(urlOrId: string): Promise<boolean> {
+    if (!urlOrId) return false;
+    try {
+      let cleanId = urlOrId;
+      if (cleanId.includes("/api/media/")) {
+        cleanId = cleanId.split("/api/media/")[1];
+      }
+      cleanId = cleanId.split("?")[0].replace(/\.(webp|png|jpg|jpeg|avif)$/i, "").trim();
+      if (!cleanId) return false;
+
+      await query(`DELETE FROM media_assets WHERE id = $1 OR filename LIKE $2;`, [cleanId, `${cleanId}%`]);
+
+      // If local uploads file exists, delete it
+      try {
+        const fs = await import("fs/promises");
+        const path = await import("path");
+        const uploadsDir = path.join(process.cwd(), "public", "uploads");
+        const filename = `${cleanId}.webp`;
+        await fs.unlink(path.join(uploadsDir, filename)).catch(() => {});
+      } catch {}
+
+      return true;
+    } catch (err) {
+      console.error("[DELETE MEDIA ASSET ERROR]", err);
+      return false;
     }
   }
 

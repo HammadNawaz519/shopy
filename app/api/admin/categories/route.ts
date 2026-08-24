@@ -112,10 +112,12 @@ export async function DELETE(req: Request) {
       revalidatePath("/");
       revalidatePath("/collections");
       revalidatePath("/products");
+      revalidatePath("/admin/categories");
+      revalidatePath("/admin/products");
     } catch {}
 
     return NextResponse.json({ success: true });
-  } catch {
-    return NextResponse.json({ error: "Failed to delete category." }, { status: 500 });
+  } catch (error: any) {
+    return NextResponse.json({ error: error?.message || "Failed to delete category." }, { status: 500 });
   }
 }

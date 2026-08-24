@@ -206,9 +206,10 @@ export default function ProductDetailClientView({
               <div className="pt-2 space-y-2.5">
                 <div className="flex items-center gap-3">
                   {/* Quantity selector */}
-                  <div className="flex items-center border border-[#BBBFCA] bg-[#E8E8E8]">
+                  <div className={`flex items-center border border-[#BBBFCA] bg-[#E8E8E8] ${(!product.inStock || product.stockCount <= 0) ? "opacity-50 pointer-events-none" : ""}`}>
                     <button
                       onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                      disabled={!product.inStock || product.stockCount <= 0}
                       className="px-2.5 py-2.5 text-[#495464] hover:bg-[#BBBFCA]/30 transition-colors"
                       aria-label="Decrease quantity"
                     >
@@ -219,6 +220,7 @@ export default function ProductDetailClientView({
                     </span>
                     <button
                       onClick={() => setQuantity(quantity + 1)}
+                      disabled={!product.inStock || product.stockCount <= 0}
                       className="px-2.5 py-2.5 text-[#495464] hover:bg-[#BBBFCA]/30 transition-colors"
                       aria-label="Increase quantity"
                     >
@@ -229,17 +231,19 @@ export default function ProductDetailClientView({
                   {/* Add to Bag Button */}
                   <button
                     onClick={handleAddToCart}
-                    className="flex-1 bg-[#495464] text-[#F4F4F2] py-2.5 px-4 text-xs uppercase tracking-widest font-medium hover:bg-[#363E4B] transition-all shadow-sm"
+                    disabled={!product.inStock || product.stockCount <= 0}
+                    className="flex-1 bg-[#495464] text-[#F4F4F2] py-2.5 px-4 text-xs uppercase tracking-widest font-medium hover:bg-[#363E4B] transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Add to Bag • {formatPrice(product.price * quantity)}
+                    {(!product.inStock || product.stockCount <= 0) ? "Sold Out" : `Add to Bag • ${formatPrice(product.price * quantity)}`}
                   </button>
                 </div>
 
                 <button
                   onClick={handleBuyNow}
-                  className="w-full border border-[#495464] text-[#495464] py-2.5 px-4 text-xs uppercase tracking-widest font-medium hover:bg-[#495464] hover:text-[#F4F4F2] transition-colors"
+                  disabled={!product.inStock || product.stockCount <= 0}
+                  className="w-full border border-[#495464] text-[#495464] py-2.5 px-4 text-xs uppercase tracking-widest font-medium hover:bg-[#495464] hover:text-[#F4F4F2] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  Instant Bag Review
+                  {(!product.inStock || product.stockCount <= 0) ? "Archive Only" : "Instant Bag Review"}
                 </button>
               </div>
 
