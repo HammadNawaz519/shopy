@@ -1,18 +1,51 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
 export default function Hero() {
+  const [hero, setHero] = useState({
+    heroImage: "/hero-beige-male.jpg",
+    heroSubtitle: "EDITION 01 • AUTUMN / WINTER 2026",
+    heroTitle: "ARCHITECTURAL ELEGANCE",
+    heroCtaText: "Explore Collection",
+    heroCtaLink: "/products",
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchHero = async () => {
+      try {
+        const res = await fetch("/api/homepage");
+        if (res.ok) {
+          const data = await res.json();
+          if (isMounted && data.config) {
+            setHero({
+              heroImage: data.config.heroImage || "/hero-beige-male.jpg",
+              heroSubtitle: data.config.heroSubtitle || "EDITION 01 • AUTUMN / WINTER 2026",
+              heroTitle: data.config.heroTitle || "ARCHITECTURAL ELEGANCE",
+              heroCtaText: data.config.heroCtaText || "Explore Collection",
+              heroCtaLink: data.config.heroCtaLink || "/products",
+            });
+          }
+        }
+      } catch {}
+    };
+    fetchHero();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   return (
     <section className="relative w-full h-[94vh] min-h-[620px] max-h-[1100px] flex items-center justify-center overflow-hidden bg-[#181a1d] select-none">
-      {/* Editorial Hero Photography — Minimalist Warm Beige Architectural Luxury (Menswear Atelier) */}
+      {/* Editorial Hero Photography — Minimalist Warm Beige Architectural Luxury */}
       <div className="absolute inset-0 w-full h-full">
         <Image
-          src="/hero-beige-male.jpg"
-          alt="SHOPY Editorial Menswear Beige Campaign"
+          src={hero.heroImage}
+          alt="SHOPY Editorial Campaign"
           fill
           priority
           sizes="100vw"
@@ -26,7 +59,7 @@ export default function Hero() {
       <div className="relative z-10 max-w-4xl mx-auto px-6 text-center text-white flex flex-col items-center justify-center">
         {/* Subtle Edition Tag */}
         <span className="text-[10px] sm:text-[11px] font-light tracking-[0.35em] uppercase text-white/90 mb-4 block">
-          EDITION 01 • AUTUMN / WINTER 2026
+          {hero.heroSubtitle}
         </span>
 
         {/* Clean, Spacious Editorial Headline */}
@@ -36,16 +69,16 @@ export default function Hero() {
             fontSize: "clamp(2.8rem, 7vw, 6.5rem)",
           }}
         >
-          ARCHITECTURAL <span className="italic font-normal">ELEGANCE</span>
+          {hero.heroTitle}
         </h1>
 
         {/* Centered Minimal CTA */}
         <div className="pt-2">
           <Link
-            href="/products"
+            href={hero.heroCtaLink}
             className="group inline-flex items-center gap-3 px-8 py-3.5 border border-white/70 text-white text-[11px] tracking-[0.25em] uppercase font-light backdrop-blur-xs hover:bg-white hover:text-[#495464] hover:border-white transition-all duration-400 shadow-sm"
           >
-            <span>Explore Collection</span>
+            <span>{hero.heroCtaText}</span>
             <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1.5 transition-transform duration-300" />
           </Link>
         </div>

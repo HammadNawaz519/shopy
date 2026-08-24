@@ -144,6 +144,38 @@ CREATE TABLE IF NOT EXISTS inquiries (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- 11. NAVIGATION ITEMS TABLE (Admin Header & Menu Control)
+CREATE TABLE IF NOT EXISTS navigation_items (
+  id VARCHAR(50) PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  href VARCHAR(255) NOT NULL,
+  order_index INTEGER NOT NULL DEFAULT 0,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  category_slug VARCHAR(100),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 12. HOMEPAGE CONFIGURATION TABLE (Admin Homepage & Hero Control)
+CREATE TABLE IF NOT EXISTS homepage_config (
+  id VARCHAR(50) PRIMARY KEY,
+  hero_title VARCHAR(255) NOT NULL DEFAULT 'ARCHITECTURAL ELEGANCE',
+  hero_subtitle VARCHAR(255) NOT NULL DEFAULT 'EDITION 01 • AUTUMN / WINTER 2026',
+  hero_image TEXT NOT NULL DEFAULT '/hero-beige-male.jpg',
+  hero_cta_text VARCHAR(100) NOT NULL DEFAULT 'Explore Collection',
+  hero_cta_link VARCHAR(255) NOT NULL DEFAULT '/products',
+  featured_title VARCHAR(255) NOT NULL DEFAULT 'Featured Essentials',
+  featured_subtitle VARCHAR(255) NOT NULL DEFAULT 'SELECTION OF THE SEASON',
+  editorial_tag VARCHAR(100) NOT NULL DEFAULT 'EDITORIAL CAMPAIGN',
+  editorial_title VARCHAR(255) NOT NULL DEFAULT 'Permanence in Form & Texture',
+  editorial_quote TEXT NOT NULL DEFAULT 'We reject the cycle of seasonal excess. Each silhouette is engineered with tactile permanence, heavyweight organic knits, and architectural draping.',
+  editorial_image_1 TEXT NOT NULL DEFAULT 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&q=80&w=1000',
+  editorial_image_2 TEXT NOT NULL DEFAULT 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&q=80&w=1000',
+  newsletter_title VARCHAR(255) NOT NULL DEFAULT 'Join The Maison Gazette',
+  newsletter_subtitle VARCHAR(255) NOT NULL DEFAULT 'Receive private vernissage previews, seasonal lookbooks, and invitation-only atelier dispatches.',
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- ============================================================================
 -- PERFORMANCE INDEXES
 -- ============================================================================

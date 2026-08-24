@@ -1,12 +1,33 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { CATEGORIES } from "@/lib/data/categories";
 
 export default function CollectionGrid() {
+  const [categories, setCategories] = useState<any[]>(CATEGORIES);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchCats = async () => {
+      try {
+        const res = await fetch("/api/categories");
+        if (res.ok) {
+          const data = await res.json();
+          if (isMounted && Array.isArray(data.categories) && data.categories.length > 0) {
+            setCategories(data.categories);
+          }
+        }
+      } catch {}
+    };
+    fetchCats();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   return (
     <section className="py-24 lg:py-32 bg-[#F4F4F2] text-[#495464]">
       <div className="max-w-[1720px] mx-auto px-6 lg:px-12">
@@ -29,9 +50,9 @@ export default function CollectionGrid() {
           </Link>
         </div>
 
-        {/* 6 Category Lookbook Grid (Tops, Bottoms, Footwear, Fragrances, Accessories, Co-Ord Sets) */}
+        {/* 6 Category Lookbook Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
-          {CATEGORIES.map((category) => (
+          {categories.map((category) => (
             <Link
               key={category.id}
               href={`/collections/${category.slug}`}

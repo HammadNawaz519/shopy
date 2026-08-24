@@ -1,13 +1,51 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { PRODUCTS } from "@/lib/data/products";
+import { PRODUCTS, Product } from "@/lib/data/products";
 import ProductCard from "../product/ProductCard";
 
 export default function FeaturedProducts() {
-  const featuredProducts = PRODUCTS.slice(0, 4);
+  const [products, setProducts] = useState<Product[]>(PRODUCTS.slice(0, 4));
+  const [headline, setHeadline] = useState({
+    title: "Featured Essentials",
+    subtitle: "SELECTION OF THE SEASON",
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadData = async () => {
+      try {
+        const [prodRes, homeRes] = await Promise.all([
+          fetch("/api/products?featured=true"),
+          fetch("/api/homepage"),
+        ]);
+
+        if (prodRes.ok) {
+          const prodData = await prodRes.json();
+          if (isMounted && Array.isArray(prodData.products) && prodData.products.length > 0) {
+            setProducts(prodData.products.slice(0, 4));
+          }
+        }
+
+        if (homeRes.ok) {
+          const homeData = await homeRes.json();
+          if (isMounted && homeData.config) {
+            setHeadline({
+              title: homeData.config.featuredTitle || "Featured Essentials",
+              subtitle: homeData.config.featuredSubtitle || "SELECTION OF THE SEASON",
+            });
+          }
+        }
+      } catch {}
+    };
+
+    loadData();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   return (
     <section className="py-24 lg:py-32 bg-[#F4F4F2] text-[#495464]">
@@ -16,10 +54,10 @@ export default function FeaturedProducts() {
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 pb-6 border-b border-[#BBBFCA]/30">
           <div>
             <span className="text-xs uppercase tracking-widest text-[#495464]/60 block mb-2">
-              SELECTION OF THE SEASON
+              {headline.subtitle}
             </span>
             <h2 className="font-serif text-3xl lg:text-5xl font-medium tracking-tight text-[#495464]">
-              Featured Essentials
+              {headline.title}
             </h2>
           </div>
           <Link
@@ -33,7 +71,7 @@ export default function FeaturedProducts() {
 
         {/* Product Cards Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-10">
-          {featuredProducts.map((product, index) => (
+          {products.map((product, index) => (
             <ProductCard key={product.id} product={product} priority={index < 4} />
           ))}
         </div>

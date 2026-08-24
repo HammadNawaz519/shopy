@@ -116,6 +116,40 @@ export interface StoreSettings {
   taxPercentage: number;
   orderNotifications: boolean;
   inventoryAlertThreshold: number;
+  socialInstagram?: string;
+  socialFacebook?: string;
+  socialLinkedIn?: string;
+  socialYouTube?: string;
+}
+
+export interface NavigationItem {
+  id: string;
+  name: string;
+  href: string;
+  orderIndex: number;
+  isActive: boolean;
+  categorySlug?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface HomepageConfig {
+  id: string;
+  heroTitle: string;
+  heroSubtitle: string;
+  heroImage: string;
+  heroCtaText: string;
+  heroCtaLink: string;
+  featuredTitle: string;
+  featuredSubtitle: string;
+  editorialTag: string;
+  editorialTitle: string;
+  editorialQuote: string;
+  editorialImage1: string;
+  editorialImage2: string;
+  newsletterTitle: string;
+  newsletterSubtitle: string;
+  updatedAt?: string;
 }
 
 // Transform PostgreSQL Row to Product Interface
@@ -330,6 +364,41 @@ class SupabaseDataStore {
     return (res.rowCount || 0) > 0;
   }
 
+  async safeDeleteProduct(id: string): Promise<{ success: boolean; archived: boolean; message: string }> {
+    // Check if product is referenced in order_items
+    try {
+      const orderCheck = await query(`SELECT COUNT(*)::int as count FROM order_items WHERE product_id = $1;`, [id]);
+      const refCount = orderCheck.rows[0]?.count || 0;
+
+      if (refCount > 0) {
+        // Safely archive product so historical order receipts remain intact
+        await query(
+          `UPDATE products SET
+             stock_count = 0,
+             in_stock = false,
+             featured = false,
+             updated_at = NOW()
+           WHERE id = $1;`,
+          [id]
+        );
+        return {
+          success: true,
+          archived: true,
+          message: `Product is referenced in ${refCount} past order(s). It was safely archived and hidden from the catalog to protect invoice history.`,
+        };
+      }
+    } catch {
+      // If table check fails, proceed to delete
+    }
+
+    const res = await query(`DELETE FROM products WHERE id = $1;`, [id]);
+    return {
+      success: (res.rowCount || 0) > 0,
+      archived: false,
+      message: "Product permanently deleted.",
+    };
+  }
+
   // --------------------------------------------------------------------------
   // CATEGORIES
   // --------------------------------------------------------------------------
@@ -337,7 +406,7 @@ class SupabaseDataStore {
     const res = await query(`
       SELECT c.*, COUNT(p.id)::int as product_count
       FROM categories c
-      LEFT JOIN products p ON c.id = p.category_id
+      LEFT JOIN products p ON c.id = p.category_id OR LOWER(c.slug) = LOWER(p.category_slug)
       GROUP BY c.id
       ORDER BY c.name ASC;
     `);
@@ -354,15 +423,64 @@ class SupabaseDataStore {
     }));
   }
 
-  async addCategory(cat: { name: string; slug: string; tagline?: string; image: string; description?: string }) {
+  async addCategory(cat: { name: string; slug: string; tagline?: string; image: string; description?: string; featured?: boolean }) {
     const id = `cat_${Date.now()}`;
     const res = await query(
-      `INSERT INTO categories (id, name, slug, tagline, image, description)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO categories (id, name, slug, tagline, image, description, featured)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *;`,
-      [id, cat.name, cat.slug, cat.tagline || "", cat.image, cat.description || ""]
+      [id, cat.name, cat.slug, cat.tagline || "", cat.image, cat.description || "", Boolean(cat.featured)]
     );
     return res.rows[0];
+  }
+
+  async updateCategory(id: string, updates: Partial<{ name: string; slug: string; tagline?: string; image?: string; description?: string; featured?: boolean }>) {
+    const res = await query(
+      `UPDATE categories SET
+        name = COALESCE($2, name),
+        slug = COALESCE($3, slug),
+        tagline = COALESCE($4, tagline),
+        image = COALESCE($5, image),
+        description = COALESCE($6, description),
+        featured = COALESCE($7, featured)
+      WHERE id = $1
+      RETURNING *;`,
+      [
+        id,
+        updates.name || null,
+        updates.slug || null,
+        updates.tagline !== undefined ? updates.tagline : null,
+        updates.image || null,
+        updates.description !== undefined ? updates.description : null,
+        updates.featured !== undefined ? updates.featured : null,
+      ]
+    );
+    if (res.rows.length === 0) return undefined;
+    return res.rows[0];
+  }
+
+  async deleteCategory(id: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      const catRes = await query(`SELECT slug FROM categories WHERE id = $1 LIMIT 1;`, [id]);
+      const slug = catRes.rows[0]?.slug;
+
+      const prodCheck = await query(
+        `SELECT COUNT(*)::int as count FROM products WHERE category_id = $1 OR ($2::text IS NOT NULL AND LOWER(category_slug) = LOWER($2));`,
+        [id, slug || null]
+      );
+      const count = prodCheck.rows[0]?.count || 0;
+      if (count > 0) {
+        return {
+          success: false,
+          error: `Cannot delete category: ${count} product(s) are currently assigned to it. Please reassign or delete these products first.`,
+        };
+      }
+    } catch {
+      // ignore
+    }
+
+    const res = await query(`DELETE FROM categories WHERE id = $1;`, [id]);
+    return { success: (res.rowCount || 0) > 0 };
   }
 
   // --------------------------------------------------------------------------
@@ -1036,6 +1154,295 @@ class SupabaseDataStore {
       [email.toLowerCase().trim()]
     );
     return (res.rowCount || 0) > 0;
+  }
+
+  // --------------------------------------------------------------------------
+  // NAVIGATION ITEMS (HEADER & MENU CONTROL)
+  // --------------------------------------------------------------------------
+  private _tablesInitialized = false;
+  async ensureTablesExist(): Promise<void> {
+    if (this._tablesInitialized) return;
+    try {
+      await query(`
+        CREATE TABLE IF NOT EXISTS navigation_items (
+          id VARCHAR(50) PRIMARY KEY,
+          name VARCHAR(100) NOT NULL,
+          href VARCHAR(255) NOT NULL,
+          order_index INTEGER NOT NULL DEFAULT 0,
+          is_active BOOLEAN NOT NULL DEFAULT true,
+          category_slug VARCHAR(100),
+          created_at TIMESTAMPTZ DEFAULT NOW(),
+          updated_at TIMESTAMPTZ DEFAULT NOW()
+        );
+      `);
+    } catch {}
+
+    try {
+      await query(`
+        CREATE TABLE IF NOT EXISTS homepage_config (
+          id VARCHAR(50) PRIMARY KEY,
+          hero_title VARCHAR(255) NOT NULL DEFAULT 'ARCHITECTURAL ELEGANCE',
+          hero_subtitle VARCHAR(255) NOT NULL DEFAULT 'EDITION 01 • AUTUMN / WINTER 2026',
+          hero_image TEXT NOT NULL DEFAULT '/hero-beige-male.jpg',
+          hero_cta_text VARCHAR(100) NOT NULL DEFAULT 'Explore Collection',
+          hero_cta_link VARCHAR(255) NOT NULL DEFAULT '/products',
+          featured_title VARCHAR(255) NOT NULL DEFAULT 'Featured Essentials',
+          featured_subtitle VARCHAR(255) NOT NULL DEFAULT 'SELECTION OF THE SEASON',
+          editorial_tag VARCHAR(100) NOT NULL DEFAULT 'EDITORIAL CAMPAIGN',
+          editorial_title VARCHAR(255) NOT NULL DEFAULT 'Permanence in Form & Texture',
+          editorial_quote TEXT NOT NULL DEFAULT 'We reject the cycle of seasonal excess. Each silhouette is engineered with tactile permanence, heavyweight organic knits, and architectural draping.',
+          editorial_image_1 TEXT NOT NULL DEFAULT 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&q=80&w=1000',
+          editorial_image_2 TEXT NOT NULL DEFAULT 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&q=80&w=1000',
+          newsletter_title VARCHAR(255) NOT NULL DEFAULT 'Join The Maison Gazette',
+          newsletter_subtitle VARCHAR(255) NOT NULL DEFAULT 'Receive private vernissage previews, seasonal lookbooks, and invitation-only atelier dispatches.',
+          updated_at TIMESTAMPTZ DEFAULT NOW()
+        );
+      `);
+    } catch {}
+
+    try {
+      // Seed default navigation if empty
+      const navCount = await query(`SELECT COUNT(*)::int as count FROM navigation_items;`);
+      if (navCount.rows[0]?.count === 0) {
+        await query(`
+          INSERT INTO navigation_items (id, name, href, order_index, is_active, category_slug)
+          VALUES
+            ('nav_1', 'home', '/', 0, true, null),
+            ('nav_2', 'view all', '/products', 1, true, null),
+            ('nav_3', 'tops', '/collections/tops', 2, true, 'tops'),
+            ('nav_4', 'bottoms', '/collections/bottoms', 3, true, 'bottoms'),
+            ('nav_5', 'co-ord sets', '/collections/co-ord-sets', 4, true, 'co-ord-sets'),
+            ('nav_6', 'footwear', '/collections/footwear', 5, true, 'footwear'),
+            ('nav_7', 'fragrances', '/collections/fragrances', 6, true, 'fragrances'),
+            ('nav_8', 'collections', '/collections', 7, true, null)
+          ON CONFLICT (id) DO NOTHING;
+        `);
+      }
+    } catch {}
+
+    this._tablesInitialized = true;
+  }
+
+  async getNavigationItems(onlyActive = false): Promise<NavigationItem[]> {
+    try {
+      await this.ensureTablesExist();
+      let sql = `SELECT * FROM navigation_items`;
+      if (onlyActive) {
+        sql += ` WHERE is_active = true`;
+      }
+      sql += ` ORDER BY order_index ASC, name ASC;`;
+      const res = await query(sql);
+      if (res.rows.length > 0) {
+        return res.rows.map((r) => ({
+          id: r.id,
+          name: r.name,
+          href: r.href,
+          orderIndex: Number(r.order_index || 0),
+          isActive: Boolean(r.is_active),
+          categorySlug: r.category_slug || undefined,
+          createdAt: r.created_at ? new Date(r.created_at).toISOString() : undefined,
+          updatedAt: r.updated_at ? new Date(r.updated_at).toISOString() : undefined,
+        }));
+      }
+    } catch (err) {
+      console.error("[GET NAV ITEMS ERROR]", err);
+    }
+
+    return [
+      { id: "nav_1", name: "home", href: "/", orderIndex: 0, isActive: true },
+      { id: "nav_2", name: "view all", href: "/products", orderIndex: 1, isActive: true },
+      { id: "nav_3", name: "tops", href: "/collections/tops", orderIndex: 2, isActive: true, categorySlug: "tops" },
+      { id: "nav_4", name: "bottoms", href: "/collections/bottoms", orderIndex: 3, isActive: true, categorySlug: "bottoms" },
+      { id: "nav_5", name: "co-ord sets", href: "/collections/co-ord-sets", orderIndex: 4, isActive: true, categorySlug: "co-ord-sets" },
+      { id: "nav_6", name: "footwear", href: "/collections/footwear", orderIndex: 5, isActive: true, categorySlug: "footwear" },
+      { id: "nav_7", name: "fragrances", href: "/collections/fragrances", orderIndex: 6, isActive: true, categorySlug: "fragrances" },
+      { id: "nav_8", name: "collections", href: "/collections", orderIndex: 7, isActive: true },
+    ];
+  }
+
+  async addNavigationItem(item: { name: string; href: string; orderIndex?: number; isActive?: boolean; categorySlug?: string }): Promise<NavigationItem> {
+    await this.ensureTablesExist();
+    const id = `nav_${Date.now()}`;
+    const res = await query(
+      `INSERT INTO navigation_items (id, name, href, order_index, is_active, category_slug)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING *;`,
+      [
+        id,
+        item.name.toLowerCase().trim(),
+        item.href.trim(),
+        item.orderIndex !== undefined ? item.orderIndex : 99,
+        item.isActive !== undefined ? item.isActive : true,
+        item.categorySlug || null,
+      ]
+    );
+    const r = res.rows[0];
+    return {
+      id: r.id,
+      name: r.name,
+      href: r.href,
+      orderIndex: Number(r.order_index || 0),
+      isActive: Boolean(r.is_active),
+      categorySlug: r.category_slug || undefined,
+    };
+  }
+
+  async updateNavigationItem(id: string, updates: Partial<NavigationItem>): Promise<NavigationItem | undefined> {
+    await this.ensureTablesExist();
+    const res = await query(
+      `UPDATE navigation_items SET
+        name = COALESCE($2, name),
+        href = COALESCE($3, href),
+        order_index = COALESCE($4, order_index),
+        is_active = COALESCE($5, is_active),
+        category_slug = $6,
+        updated_at = NOW()
+      WHERE id = $1
+      RETURNING *;`,
+      [
+        id,
+        updates.name ? updates.name.toLowerCase().trim() : null,
+        updates.href ? updates.href.trim() : null,
+        updates.orderIndex !== undefined ? updates.orderIndex : null,
+        updates.isActive !== undefined ? updates.isActive : null,
+        updates.categorySlug !== undefined ? updates.categorySlug : null,
+      ]
+    );
+    if (res.rows.length === 0) return undefined;
+    const r = res.rows[0];
+    return {
+      id: r.id,
+      name: r.name,
+      href: r.href,
+      orderIndex: Number(r.order_index || 0),
+      isActive: Boolean(r.is_active),
+      categorySlug: r.category_slug || undefined,
+    };
+  }
+
+  async deleteNavigationItem(id: string): Promise<boolean> {
+    await this.ensureTablesExist();
+    const res = await query(`DELETE FROM navigation_items WHERE id = $1;`, [id]);
+    return (res.rowCount || 0) > 0;
+  }
+
+  // --------------------------------------------------------------------------
+  // HOMEPAGE CONFIGURATION
+  // --------------------------------------------------------------------------
+  async getHomepageConfig(): Promise<HomepageConfig> {
+    try {
+      await this.ensureTablesExist();
+      const res = await query(`SELECT * FROM homepage_config LIMIT 1;`);
+      if (res.rows.length > 0) {
+        const r = res.rows[0];
+        return {
+          id: r.id,
+          heroTitle: r.hero_title || "ARCHITECTURAL ELEGANCE",
+          heroSubtitle: r.hero_subtitle || "EDITION 01 • AUTUMN / WINTER 2026",
+          heroImage: r.hero_image || "/hero-beige-male.jpg",
+          heroCtaText: r.hero_cta_text || "Explore Collection",
+          heroCtaLink: r.hero_cta_link || "/products",
+          featuredTitle: r.featured_title || "Featured Essentials",
+          featuredSubtitle: r.featured_subtitle || "SELECTION OF THE SEASON",
+          editorialTag: r.editorial_tag || "EDITORIAL CAMPAIGN",
+          editorialTitle: r.editorial_title || "Permanence in Form & Texture",
+          editorialQuote: r.editorial_quote || "We reject the cycle of seasonal excess. Each silhouette is engineered with tactile permanence, heavyweight organic knits, and architectural draping.",
+          editorialImage1: r.editorial_image_1 || "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&q=80&w=1000",
+          editorialImage2: r.editorial_image_2 || "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&q=80&w=1000",
+          newsletterTitle: r.newsletter_title || "Join The Maison Gazette",
+          newsletterSubtitle: r.newsletter_subtitle || "Receive private vernissage previews, seasonal lookbooks, and invitation-only atelier dispatches.",
+        };
+      }
+    } catch (err) {
+      console.error("[GET HOMEPAGE CONFIG ERROR]", err);
+    }
+
+    return {
+      id: "home_default",
+      heroTitle: "ARCHITECTURAL ELEGANCE",
+      heroSubtitle: "EDITION 01 • AUTUMN / WINTER 2026",
+      heroImage: "/hero-beige-male.jpg",
+      heroCtaText: "Explore Collection",
+      heroCtaLink: "/products",
+      featuredTitle: "Featured Essentials",
+      featuredSubtitle: "SELECTION OF THE SEASON",
+      editorialTag: "EDITORIAL CAMPAIGN",
+      editorialTitle: "Permanence in Form & Texture",
+      editorialQuote: "We reject the cycle of seasonal excess. Each silhouette is engineered with tactile permanence, heavyweight organic knits, and architectural draping.",
+      editorialImage1: "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&q=80&w=1000",
+      editorialImage2: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&q=80&w=1000",
+      newsletterTitle: "Join The Maison Gazette",
+      newsletterSubtitle: "Receive private vernissage previews, seasonal lookbooks, and invitation-only atelier dispatches.",
+    };
+  }
+
+  async updateHomepageConfig(updates: Partial<HomepageConfig>): Promise<HomepageConfig> {
+    await this.ensureTablesExist();
+    const current = await this.getHomepageConfig();
+    const merged: HomepageConfig = {
+      id: "home_default",
+      heroTitle: updates.heroTitle !== undefined ? updates.heroTitle : current.heroTitle,
+      heroSubtitle: updates.heroSubtitle !== undefined ? updates.heroSubtitle : current.heroSubtitle,
+      heroImage: updates.heroImage !== undefined ? updates.heroImage : current.heroImage,
+      heroCtaText: updates.heroCtaText !== undefined ? updates.heroCtaText : current.heroCtaText,
+      heroCtaLink: updates.heroCtaLink !== undefined ? updates.heroCtaLink : current.heroCtaLink,
+      featuredTitle: updates.featuredTitle !== undefined ? updates.featuredTitle : current.featuredTitle,
+      featuredSubtitle: updates.featuredSubtitle !== undefined ? updates.featuredSubtitle : current.featuredSubtitle,
+      editorialTag: updates.editorialTag !== undefined ? updates.editorialTag : current.editorialTag,
+      editorialTitle: updates.editorialTitle !== undefined ? updates.editorialTitle : current.editorialTitle,
+      editorialQuote: updates.editorialQuote !== undefined ? updates.editorialQuote : current.editorialQuote,
+      editorialImage1: updates.editorialImage1 !== undefined ? updates.editorialImage1 : current.editorialImage1,
+      editorialImage2: updates.editorialImage2 !== undefined ? updates.editorialImage2 : current.editorialImage2,
+      newsletterTitle: updates.newsletterTitle !== undefined ? updates.newsletterTitle : current.newsletterTitle,
+      newsletterSubtitle: updates.newsletterSubtitle !== undefined ? updates.newsletterSubtitle : current.newsletterSubtitle,
+    };
+
+    const res = await query(
+      `INSERT INTO homepage_config (
+        id, hero_title, hero_subtitle, hero_image, hero_cta_text, hero_cta_link,
+        featured_title, featured_subtitle, editorial_tag, editorial_title, editorial_quote,
+        editorial_image_1, editorial_image_2, newsletter_title, newsletter_subtitle, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW())
+      ON CONFLICT (id) DO UPDATE SET
+        hero_title = EXCLUDED.hero_title,
+        hero_subtitle = EXCLUDED.hero_subtitle,
+        hero_image = EXCLUDED.hero_image,
+        hero_cta_text = EXCLUDED.hero_cta_text,
+        hero_cta_link = EXCLUDED.hero_cta_link,
+        featured_title = EXCLUDED.featured_title,
+        featured_subtitle = EXCLUDED.featured_subtitle,
+        editorial_tag = EXCLUDED.editorial_tag,
+        editorial_title = EXCLUDED.editorial_title,
+        editorial_quote = EXCLUDED.editorial_quote,
+        editorial_image_1 = EXCLUDED.editorial_image_1,
+        editorial_image_2 = EXCLUDED.editorial_image_2,
+        newsletter_title = EXCLUDED.newsletter_title,
+        newsletter_subtitle = EXCLUDED.newsletter_subtitle,
+        updated_at = NOW()
+      RETURNING *;`,
+      [
+        merged.id,
+        merged.heroTitle,
+        merged.heroSubtitle,
+        merged.heroImage,
+        merged.heroCtaText,
+        merged.heroCtaLink,
+        merged.featuredTitle,
+        merged.featuredSubtitle,
+        merged.editorialTag,
+        merged.editorialTitle,
+        merged.editorialQuote,
+        merged.editorialImage1,
+        merged.editorialImage2,
+        merged.newsletterTitle,
+        merged.newsletterSubtitle,
+      ]
+    );
+
+    if (res.rows.length > 0) {
+      return this.getHomepageConfig();
+    }
+    return merged;
   }
 }
 

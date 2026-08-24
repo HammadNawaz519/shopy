@@ -29,12 +29,8 @@ export default function CartDrawer() {
   const [promoInput, setPromoInput] = useState("");
   const [promoLoading, setPromoLoading] = useState(false);
 
-  if (pathname.startsWith("/admin")) {
-    return null;
-  }
-
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !pathname.startsWith("/admin")) {
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "unset";
@@ -42,7 +38,7 @@ export default function CartDrawer() {
     return () => {
       document.body.style.overflow = "unset";
     };
-  }, [isOpen]);
+  }, [isOpen, pathname]);
 
   const handleApplyPromo = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,7 +55,9 @@ export default function CartDrawer() {
     }
   };
 
-  if (!isOpen) return null;
+  if (pathname.startsWith("/admin") || !isOpen) {
+    return null;
+  }
 
   const freeShippingThreshold = 15000;
   const currentSubtotal = serverCalculation ? serverCalculation.subtotal : subtotal;

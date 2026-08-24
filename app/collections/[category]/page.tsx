@@ -7,30 +7,65 @@ import { PRODUCTS } from "@/lib/data/products";
 import ProductCard from "@/components/product/ProductCard";
 import { ArrowLeft } from "lucide-react";
 
+import { db } from "@/lib/db/store";
+
 interface CategoryPageProps {
   params: {
     category: string;
   };
 }
 
-export function generateStaticParams() {
+export const revalidate = 60;
+
+export async function generateStaticParams() {
+  try {
+    const dbCats = await db.getCategories();
+    if (dbCats && dbCats.length > 0) {
+      return dbCats.map((cat) => ({ category: cat.slug }));
+    }
+  } catch {}
   return CATEGORIES.map((cat) => ({
     category: cat.slug,
   }));
 }
 
-export default function CategoryPage({ params }: CategoryPageProps) {
-  const category = CATEGORIES.find(
+export default async function CategoryPage({ params }: CategoryPageProps) {
+  let category = CATEGORIES.find(
     (c) => c.slug.toLowerCase() === params.category.toLowerCase()
   );
+
+  try {
+    const dbCats = await db.getCategories();
+    const found = dbCats.find(
+      (c) => c.slug.toLowerCase() === params.category.toLowerCase()
+    );
+    if (found) {
+      category = {
+        id: found.id,
+        name: found.name,
+        slug: found.slug,
+        tagline: found.tagline || `Editorial collection of ${found.name.toLowerCase()}`,
+        image: found.image,
+        description: found.description || `Curated ${found.name.toLowerCase()} for the contemporary wardrobe.`,
+        aspectRatio: (found.aspectRatio as any) || "tall",
+      };
+    }
+  } catch {}
 
   if (!category) {
     notFound();
   }
 
-  const categoryProducts = PRODUCTS.filter(
+  let categoryProducts: any[] = PRODUCTS.filter(
     (p) => p.category.toLowerCase() === category.slug.toLowerCase()
   );
+
+  try {
+    const dbProducts = await db.getProducts({ category: category.slug });
+    if (dbProducts && dbProducts.length > 0) {
+      categoryProducts = dbProducts;
+    }
+  } catch {}
 
   return (
     <div className="pt-20 pb-20 bg-[#F4F4F2] text-[#495464]">

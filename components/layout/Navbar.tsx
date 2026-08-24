@@ -21,6 +21,17 @@ export default function Navbar() {
 
   const isHome = pathname === "/";
 
+  const [navItems, setNavItems] = useState<Array<{ name: string; href: string }>>([
+    { name: "home", href: "/" },
+    { name: "view all", href: "/products" },
+    { name: "tops", href: "/collections/tops" },
+    { name: "bottoms", href: "/collections/bottoms" },
+    { name: "co-ord sets", href: "/collections/co-ord-sets" },
+    { name: "footwear", href: "/collections/footwear" },
+    { name: "fragrances", href: "/collections/fragrances" },
+    { name: "collections", href: "/collections" },
+  ]);
+
   useEffect(() => {
     const handleScroll = () => {
       if (window.scrollY > 30) {
@@ -35,23 +46,32 @@ export default function Navbar() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  useEffect(() => {
+    let isMounted = true;
+    const fetchNav = async () => {
+      try {
+        const res = await fetch("/api/navigation");
+        if (res.ok) {
+          const data = await res.json();
+          if (isMounted && Array.isArray(data.navigation) && data.navigation.length > 0) {
+            setNavItems(data.navigation.map((i: any) => ({ name: i.name, href: i.href })));
+          }
+        }
+      } catch {}
+    };
+    fetchNav();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   // Do NOT render customer navbar on admin routes
   if (pathname.startsWith("/admin")) {
     return null;
   }
 
   const isTransparent = isHome && !isScrolled;
-
-  const navLinks = [
-    { name: "home", href: "/" },
-    { name: "view all", href: "/products" },
-    { name: "tops", href: "/collections/tops" },
-    { name: "bottoms", href: "/collections/bottoms" },
-    { name: "co-ord sets", href: "/collections/co-ord-sets" },
-    { name: "footwear", href: "/collections/footwear" },
-    { name: "fragrances", href: "/collections/fragrances" },
-    { name: "collections", href: "/collections" },
-  ];
+  const navLinks = navItems;
 
   return (
     <>

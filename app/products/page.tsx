@@ -1,22 +1,59 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
-import { PRODUCTS } from "@/lib/data/products";
+import React, { useState, useEffect, useMemo } from "react";
+import { PRODUCTS, Product } from "@/lib/data/products";
 import { CATEGORIES } from "@/lib/data/categories";
 import ProductCard from "@/components/product/ProductCard";
-import { Filter, SlidersHorizontal, ArrowUpDown } from "lucide-react";
+import { Filter, SlidersHorizontal, ArrowUpDown, Loader2 } from "lucide-react";
 
 export default function ProductsPage() {
+  const [productsList, setProductsList] = useState<Product[]>(PRODUCTS);
+  const [categoriesList, setCategoriesList] = useState<any[]>(CATEGORIES);
+  const [loading, setLoading] = useState(false);
+
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedSort, setSelectedSort] = useState<string>("featured");
-  const [priceRange, setPriceRange] = useState<number>(40000);
-  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
+  const [priceRange, setPriceRange] = useState<number>(50000);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const [prodRes, catRes] = await Promise.all([
+          fetch("/api/products"),
+          fetch("/api/categories"),
+        ]);
+
+        if (prodRes.ok) {
+          const prodData = await prodRes.json();
+          if (isMounted && Array.isArray(prodData.products) && prodData.products.length > 0) {
+            setProductsList(prodData.products);
+          }
+        }
+
+        if (catRes.ok) {
+          const catData = await catRes.json();
+          if (isMounted && Array.isArray(catData.categories) && catData.categories.length > 0) {
+            setCategoriesList(catData.categories);
+          }
+        }
+      } catch {} finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    fetchData();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const filteredProducts = useMemo(() => {
-    let list = [...PRODUCTS];
+    let list = [...productsList];
 
     if (selectedCategory !== "all") {
-      list = list.filter((p) => p.category === selectedCategory);
+      list = list.filter((p) => p.category === selectedCategory || (p as any).category_slug === selectedCategory);
     }
 
     list = list.filter((p) => p.price <= priceRange);
@@ -36,7 +73,7 @@ export default function ProductsPage() {
     }
 
     return list;
-  }, [selectedCategory, selectedSort, priceRange]);
+  }, [productsList, selectedCategory, selectedSort, priceRange]);
 
   return (
     <div className="pt-20 pb-20 bg-[#F4F4F2] text-[#495464]">
@@ -68,7 +105,7 @@ export default function ProductsPage() {
             >
               All
             </button>
-            {CATEGORIES.map((cat) => (
+            {categoriesList.map((cat) => (
               <button
                 key={cat.id}
                 onClick={() => setSelectedCategory(cat.slug)}

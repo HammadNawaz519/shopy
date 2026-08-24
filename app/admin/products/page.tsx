@@ -79,6 +79,20 @@ export default function AdminProductsPage() {
     }
   };
 
+  const [categories, setCategories] = useState<any[]>([]);
+
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch("/api/admin/categories");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.categories && data.categories.length > 0) {
+          setCategories(data.categories);
+        }
+      }
+    } catch {}
+  };
+
   const fetchProducts = async () => {
     try {
       setLoading(true);
@@ -100,6 +114,7 @@ export default function AdminProductsPage() {
 
   useEffect(() => {
     fetchProducts();
+    fetchCategories();
   }, [categoryFilter]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -214,14 +229,18 @@ export default function AdminProductsPage() {
   };
 
   const handleDeleteProduct = async (id: string, name: string) => {
-    if (!window.confirm(`Are you sure you want to delete "${name}" from the database?`)) return;
+    if (!window.confirm(`Are you sure you want to remove or archive "${name}" from the store?`)) return;
 
     try {
       const res = await fetch(`/api/admin/products?id=${id}`, { method: "DELETE" });
       const data = await res.json();
       if (res.ok && data.success) {
-        showToast("Product removed from catalog.", "success");
-        setProducts((prev) => prev.filter((p) => p.id !== id));
+        if (data.archived) {
+          showToast(data.message || "Product was safely archived to preserve customer order history.", "info");
+        } else {
+          showToast("Product permanently deleted from catalog.", "success");
+        }
+        fetchProducts();
       } else {
         showToast(data.error || "Failed to delete product.", "error");
       }
@@ -453,12 +472,22 @@ export default function AdminProductsPage() {
                       onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                       className="h-10 w-full bg-[#E8E8E8] border border-[#BBBFCA] px-3.5 text-xs text-[#495464] uppercase focus:outline-none focus:border-[#495464] transition-colors"
                     >
-                      <option value="tops">Tops</option>
-                      <option value="bottoms">Bottoms</option>
-                      <option value="footwear">Footwear</option>
-                      <option value="fragrances">Fragrances</option>
-                      <option value="co-ord-sets">Co-Ord Sets</option>
-                      <option value="accessories">Accessories</option>
+                      {categories.length > 0 ? (
+                        categories.map((c) => (
+                          <option key={c.id || c.slug} value={c.slug}>
+                            {c.name}
+                          </option>
+                        ))
+                      ) : (
+                        <>
+                          <option value="tops">Tops</option>
+                          <option value="bottoms">Bottoms</option>
+                          <option value="footwear">Footwear</option>
+                          <option value="fragrances">Fragrances</option>
+                          <option value="co-ord-sets">Co-Ord Sets</option>
+                          <option value="accessories">Accessories</option>
+                        </>
+                      )}
                     </select>
                   </div>
 

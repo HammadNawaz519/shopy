@@ -26,30 +26,21 @@ const AUTH_STORAGE_KEY = "shopy_auth_user";
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  // Optimistic initial hydration from localStorage for instant 0ms rendering
-  const [user, setUser] = useState<User | null>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const cached = localStorage.getItem(AUTH_STORAGE_KEY);
-        return cached ? JSON.parse(cached) : null;
-      } catch {
-        return null;
-      }
-    }
-    return null;
-  });
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
 
-  const [loading, setLoading] = useState<boolean>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const cached = localStorage.getItem(AUTH_STORAGE_KEY);
-        return !cached; // If cached user exists, don't block the UI
-      } catch {
-        return true;
+  // Hydrate user from localStorage after mount to prevent SSR mismatch
+  useEffect(() => {
+    try {
+      const cached = localStorage.getItem(AUTH_STORAGE_KEY);
+      if (cached) {
+        setUser(JSON.parse(cached));
+        setLoading(false);
       }
+    } catch {
+      // ignore
     }
-    return true;
-  });
+  }, []);
 
   // Background silent revalidation with server
   const refreshUser = useCallback(async () => {

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/security/session";
 import { db } from "@/lib/db/store";
+import { revalidatePath } from "next/cache";
 
 export async function GET(req: Request) {
   const admin = await requireAdmin();
@@ -53,6 +54,12 @@ export async function POST(req: Request) {
       featured: Boolean(featured),
     });
 
+    try {
+      revalidatePath("/");
+      revalidatePath("/products");
+      revalidatePath("/collections");
+    } catch {}
+
     return NextResponse.json({ success: true, product: newProduct }, { status: 201 });
   } catch {
     return NextResponse.json({ error: "Failed to create product." }, { status: 500 });
@@ -78,6 +85,14 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "Product not found." }, { status: 404 });
     }
 
+    try {
+      revalidatePath("/");
+      revalidatePath("/products");
+      revalidatePath("/collections");
+      revalidatePath(`/product/${id}`);
+      if (updated.slug) revalidatePath(`/product/${updated.slug}`);
+    } catch {}
+
     return NextResponse.json({ success: true, product: updated });
   } catch {
     return NextResponse.json({ error: "Failed to update product." }, { status: 500 });
@@ -98,8 +113,16 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ error: "Product ID is required." }, { status: 400 });
     }
 
-    const success = await db.deleteProduct(id);
-    return NextResponse.json({ success });
+    const result = await db.safeDeleteProduct(id);
+
+    try {
+      revalidatePath("/");
+      revalidatePath("/products");
+      revalidatePath("/collections");
+      revalidatePath(`/product/${id}`);
+    } catch {}
+
+    return NextResponse.json(result);
   } catch {
     return NextResponse.json({ error: "Failed to delete product." }, { status: 500 });
   }

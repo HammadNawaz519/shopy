@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -21,20 +21,60 @@ import {
 } from "lucide-react";
 
 export default function ProductDetailPage({ params }: { params: { id: string } }) {
-  const product = PRODUCTS.find((p) => p.id === params.id || p.slug === params.id);
-
-  if (!product) {
-    notFound();
-  }
+  const initialProduct = PRODUCTS.find((p) => p.id === params.id || p.slug === params.id);
+  const [product, setProduct] = useState<Product | undefined>(initialProduct);
+  const [relatedProducts, setRelatedProducts] = useState<Product[]>(
+    initialProduct
+      ? PRODUCTS.filter((p) => p.category === initialProduct.category && p.id !== initialProduct.id).slice(0, 4)
+      : []
+  );
 
   const [selectedImageIdx, setSelectedImageIdx] = useState(0);
-  const [selectedSize, setSelectedSize] = useState(product.sizes[0]);
-  const [selectedColor, setSelectedColor] = useState(product.colors[0]?.name || "Default");
+  const [selectedSize, setSelectedSize] = useState(initialProduct?.sizes?.[0] || "M");
+  const [selectedColor, setSelectedColor] = useState(initialProduct?.colors?.[0]?.name || "Default");
   const [quantity, setQuantity] = useState(1);
   const [openAccordion, setOpenAccordion] = useState<string | null>("details");
 
   const { addItem, openCart } = useCart();
   const { showToast } = useToast();
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchLiveProduct = async () => {
+      try {
+        const res = await fetch(`/api/products`);
+        if (res.ok) {
+          const data = await res.json();
+          if (isMounted && Array.isArray(data.products)) {
+            const found = data.products.find(
+              (p: Product) => p.id === params.id || p.slug === params.id
+            );
+            if (found) {
+              setProduct(found);
+              setSelectedSize(found.sizes?.[0] || "M");
+              setSelectedColor(found.colors?.[0]?.name || "Default");
+              const related = data.products
+                .filter((p: Product) => p.category === found.category && p.id !== found.id)
+                .slice(0, 4);
+              setRelatedProducts(related);
+            }
+          }
+        }
+      } catch {}
+    };
+
+    fetchLiveProduct();
+    return () => {
+      isMounted = false;
+    };
+  }, [params.id]);
+
+  if (!product) {
+    if (!initialProduct) {
+      notFound();
+    }
+    return null;
+  }
 
   const handleAddToCart = () => {
     addItem(product, selectedSize, selectedColor, quantity);
@@ -45,10 +85,6 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
     addItem(product, selectedSize, selectedColor, quantity);
     openCart();
   };
-
-  const relatedProducts = PRODUCTS.filter(
-    (p) => p.category === product.category && p.id !== product.id
-  ).slice(0, 4);
 
   const toggleAccordion = (key: string) => {
     setOpenAccordion((prev) => (prev === key ? null : key));
