@@ -1,42 +1,19 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { CATEGORIES } from "@/lib/data/categories";
 
-export default function CollectionGrid() {
-  const [categories, setCategories] = useState<any[]>([]);
-  const [isLoaded, setIsLoaded] = useState(false);
+interface CollectionGridProps {
+  initialCategories?: any[];
+}
 
-  useEffect(() => {
-    let isMounted = true;
-    const fetchCats = async () => {
-      try {
-        const res = await fetch("/api/categories");
-        if (res.ok) {
-          const data = await res.json();
-          if (isMounted) {
-            setCategories(data.categories || []);
-          }
-        }
-      } catch {} finally {
-        if (isMounted) setIsLoaded(true);
-      }
-    };
-    fetchCats();
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+export default function CollectionGrid({ initialCategories }: CollectionGridProps) {
+  const [categories] = useState<any[]>(initialCategories || []);
 
   const featuredCategories = categories.filter((c) => Boolean(c.featured));
   const displayedCategories = featuredCategories.length > 0 ? featuredCategories : categories;
-
-  if (isLoaded && displayedCategories.length === 0) {
-    return null;
-  }
 
   if (displayedCategories.length === 0) {
     return null;

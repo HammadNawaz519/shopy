@@ -15,8 +15,7 @@ interface CategoryPageProps {
   };
 }
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+export const revalidate = 60; // 60s ISR edge cache with on-demand admin revalidation
 
 export default async function CategoryPage({ params }: CategoryPageProps) {
   let category: any = null;

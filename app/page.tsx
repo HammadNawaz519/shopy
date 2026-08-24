@@ -3,13 +3,22 @@ import CollectionGrid from "@/components/home/CollectionGrid";
 import FeaturedProducts from "@/components/home/FeaturedProducts";
 import EditorialSection from "@/components/home/EditorialSection";
 import Newsletter from "@/components/home/Newsletter";
+import { db } from "@/lib/db/store";
 
-export default function HomePage() {
+export const revalidate = 60; // 60s ISR edge cache with on-demand admin revalidation
+
+export default async function HomePage() {
+  const [config, categories, featuredProducts] = await Promise.all([
+    db.getHomepageConfig().catch(() => null),
+    db.getCategories().catch(() => []),
+    db.getProducts({ featured: true }).catch(() => []),
+  ]);
+
   return (
     <>
-      <Hero />
-      <CollectionGrid />
-      <FeaturedProducts />
+      <Hero initialConfig={config || undefined} />
+      <CollectionGrid initialCategories={categories} />
+      <FeaturedProducts initialProducts={featuredProducts} initialConfig={config || undefined} />
       <EditorialSection />
       <Newsletter />
     </>

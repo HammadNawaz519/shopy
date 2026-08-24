@@ -18,10 +18,15 @@ interface AuthContextType {
   verifyRegisterOtp: (email: string, otpCode: string) => Promise<{ success: boolean; user?: User; error?: string }>;
   resendRegisterOtp: (email: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
-  refreshUser: () => Promise<void>;
+  refreshUser: (force?: boolean) => Promise<void>;
 }
 
 const AUTH_STORAGE_KEY = "shopy_auth_user";
+
+// In-flight request deduplication singleton & verification timestamp
+let mePromise: Promise<User | null> | null = null;
+let lastVerifiedTimestamp = 0;
+const REVALIDATION_INTERVAL_MS = 60 * 1000; // 60s memory cache to prevent redundant edge requests
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -29,7 +34,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
-  // Hydrate user from localStorage after mount to prevent SSR mismatch
+  // Hydrate user from localStorage on mount
   useEffect(() => {
     try {
       const cached = localStorage.getItem(AUTH_STORAGE_KEY);
@@ -37,36 +42,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(JSON.parse(cached));
         setLoading(false);
       }
-    } catch {
-      // ignore
-    }
+    } catch {}
   }, []);
 
-  // Background silent revalidation with server
-  const refreshUser = useCallback(async () => {
-    try {
-      const res = await fetch("/api/auth/me");
-      if (res.ok) {
-        const data = await res.json();
-        if (data.user) {
-          setUser(data.user);
-          try {
-            localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(data.user));
-          } catch {}
-        } else {
-          setUser(null);
-          try {
-            localStorage.removeItem(AUTH_STORAGE_KEY);
-          } catch {}
+  // Deduplicated background session validation with server
+  const refreshUser = useCallback(async (force: boolean = false) => {
+    const now = Date.now();
+    if (!force && lastVerifiedTimestamp > 0 && now - lastVerifiedTimestamp < REVALIDATION_INTERVAL_MS) {
+      setLoading(false);
+      return;
+    }
+
+    if (mePromise) {
+      try {
+        const u = await mePromise;
+        setUser(u);
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    mePromise = (async () => {
+      try {
+        const res = await fetch("/api/auth/me");
+        if (res.ok) {
+          const data = await res.json();
+          lastVerifiedTimestamp = Date.now();
+          if (data.user) {
+            try {
+              localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(data.user));
+            } catch {}
+            return data.user as User;
+          }
         }
-      } else {
-        setUser(null);
+        lastVerifiedTimestamp = Date.now();
         try {
           localStorage.removeItem(AUTH_STORAGE_KEY);
         } catch {}
+        return null;
+      } catch {
+        return null;
+      } finally {
+        mePromise = null;
       }
-    } catch {
-      // Network hiccup: preserve optimistic state if present
+    })();
+
+    try {
+      const verifiedUser = await mePromise;
+      setUser(verifiedUser);
     } finally {
       setLoading(false);
     }
@@ -87,6 +111,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!res.ok || !data.success) {
         return { success: false, error: data.error || "Login failed" };
       }
+      lastVerifiedTimestamp = Date.now();
       setUser(data.user);
       try {
         localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(data.user));
@@ -112,6 +137,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { success: true, requiresOtp: true };
       }
       if (data.user) {
+        lastVerifiedTimestamp = Date.now();
         setUser(data.user);
         try {
           localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(data.user));
@@ -134,6 +160,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!res.ok || !data.success) {
         return { success: false, error: data.error || "Verification failed" };
       }
+      lastVerifiedTimestamp = Date.now();
       setUser(data.user);
       try {
         localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(data.user));
@@ -163,6 +190,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     try {
+      lastVerifiedTimestamp = 0;
       setUser(null);
       try {
         localStorage.removeItem(AUTH_STORAGE_KEY);

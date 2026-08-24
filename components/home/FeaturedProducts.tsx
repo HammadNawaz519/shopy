@@ -1,58 +1,25 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { PRODUCTS, Product } from "@/lib/data/products";
+import { Product } from "@/lib/data/products";
 import ProductCard from "../product/ProductCard";
 
-export default function FeaturedProducts() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [headline, setHeadline] = useState({
-    title: "Featured Essentials",
-    subtitle: "SELECTION OF THE SEASON",
+interface FeaturedProductsProps {
+  initialProducts?: any[];
+  initialConfig?: any;
+}
+
+export default function FeaturedProducts({
+  initialProducts = [],
+  initialConfig,
+}: FeaturedProductsProps) {
+  const [products] = useState<Product[]>(initialProducts.slice(0, 4));
+  const [headline] = useState({
+    title: initialConfig?.featuredTitle || "Featured Essentials",
+    subtitle: initialConfig?.featuredSubtitle || "SELECTION OF THE SEASON",
   });
-
-  useEffect(() => {
-    let isMounted = true;
-    const loadData = async () => {
-      try {
-        const [prodRes, homeRes] = await Promise.all([
-          fetch("/api/products?featured=true"),
-          fetch("/api/homepage"),
-        ]);
-
-        if (prodRes.ok) {
-          const prodData = await prodRes.json();
-          if (isMounted) {
-            setProducts(Array.isArray(prodData.products) ? prodData.products.slice(0, 4) : []);
-          }
-        }
-
-        if (homeRes.ok) {
-          const homeData = await homeRes.json();
-          if (isMounted && homeData.config) {
-            setHeadline({
-              title: homeData.config.featuredTitle || "Featured Essentials",
-              subtitle: homeData.config.featuredSubtitle || "SELECTION OF THE SEASON",
-            });
-          }
-        }
-      } catch {} finally {
-        if (isMounted) setIsLoaded(true);
-      }
-    };
-
-    loadData();
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  if (isLoaded && products.length === 0) {
-    return null;
-  }
 
   if (products.length === 0) {
     return null;

@@ -10,6 +10,8 @@ import { useAuth } from "@/context/AuthContext";
 import MobileMenu from "@/components/layout/MobileMenu";
 import SearchModal from "@/components/search/SearchModal";
 
+let cachedNavItems: Array<{ name: string; href: string }> | null = null;
+
 export default function Navbar() {
   const pathname = usePathname();
   const { totalCount, openCart } = useCart();
@@ -47,6 +49,11 @@ export default function Navbar() {
   }, []);
 
   useEffect(() => {
+    if (cachedNavItems) {
+      setNavItems(cachedNavItems);
+      return;
+    }
+
     let isMounted = true;
     const fetchNav = async () => {
       try {
@@ -54,7 +61,9 @@ export default function Navbar() {
         if (res.ok) {
           const data = await res.json();
           if (isMounted && Array.isArray(data.navigation)) {
-            setNavItems(data.navigation.map((i: any) => ({ name: i.name, href: i.href })));
+            const mapped = data.navigation.map((i: any) => ({ name: i.name, href: i.href }));
+            cachedNavItems = mapped;
+            setNavItems(mapped);
           }
         }
       } catch {}

@@ -1,43 +1,28 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
-export default function Hero() {
-  const [hero, setHero] = useState({
-    heroImage: "/hero-beige-male.jpg",
-    heroSubtitle: "EDITION 01 • AUTUMN / WINTER 2026",
-    heroTitle: "ARCHITECTURAL ELEGANCE",
-    heroCtaText: "Explore Collection",
-    heroCtaLink: "/products",
-  });
+interface HeroProps {
+  initialConfig?: {
+    heroImage?: string;
+    heroSubtitle?: string;
+    heroTitle?: string;
+    heroCtaText?: string;
+    heroCtaLink?: string;
+  };
+}
 
-  useEffect(() => {
-    let isMounted = true;
-    const fetchHero = async () => {
-      try {
-        const res = await fetch("/api/homepage");
-        if (res.ok) {
-          const data = await res.json();
-          if (isMounted && data.config) {
-            setHero({
-              heroImage: data.config.heroImage || "/hero-beige-male.jpg",
-              heroSubtitle: data.config.heroSubtitle || "EDITION 01 • AUTUMN / WINTER 2026",
-              heroTitle: data.config.heroTitle || "ARCHITECTURAL ELEGANCE",
-              heroCtaText: data.config.heroCtaText || "Explore Collection",
-              heroCtaLink: data.config.heroCtaLink || "/products",
-            });
-          }
-        }
-      } catch {}
-    };
-    fetchHero();
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+export default function Hero({ initialConfig }: HeroProps) {
+  const [hero] = useState({
+    heroImage: initialConfig?.heroImage || "/hero-beige-male.jpg",
+    heroSubtitle: initialConfig?.heroSubtitle || "EDITION 01 • AUTUMN / WINTER 2026",
+    heroTitle: initialConfig?.heroTitle || "ARCHITECTURAL ELEGANCE",
+    heroCtaText: initialConfig?.heroCtaText || "Explore Collection",
+    heroCtaLink: initialConfig?.heroCtaLink || "/products",
+  });
 
   return (
     <section className="relative w-full h-[94vh] min-h-[620px] max-h-[1100px] flex items-center justify-center overflow-hidden bg-[#181a1d] select-none">
