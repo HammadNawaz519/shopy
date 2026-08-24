@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import Image from "next/image";
 import {
   Plus,
@@ -13,6 +13,9 @@ import {
   Check,
   Tag,
   AlertCircle,
+  UploadCloud,
+  Sparkles,
+  ImageIcon,
 } from "lucide-react";
 import AdminHeader from "@/components/admin/AdminHeader";
 import { formatPrice } from "@/lib/utils";
@@ -28,6 +31,9 @@ export default function AdminProductsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [saving, setSaving] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [isCustomUrl, setIsCustomUrl] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -41,6 +47,37 @@ export default function AdminProductsPage() {
     tag: "NEW",
     featured: false,
   });
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingImage(true);
+    try {
+      const uploadData = new FormData();
+      uploadData.append("file", file);
+
+      const res = await fetch("/api/admin/upload", {
+        method: "POST",
+        body: uploadData,
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setFormData((prev) => ({ ...prev, imageUrl: data.url }));
+        showToast("Image enhanced with Sharp & uploaded crystals clear!", "success");
+      } else {
+        showToast(data.error || "Failed to upload image.", "error");
+      }
+    } catch {
+      showToast("Network error uploading image.", "error");
+    } finally {
+      setUploadingImage(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
 
   const fetchProducts = async () => {
     try {
@@ -482,18 +519,95 @@ export default function AdminProductsPage() {
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-[10px] uppercase tracking-widest font-semibold mb-1">
-                    Image URL *
-                  </label>
+                {/* Product Image Upload with Sharp processing & Preview */}
+                <div className="space-y-3 pt-1">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-[10px] uppercase tracking-widest font-semibold">
+                      Product Photography *
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setIsCustomUrl(!isCustomUrl)}
+                      className="text-[10px] uppercase tracking-wider text-[#495464]/70 hover:text-[#495464] underline"
+                    >
+                      {isCustomUrl ? "Switch to Computer Upload" : "Or enter direct URL"}
+                    </button>
+                  </div>
+
+                  {/* Hidden File Input */}
                   <input
-                    type="url"
-                    required
-                    value={formData.imageUrl}
-                    onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-                    placeholder="https://images.unsplash.com/..."
-                    className="w-full bg-[#E8E8E8] border border-[#BBBFCA] px-3 py-2"
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileUpload}
+                    accept="image/png, image/jpeg, image/webp, image/avif, image/jpg"
+                    className="hidden"
                   />
+
+                  {!isCustomUrl ? (
+                    <div className="space-y-3">
+                      <div className="flex flex-col sm:flex-row gap-3 items-center">
+                        <button
+                          type="button"
+                          disabled={uploadingImage}
+                          onClick={() => fileInputRef.current?.click()}
+                          className="w-full sm:w-auto flex items-center justify-center gap-2 bg-[#495464] text-[#F4F4F2] px-5 py-2.5 text-xs uppercase tracking-wider font-medium hover:bg-[#363E4B] transition-all shadow-sm disabled:opacity-50"
+                        >
+                          {uploadingImage ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin text-[#F4F4F2]" />
+                              <span>Sharpening &amp; Optimizing...</span>
+                            </>
+                          ) : (
+                            <>
+                              <UploadCloud className="w-4 h-4" />
+                              <span>Upload from Computer</span>
+                            </>
+                          )}
+                        </button>
+
+                        <span className="text-[11px] text-[#495464]/60 tracking-wide">
+                          Auto-enhanced to crystal clarity via Sharp
+                        </span>
+                      </div>
+
+                      {/* Image Preview & Enhancement Indicator */}
+                      {formData.imageUrl && (
+                        <div className="flex items-center gap-4 p-3 bg-[#E8E8E8]/70 border border-[#BBBFCA]/60">
+                          <div className="relative w-16 h-20 bg-[#E8E8E8] flex-shrink-0 overflow-hidden border border-[#BBBFCA]">
+                            <Image
+                              src={formData.imageUrl}
+                              alt="Product Preview"
+                              fill
+                              sizes="64px"
+                              className="object-cover"
+                            />
+                          </div>
+                          <div className="flex-1 min-w-0 space-y-1">
+                            <div className="flex items-center gap-1.5">
+                              <Sparkles className="w-3.5 h-3.5 text-amber-700" />
+                              <span className="text-[11px] font-semibold text-[#495464] uppercase tracking-wider">
+                                Crystal Clear Preview
+                              </span>
+                            </div>
+                            <p className="text-[10px] text-[#495464]/60 truncate font-mono">
+                              {formData.imageUrl}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div>
+                      <input
+                        type="url"
+                        required
+                        value={formData.imageUrl}
+                        onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
+                        placeholder="https://images.unsplash.com/..."
+                        className="w-full bg-[#E8E8E8] border border-[#BBBFCA] px-3 py-2 text-xs text-[#495464] focus:outline-none"
+                      />
+                    </div>
+                  )}
                 </div>
 
                 <div>

@@ -8,18 +8,18 @@ import { ArrowRight } from "lucide-react";
 export default function Hero() {
   return (
     <section className="relative w-full h-[94vh] min-h-[620px] max-h-[1100px] flex items-center justify-center overflow-hidden bg-[#181a1d] select-none">
-      {/* Editorial Hero Photography — Rich, warm color fashion editorial */}
+      {/* Editorial Hero Photography — Minimalist Warm Beige Architectural Luxury */}
       <div className="absolute inset-0 w-full h-full">
         <Image
-          src="https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&q=85&w=2000"
-          alt="SHOPY Editorial Autumn Winter Campaign"
+          src="/hero-beige.jpg"
+          alt="SHOPY Editorial Beige Campaign"
           fill
           priority
           sizes="100vw"
-          className="object-cover object-center transform scale-105 filter brightness-[0.88] contrast-[1.02] transition-transform duration-1000"
+          className="object-cover object-center transform scale-100 filter brightness-[0.92] contrast-[1.03] transition-transform duration-1000"
         />
-        {/* Soft, delicate contrast gradient preserving full color warmth */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/15 to-black/35" />
+        {/* Soft elegant warm grading overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/15 to-black/25" />
       </div>
 
       {/* Hero Content — Clean, spacious editorial composition */}
