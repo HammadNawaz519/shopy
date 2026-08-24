@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
 import { Lock, Mail, User, KeyRound, ArrowRight, ArrowLeft, Loader2, Check, RefreshCw, CheckCircle2 } from "lucide-react";
+import GoogleButton from "@/components/auth/GoogleButton";
 
 export default function RegisterPage() {
   const { register, verifyRegisterOtp, resendRegisterOtp } = useAuth();
@@ -205,96 +206,110 @@ export default function RegisterPage() {
           </form>
         ) : (
           /* STEP 1: INITIAL REGISTRATION DETAILS FORM */
-          <form
-            onSubmit={handleSubmitDetails}
-            className="bg-[#E8E8E8]/40 border border-[#BBBFCA]/40 p-8 space-y-6 shadow-sm"
-          >
+          <div className="bg-[#E8E8E8]/40 border border-[#BBBFCA]/40 p-8 space-y-6 shadow-sm">
+            {/* Google Quick Sign-Up */}
             <div>
-              <label className="block text-[11px] uppercase tracking-widest text-[#495464] mb-1.5 font-medium">
-                Full Name *
-              </label>
-              <div className="relative">
-                <User className="w-4 h-4 text-[#495464]/50 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  required
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Name"
-                  className="w-full bg-[#F4F4F2] border border-[#BBBFCA] pl-10 pr-4 py-3 text-xs text-[#495464] focus:outline-none focus:border-[#495464]"
-                />
+              <GoogleButton text="Sign Up with Google" />
+            </div>
+
+            {/* Minimalist Divider */}
+            <div className="relative my-4">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-[#BBBFCA]/40" />
+              </div>
+              <div className="relative flex justify-center text-[10px] uppercase tracking-widest text-[#495464]/60">
+                <span className="bg-[#E8E8E8] px-3 font-medium">or register with email</span>
               </div>
             </div>
 
-            <div>
-              <label className="block text-[11px] uppercase tracking-widest text-[#495464] mb-1.5 font-medium">
-                Email Address *
-              </label>
-              <div className="relative">
-                <Mail className="w-4 h-4 text-[#495464]/50 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="yourname@gmail.com"
-                  className="w-full bg-[#F4F4F2] border border-[#BBBFCA] pl-10 pr-4 py-3 text-xs text-[#495464] focus:outline-none focus:border-[#495464]"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-[11px] uppercase tracking-widest text-[#495464] mb-1.5 font-medium">
-                Password *
-              </label>
-              <div className="relative">
-                <Lock className="w-4 h-4 text-[#495464]/50 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Password"
-                  className="w-full bg-[#F4F4F2] border border-[#BBBFCA] pl-10 pr-4 py-3 text-xs text-[#495464] focus:outline-none focus:border-[#495464]"
-                />
+            <form onSubmit={handleSubmitDetails} className="space-y-5">
+              <div>
+                <label className="block text-[11px] uppercase tracking-widest text-[#495464] mb-1.5 font-medium">
+                  Full Name *
+                </label>
+                <div className="relative">
+                  <User className="w-4 h-4 text-[#495464]/50 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    required
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Name"
+                    className="w-full bg-[#F4F4F2] border border-[#BBBFCA] pl-10 pr-4 py-3 text-xs text-[#495464] focus:outline-none focus:border-[#495464]"
+                  />
+                </div>
               </div>
 
-              {/* Password Validation Indicators */}
-              <div className="grid grid-cols-2 gap-2 mt-3 text-[10px] text-[#495464]/70 tracking-wider">
-                <span className={`flex items-center gap-1 ${hasLength ? "text-emerald-700 font-medium" : ""}`}>
-                  <Check className={`w-3 h-3 ${hasLength ? "opacity-100" : "opacity-30"}`} />
-                  8+ Characters
-                </span>
-                <span className={`flex items-center gap-1 ${hasUpperCase ? "text-emerald-700 font-medium" : ""}`}>
-                  <Check className={`w-3 h-3 ${hasUpperCase ? "opacity-100" : "opacity-30"}`} />
-                  Uppercase Letter
-                </span>
-                <span className={`flex items-center gap-1 ${hasLowerCase ? "text-emerald-700 font-medium" : ""}`}>
-                  <Check className={`w-3 h-3 ${hasLowerCase ? "opacity-100" : "opacity-30"}`} />
-                  Lowercase Letter
-                </span>
-                <span className={`flex items-center gap-1 ${hasNumber ? "text-emerald-700 font-medium" : ""}`}>
-                  <Check className={`w-3 h-3 ${hasNumber ? "opacity-100" : "opacity-30"}`} />
-                  Number
-                </span>
+              <div>
+                <label className="block text-[11px] uppercase tracking-widest text-[#495464] mb-1.5 font-medium">
+                  Email Address *
+                </label>
+                <div className="relative">
+                  <Mail className="w-4 h-4 text-[#495464]/50 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="yourname@gmail.com"
+                    className="w-full bg-[#F4F4F2] border border-[#BBBFCA] pl-10 pr-4 py-3 text-xs text-[#495464] focus:outline-none focus:border-[#495464]"
+                  />
+                </div>
               </div>
-            </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full flex items-center justify-center gap-3 bg-[#495464] text-[#F4F4F2] py-3.5 text-xs uppercase tracking-widest font-medium hover:bg-[#363E4B] transition-all shadow-md disabled:opacity-50"
-            >
-              {loading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <>
-                  <span>Send Verification Code</span>
-                  <ArrowRight className="w-4 h-4" />
-                </>
-              )}
-            </button>
-          </form>
+              <div>
+                <label className="block text-[11px] uppercase tracking-widest text-[#495464] mb-1.5 font-medium">
+                  Password *
+                </label>
+                <div className="relative">
+                  <Lock className="w-4 h-4 text-[#495464]/50 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="password"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Password"
+                    className="w-full bg-[#F4F4F2] border border-[#BBBFCA] pl-10 pr-4 py-3 text-xs text-[#495464] focus:outline-none focus:border-[#495464]"
+                  />
+                </div>
+
+                {/* Password Validation Indicators */}
+                <div className="grid grid-cols-2 gap-2 mt-3 text-[10px] text-[#495464]/70 tracking-wider">
+                  <span className={`flex items-center gap-1 ${hasLength ? "text-emerald-700 font-medium" : ""}`}>
+                    <Check className={`w-3 h-3 ${hasLength ? "opacity-100" : "opacity-30"}`} />
+                    8+ Characters
+                  </span>
+                  <span className={`flex items-center gap-1 ${hasUpperCase ? "text-emerald-700 font-medium" : ""}`}>
+                    <Check className={`w-3 h-3 ${hasUpperCase ? "opacity-100" : "opacity-30"}`} />
+                    Uppercase Letter
+                  </span>
+                  <span className={`flex items-center gap-1 ${hasLowerCase ? "text-emerald-700 font-medium" : ""}`}>
+                    <Check className={`w-3 h-3 ${hasLowerCase ? "opacity-100" : "opacity-30"}`} />
+                    Lowercase Letter
+                  </span>
+                  <span className={`flex items-center gap-1 ${hasNumber ? "text-emerald-700 font-medium" : ""}`}>
+                    <Check className={`w-3 h-3 ${hasNumber ? "opacity-100" : "opacity-30"}`} />
+                    Number
+                  </span>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full flex items-center justify-center gap-3 bg-[#495464] text-[#F4F4F2] py-3.5 text-xs uppercase tracking-widest font-medium hover:bg-[#363E4B] transition-all shadow-md disabled:opacity-50"
+              >
+                {loading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <>
+                    <span>Send Verification Code</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
+              </button>
+            </form>
+          </div>
         )}
 
         <div className="mt-8 text-center text-xs tracking-wider uppercase text-[#495464]/70">
