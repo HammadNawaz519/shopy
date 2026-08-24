@@ -915,21 +915,25 @@ class SupabaseDataStore {
   // STORE SETTINGS
   // --------------------------------------------------------------------------
   async getStoreSettings(): Promise<StoreSettings> {
-    const res = await query(`SELECT * FROM store_settings LIMIT 1;`);
-    if (res.rows.length > 0) {
-      const r = res.rows[0];
-      return {
-        id: r.id,
-        storeName: r.store_name,
-        supportEmail: r.support_email,
-        currency: r.currency,
-        currencySymbol: r.currency_symbol,
-        freeShippingThreshold: Number(r.free_shipping_threshold),
-        flatShippingRate: Number(r.flat_shipping_rate),
-        taxPercentage: Number(r.tax_percentage),
-        orderNotifications: Boolean(r.order_notifications),
-        inventoryAlertThreshold: Number(r.inventory_alert_threshold),
-      };
+    try {
+      const res = await query(`SELECT * FROM store_settings LIMIT 1;`);
+      if (res.rows.length > 0) {
+        const r = res.rows[0];
+        return {
+          id: r.id,
+          storeName: r.store_name || "SHOPY Atelier",
+          supportEmail: r.support_email || "concierge@shopy.com",
+          currency: r.currency || "PKR",
+          currencySymbol: r.currency_symbol || "Rs.",
+          freeShippingThreshold: Number(r.free_shipping_threshold ?? 15000),
+          flatShippingRate: Number(r.flat_shipping_rate ?? 500),
+          taxPercentage: Number(r.tax_percentage ?? 0),
+          orderNotifications: Boolean(r.order_notifications ?? true),
+          inventoryAlertThreshold: Number(r.inventory_alert_threshold ?? 5),
+        };
+      }
+    } catch (err) {
+      console.error("[GET STORE SETTINGS ERROR]", err);
     }
 
     return {
@@ -947,27 +951,49 @@ class SupabaseDataStore {
   }
 
   async updateStoreSettings(updates: Partial<StoreSettings>): Promise<StoreSettings> {
+    const current = await this.getStoreSettings();
+    const merged: StoreSettings = {
+      id: "settings_default",
+      storeName: updates.storeName !== undefined ? updates.storeName : current.storeName,
+      supportEmail: updates.supportEmail !== undefined ? updates.supportEmail : current.supportEmail,
+      currency: updates.currency !== undefined ? updates.currency : current.currency,
+      currencySymbol: updates.currencySymbol !== undefined ? updates.currencySymbol : current.currencySymbol,
+      freeShippingThreshold: updates.freeShippingThreshold !== undefined ? Number(updates.freeShippingThreshold) : current.freeShippingThreshold,
+      flatShippingRate: updates.flatShippingRate !== undefined ? Number(updates.flatShippingRate) : current.flatShippingRate,
+      taxPercentage: updates.taxPercentage !== undefined ? Number(updates.taxPercentage) : current.taxPercentage,
+      orderNotifications: updates.orderNotifications !== undefined ? Boolean(updates.orderNotifications) : current.orderNotifications,
+      inventoryAlertThreshold: updates.inventoryAlertThreshold !== undefined ? Number(updates.inventoryAlertThreshold) : current.inventoryAlertThreshold,
+    };
+
     const res = await query(
-      `UPDATE store_settings SET
-        store_name = COALESCE($2, store_name),
-        support_email = COALESCE($3, support_email),
-        free_shipping_threshold = COALESCE($4, free_shipping_threshold),
-        flat_shipping_rate = COALESCE($5, flat_shipping_rate),
-        tax_percentage = COALESCE($6, tax_percentage),
-        order_notifications = COALESCE($7, order_notifications),
-        inventory_alert_threshold = COALESCE($8, inventory_alert_threshold),
+      `INSERT INTO store_settings (
+        id, store_name, support_email, currency, currency_symbol,
+        free_shipping_threshold, flat_shipping_rate, tax_percentage,
+        order_notifications, inventory_alert_threshold, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
+      ON CONFLICT (id) DO UPDATE SET
+        store_name = EXCLUDED.store_name,
+        support_email = EXCLUDED.support_email,
+        currency = EXCLUDED.currency,
+        currency_symbol = EXCLUDED.currency_symbol,
+        free_shipping_threshold = EXCLUDED.free_shipping_threshold,
+        flat_shipping_rate = EXCLUDED.flat_shipping_rate,
+        tax_percentage = EXCLUDED.tax_percentage,
+        order_notifications = EXCLUDED.order_notifications,
+        inventory_alert_threshold = EXCLUDED.inventory_alert_threshold,
         updated_at = NOW()
-      WHERE id = 'settings_default'
       RETURNING *;`,
       [
-        null,
-        updates.storeName || null,
-        updates.supportEmail || null,
-        updates.freeShippingThreshold !== undefined ? updates.freeShippingThreshold : null,
-        updates.flatShippingRate !== undefined ? updates.flatShippingRate : null,
-        updates.taxPercentage !== undefined ? updates.taxPercentage : null,
-        updates.orderNotifications !== undefined ? updates.orderNotifications : null,
-        updates.inventoryAlertThreshold !== undefined ? updates.inventoryAlertThreshold : null,
+        merged.id,
+        merged.storeName,
+        merged.supportEmail,
+        merged.currency,
+        merged.currencySymbol,
+        merged.freeShippingThreshold,
+        merged.flatShippingRate,
+        merged.taxPercentage,
+        merged.orderNotifications,
+        merged.inventoryAlertThreshold,
       ]
     );
 
@@ -987,7 +1013,7 @@ class SupabaseDataStore {
       };
     }
 
-    return this.getStoreSettings();
+    return merged;
   }
 
   // --------------------------------------------------------------------------

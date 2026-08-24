@@ -48,6 +48,7 @@ export default function AdminSettingsPage() {
       });
       const data = await res.json();
       if (res.ok && data.success) {
+        if (data.settings) setSettings(data.settings);
         showToast("Store operations settings updated.", "success");
       } else {
         showToast(data.error || "Failed to update settings.", "error");
