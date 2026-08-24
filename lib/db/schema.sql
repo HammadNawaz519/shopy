@@ -41,6 +41,20 @@ CREATE TABLE IF NOT EXISTS products (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- 2.1 PRODUCT IMAGES TABLE (Relational Multi-Image Storage with Source-of-Truth Sort Ordering)
+CREATE TABLE IF NOT EXISTS product_images (
+  id VARCHAR(100) PRIMARY KEY,
+  product_id VARCHAR(50) NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  image_url TEXT NOT NULL,
+  storage_path TEXT,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_product_images_product_id ON product_images(product_id);
+CREATE INDEX IF NOT EXISTS idx_product_images_sort_order ON product_images(product_id, sort_order);
+
 -- 3. USERS / CLIENTS TABLE
 CREATE TABLE IF NOT EXISTS users (
   id VARCHAR(50) PRIMARY KEY,

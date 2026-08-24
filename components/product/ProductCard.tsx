@@ -45,7 +45,7 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
         <Link href={`/product/${product.id}`} className="block w-full h-full">
           {/* Primary Image with Crisp Retina Delivery & Fade-in */}
           <Image
-            src={product.images[0]}
+            src={product.images?.[0] || "/editorial-craft.jpg"}
             alt={product.name}
             fill
             priority={priority}

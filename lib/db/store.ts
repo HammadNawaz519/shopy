@@ -10,6 +10,16 @@ export interface ProductColor {
   hex: string;
 }
 
+export interface ProductImage {
+  id: string;
+  productId: string;
+  imageUrl: string;
+  storagePath?: string;
+  sortOrder: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -154,6 +164,19 @@ export interface HomepageConfig {
 
 // Transform PostgreSQL Row to Product Interface
 function mapProductRow(row: any): Product {
+  let images: string[] = [];
+  if (Array.isArray(row.ordered_images)) {
+    images = row.ordered_images.filter(Boolean);
+  } else if (typeof row.ordered_images === "string") {
+    try {
+      const parsed = JSON.parse(row.ordered_images);
+      if (Array.isArray(parsed)) images = parsed.filter(Boolean);
+    } catch {}
+  }
+  if (images.length === 0 && Array.isArray(row.images)) {
+    images = row.images.filter(Boolean);
+  }
+
   return {
     id: row.id,
     name: row.name,
@@ -164,7 +187,7 @@ function mapProductRow(row: any): Product {
     originalPrice: row.original_price ? Number(row.original_price) : undefined,
     description: row.description,
     tag: row.tag || "NEW",
-    images: Array.isArray(row.images) ? row.images : [],
+    images: images.length > 0 ? images : ["/editorial-craft.jpg"],
     colors: Array.isArray(row.colors) ? row.colors : typeof row.colors === "string" ? JSON.parse(row.colors) : [],
     sizes: Array.isArray(row.sizes) ? row.sizes : [],
     composition: Array.isArray(row.composition) ? row.composition : [],
@@ -238,30 +261,40 @@ class SupabaseDataStore {
   // PRODUCTS
   // --------------------------------------------------------------------------
   async getProducts(filter?: { category?: string; featured?: boolean; search?: string; sort?: string }): Promise<Product[]> {
-    let sql = `SELECT * FROM products WHERE 1=1`;
+    await this.ensureTablesExist();
+    let sql = `
+      SELECT p.*,
+        (
+          SELECT json_agg(pi.image_url ORDER BY pi.sort_order ASC, pi.created_at ASC)
+          FROM product_images pi
+          WHERE pi.product_id = p.id
+        ) as ordered_images
+      FROM products p
+      WHERE 1=1
+    `;
     const params: any[] = [];
 
     if (filter?.category) {
       params.push(filter.category.toLowerCase());
-      sql += ` AND LOWER(category_slug) = $${params.length}`;
+      sql += ` AND LOWER(p.category_slug) = $${params.length}`;
     }
 
     if (filter?.featured !== undefined) {
       params.push(filter.featured);
-      sql += ` AND featured = $${params.length}`;
+      sql += ` AND p.featured = $${params.length}`;
     }
 
     if (filter?.search) {
       params.push(`%${filter.search.toLowerCase()}%`);
-      sql += ` AND (LOWER(name) LIKE $${params.length} OR LOWER(description) LIKE $${params.length})`;
+      sql += ` AND (LOWER(p.name) LIKE $${params.length} OR LOWER(p.description) LIKE $${params.length})`;
     }
 
     if (filter?.sort === "price-asc") {
-      sql += ` ORDER BY price ASC;`;
+      sql += ` ORDER BY p.price ASC;`;
     } else if (filter?.sort === "price-desc") {
-      sql += ` ORDER BY price DESC;`;
+      sql += ` ORDER BY p.price DESC;`;
     } else {
-      sql += ` ORDER BY created_at DESC;`;
+      sql += ` ORDER BY p.created_at DESC;`;
     }
 
     const res = await query(sql, params);
@@ -269,12 +302,76 @@ class SupabaseDataStore {
   }
 
   async getProductById(id: string): Promise<Product | undefined> {
-    const res = await query(`SELECT * FROM products WHERE id = $1 OR slug = $1 LIMIT 1;`, [id]);
+    await this.ensureTablesExist();
+    const res = await query(
+      `SELECT p.*,
+        (
+          SELECT json_agg(pi.image_url ORDER BY pi.sort_order ASC, pi.created_at ASC)
+          FROM product_images pi
+          WHERE pi.product_id = p.id
+        ) as ordered_images
+      FROM products p
+      WHERE p.id = $1 OR p.slug = $1
+      LIMIT 1;`,
+      [id]
+    );
     if (res.rows.length === 0) return undefined;
     return mapProductRow(res.rows[0]);
   }
 
+  async getProductImages(productId: string): Promise<ProductImage[]> {
+    try {
+      await this.ensureTablesExist();
+      const res = await query(
+        `SELECT * FROM product_images WHERE product_id = $1 ORDER BY sort_order ASC, created_at ASC;`,
+        [productId]
+      );
+      return res.rows.map((r) => ({
+        id: r.id,
+        productId: r.product_id,
+        imageUrl: r.image_url,
+        storagePath: r.storage_path || undefined,
+        sortOrder: Number(r.sort_order || 0),
+        createdAt: r.created_at ? new Date(r.created_at).toISOString() : undefined,
+        updatedAt: r.updated_at ? new Date(r.updated_at).toISOString() : undefined,
+      }));
+    } catch (err) {
+      console.error("[GET PRODUCT IMAGES ERROR]", err);
+      return [];
+    }
+  }
+
+  async syncProductImages(productId: string, images: string[]): Promise<void> {
+    try {
+      await this.ensureTablesExist();
+      const validImages = Array.isArray(images) ? images.filter(Boolean) : [];
+
+      // Remove existing rows to ensure atomic sequential ordering without duplicate ranks
+      await query(`DELETE FROM product_images WHERE product_id = $1;`, [productId]);
+
+      // Insert sequentially with exact sort_order (0 = primary, 1 = secondary, ...)
+      for (let i = 0; i < validImages.length; i++) {
+        const url = validImages[i];
+        const imgId = `img_${productId}_${i}_${Math.random().toString(36).substr(2, 6)}`;
+        await query(
+          `INSERT INTO product_images (id, product_id, image_url, sort_order)
+           VALUES ($1, $2, $3, $4);`,
+          [imgId, productId, url, i]
+        );
+      }
+
+      // Keep products.images in sync for backward compatibility
+      await query(
+        `UPDATE products SET images = $2, updated_at = NOW() WHERE id = $1;`,
+        [productId, validImages]
+      );
+    } catch (err) {
+      console.error("[SYNC PRODUCT IMAGES ERROR]", err);
+    }
+  }
+
   async addProduct(productData: Omit<Product, "id"> & { id?: string }): Promise<Product> {
+    await this.ensureTablesExist();
     const id = productData.id || `prod_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
     let slug = productData.slug || productData.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
     if (!slug) slug = `product-${Date.now()}`;
@@ -309,6 +406,8 @@ class SupabaseDataStore {
       }
     } catch {}
 
+    const validImages = Array.isArray(productData.images) ? productData.images.filter(Boolean) : [];
+
     const res = await query(
       `INSERT INTO products (
         id, name, slug, category_id, category_slug, category_label, price, original_price,
@@ -327,7 +426,7 @@ class SupabaseDataStore {
         productData.originalPrice || null,
         productData.description || "",
         productData.tag || "NEW",
-        productData.images || [],
+        validImages,
         JSON.stringify(productData.colors || []),
         productData.sizes || [],
         productData.composition || [],
@@ -339,10 +438,15 @@ class SupabaseDataStore {
       ]
     );
 
-    return mapProductRow(res.rows[0]);
+    if (validImages.length > 0) {
+      await this.syncProductImages(id, validImages);
+    }
+
+    return mapProductRow({ ...res.rows[0], ordered_images: validImages });
   }
 
   async updateProduct(id: string, updates: Partial<Product>): Promise<Product | undefined> {
+    await this.ensureTablesExist();
     const existing = await this.getProductById(id);
     if (!existing) return undefined;
 
@@ -407,7 +511,15 @@ class SupabaseDataStore {
       ]
     );
 
-    return mapProductRow(res.rows[0]);
+    if (Array.isArray(updates.images)) {
+      await this.syncProductImages(id, updates.images);
+    }
+
+    const updatedRow = res.rows[0];
+    return mapProductRow({
+      ...updatedRow,
+      ordered_images: Array.isArray(updates.images) ? updates.images : undefined,
+    });
   }
 
   async deleteProduct(id: string): Promise<boolean> {
@@ -1262,67 +1374,113 @@ class SupabaseDataStore {
   // NAVIGATION ITEMS (HEADER & MENU CONTROL)
   // --------------------------------------------------------------------------
   private _tablesInitialized = false;
+  private _initPromise: Promise<void> | null = null;
+
   async ensureTablesExist(): Promise<void> {
     if (this._tablesInitialized) return;
-    try {
-      await query(`
-        CREATE TABLE IF NOT EXISTS navigation_items (
-          id VARCHAR(50) PRIMARY KEY,
-          name VARCHAR(100) NOT NULL,
-          href VARCHAR(255) NOT NULL,
-          order_index INTEGER NOT NULL DEFAULT 0,
-          is_active BOOLEAN NOT NULL DEFAULT true,
-          category_slug VARCHAR(100),
-          created_at TIMESTAMPTZ DEFAULT NOW(),
-          updated_at TIMESTAMPTZ DEFAULT NOW()
-        );
-      `);
-    } catch {}
+    if (this._initPromise) return this._initPromise;
 
-    try {
-      await query(`
-        CREATE TABLE IF NOT EXISTS homepage_config (
-          id VARCHAR(50) PRIMARY KEY,
-          hero_title VARCHAR(255) NOT NULL DEFAULT 'ARCHITECTURAL ELEGANCE',
-          hero_subtitle VARCHAR(255) NOT NULL DEFAULT 'EDITION 01 • AUTUMN / WINTER 2026',
-          hero_image TEXT NOT NULL DEFAULT '/hero-luxury.jpg',
-          hero_cta_text VARCHAR(100) NOT NULL DEFAULT 'Explore Collection',
-          hero_cta_link VARCHAR(255) NOT NULL DEFAULT '/products',
-          featured_title VARCHAR(255) NOT NULL DEFAULT 'Featured Essentials',
-          featured_subtitle VARCHAR(255) NOT NULL DEFAULT 'SELECTION OF THE SEASON',
-          editorial_tag VARCHAR(100) NOT NULL DEFAULT 'EDITORIAL CAMPAIGN',
-          editorial_title VARCHAR(255) NOT NULL DEFAULT 'Permanence in Form & Texture',
-          editorial_quote TEXT NOT NULL DEFAULT 'We reject the cycle of seasonal excess. Each silhouette is engineered with tactile permanence, heavyweight organic knits, and architectural draping.',
-          editorial_image_1 TEXT NOT NULL DEFAULT '/editorial-craft.jpg',
-          editorial_image_2 TEXT NOT NULL DEFAULT '/category-tops.jpg',
-          newsletter_title VARCHAR(255) NOT NULL DEFAULT 'Join The Maison Gazette',
-          newsletter_subtitle VARCHAR(255) NOT NULL DEFAULT 'Receive private vernissage previews, seasonal lookbooks, and invitation-only atelier dispatches.',
-          updated_at TIMESTAMPTZ DEFAULT NOW()
-        );
-      `);
-    } catch {}
-
-    try {
-      // Seed default navigation if empty
-      const navCount = await query(`SELECT COUNT(*)::int as count FROM navigation_items;`);
-      if (navCount.rows[0]?.count === 0) {
+    this._initPromise = (async () => {
+      try {
         await query(`
-          INSERT INTO navigation_items (id, name, href, order_index, is_active, category_slug)
-          VALUES
-            ('nav_1', 'home', '/', 0, true, null),
-            ('nav_2', 'view all', '/products', 1, true, null),
-            ('nav_3', 'tops', '/collections/tops', 2, true, 'tops'),
-            ('nav_4', 'bottoms', '/collections/bottoms', 3, true, 'bottoms'),
-            ('nav_5', 'co-ord sets', '/collections/co-ord-sets', 4, true, 'co-ord-sets'),
-            ('nav_6', 'footwear', '/collections/footwear', 5, true, 'footwear'),
-            ('nav_7', 'fragrances', '/collections/fragrances', 6, true, 'fragrances'),
-            ('nav_8', 'collections', '/collections', 7, true, null)
-          ON CONFLICT (id) DO NOTHING;
+          CREATE TABLE IF NOT EXISTS navigation_items (
+            id VARCHAR(50) PRIMARY KEY,
+            name VARCHAR(100) NOT NULL,
+            href VARCHAR(255) NOT NULL,
+            order_index INTEGER NOT NULL DEFAULT 0,
+            is_active BOOLEAN NOT NULL DEFAULT true,
+            category_slug VARCHAR(100),
+            created_at TIMESTAMPTZ DEFAULT NOW(),
+            updated_at TIMESTAMPTZ DEFAULT NOW()
+          );
         `);
-      }
-    } catch {}
+      } catch {}
 
-    this._tablesInitialized = true;
+      try {
+        await query(`
+          CREATE TABLE IF NOT EXISTS homepage_config (
+            id VARCHAR(50) PRIMARY KEY,
+            hero_title VARCHAR(255) NOT NULL DEFAULT 'ARCHITECTURAL ELEGANCE',
+            hero_subtitle VARCHAR(255) NOT NULL DEFAULT 'EDITION 01 • AUTUMN / WINTER 2026',
+            hero_image TEXT NOT NULL DEFAULT '/hero-luxury.jpg',
+            hero_cta_text VARCHAR(100) NOT NULL DEFAULT 'Explore Collection',
+            hero_cta_link VARCHAR(255) NOT NULL DEFAULT '/products',
+            featured_title VARCHAR(255) NOT NULL DEFAULT 'Featured Essentials',
+            featured_subtitle VARCHAR(255) NOT NULL DEFAULT 'SELECTION OF THE SEASON',
+            editorial_tag VARCHAR(100) NOT NULL DEFAULT 'EDITORIAL CAMPAIGN',
+            editorial_title VARCHAR(255) NOT NULL DEFAULT 'Permanence in Form & Texture',
+            editorial_quote TEXT NOT NULL DEFAULT 'We reject the cycle of seasonal excess. Each silhouette is engineered with tactile permanence, heavyweight organic knits, and architectural draping.',
+            editorial_image_1 TEXT NOT NULL DEFAULT '/editorial-craft.jpg',
+            editorial_image_2 TEXT NOT NULL DEFAULT '/category-tops.jpg',
+            newsletter_title VARCHAR(255) NOT NULL DEFAULT 'Join The Maison Gazette',
+            newsletter_subtitle VARCHAR(255) NOT NULL DEFAULT 'Receive private vernissage previews, seasonal lookbooks, and invitation-only atelier dispatches.',
+            updated_at TIMESTAMPTZ DEFAULT NOW()
+          );
+        `);
+      } catch {}
+
+      try {
+        // Seed default navigation if empty
+        const navCount = await query(`SELECT COUNT(*)::int as count FROM navigation_items;`);
+        if (navCount.rows[0]?.count === 0) {
+          await query(`
+            INSERT INTO navigation_items (id, name, href, order_index, is_active, category_slug)
+            VALUES
+              ('nav_1', 'home', '/', 0, true, null),
+              ('nav_2', 'view all', '/products', 1, true, null),
+              ('nav_3', 'tops', '/collections/tops', 2, true, 'tops'),
+              ('nav_4', 'bottoms', '/collections/bottoms', 3, true, 'bottoms'),
+              ('nav_5', 'co-ord sets', '/collections/co-ord-sets', 4, true, 'co-ord-sets'),
+              ('nav_6', 'footwear', '/collections/footwear', 5, true, 'footwear'),
+              ('nav_7', 'fragrances', '/collections/fragrances', 6, true, 'fragrances'),
+              ('nav_8', 'collections', '/collections', 7, true, null)
+            ON CONFLICT (id) DO NOTHING;
+          `);
+        }
+      } catch {}
+
+      try {
+        await query(`
+          CREATE TABLE IF NOT EXISTS product_images (
+            id VARCHAR(100) PRIMARY KEY,
+            product_id VARCHAR(50) NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+            image_url TEXT NOT NULL,
+            storage_path TEXT,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            created_at TIMESTAMPTZ DEFAULT NOW(),
+            updated_at TIMESTAMPTZ DEFAULT NOW()
+          );
+        `);
+        await query(`CREATE INDEX IF NOT EXISTS idx_product_images_product_id ON product_images(product_id);`);
+        await query(`CREATE INDEX IF NOT EXISTS idx_product_images_sort_order ON product_images(product_id, sort_order);`);
+
+        // Safe auto-migration: if product_images is empty, migrate existing products.images array into product_images
+        const imgCountRes = await query(`SELECT COUNT(*)::int as count FROM product_images;`);
+        if (imgCountRes.rows[0]?.count === 0) {
+          const prodRows = await query(`SELECT id, images FROM products WHERE images IS NOT NULL;`);
+          for (const p of prodRows.rows) {
+            if (Array.isArray(p.images) && p.images.length > 0) {
+              for (let i = 0; i < p.images.length; i++) {
+                const url = p.images[i];
+                if (url) {
+                  await query(
+                    `INSERT INTO product_images (id, product_id, image_url, sort_order)
+                     VALUES ($1, $2, $3, $4)
+                     ON CONFLICT (id) DO NOTHING;`,
+                    [`img_${p.id}_${i}`, p.id, url, i]
+                  );
+                }
+              }
+            }
+          }
+        }
+      } catch {}
+
+      this._tablesInitialized = true;
+      this._initPromise = null;
+    })();
+
+    return this._initPromise;
   }
 
   async getNavigationItems(onlyActive = false): Promise<NavigationItem[]> {

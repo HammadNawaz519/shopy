@@ -16,6 +16,8 @@ import {
   UploadCloud,
   Sparkles,
   ImageIcon,
+  ArrowLeft,
+  ArrowRight,
 } from "lucide-react";
 import AdminHeader from "@/components/admin/AdminHeader";
 import { formatPrice } from "@/lib/utils";
@@ -32,7 +34,7 @@ export default function AdminProductsPage() {
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
-  const [isCustomUrl, setIsCustomUrl] = useState(false);
+  const [customUrlInput, setCustomUrlInput] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
@@ -43,46 +45,86 @@ export default function AdminProductsPage() {
     originalPrice: "",
     stockCount: "15",
     description: "",
-    imageUrl: "",
+    images: [] as string[],
     tag: "NEW",
     featured: false,
   });
-  const [localPreviewUrl, setLocalPreviewUrl] = useState("");
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // Instant local preview demo
-    const localDemoUrl = URL.createObjectURL(file);
-    setLocalPreviewUrl(localDemoUrl);
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
 
     setUploadingImage(true);
+    let successCount = 0;
+
     try {
-      const uploadData = new FormData();
-      uploadData.append("file", file);
+      for (const file of files) {
+        const uploadData = new FormData();
+        uploadData.append("file", file);
 
-      const res = await fetch("/api/admin/upload", {
-        method: "POST",
-        body: uploadData,
-      });
+        const res = await fetch("/api/admin/upload", {
+          method: "POST",
+          body: uploadData,
+        });
 
-      const data = await res.json();
-      if (res.ok && data.success && data.url) {
-        setFormData((prev) => ({ ...prev, imageUrl: data.url }));
-        setLocalPreviewUrl(data.url);
-        showToast("Product photo compressed & saved to DB bucket.", "success");
-      } else {
-        showToast(data.error || "Failed to upload image.", "error");
+        const data = await res.json();
+        if (res.ok && data.success && data.url) {
+          setFormData((prev) => ({
+            ...prev,
+            images: [...prev.images, data.url],
+          }));
+          successCount++;
+        } else {
+          showToast(data.error || `Failed to upload ${file.name}.`, "error");
+        }
+      }
+
+      if (successCount > 0) {
+        showToast(
+          successCount === 1
+            ? "Product photo compressed & appended."
+            : `${successCount} photos compressed & appended.`,
+          "success"
+        );
       }
     } catch {
-      showToast("Network error uploading image.", "error");
+      showToast("Network error uploading image(s).", "error");
     } finally {
       setUploadingImage(false);
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
     }
+  };
+
+  const handleAddCustomUrl = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const trimmed = customUrlInput.trim();
+    if (!trimmed) return;
+    setFormData((prev) => ({
+      ...prev,
+      images: [...prev.images, trimmed],
+    }));
+    setCustomUrlInput("");
+  };
+
+  const handleRemoveImage = (index: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      images: prev.images.filter((_, i) => i !== index),
+    }));
+  };
+
+  const handleMoveImage = (index: number, direction: "left" | "right") => {
+    setFormData((prev) => {
+      const targetIndex = direction === "left" ? index - 1 : index + 1;
+      if (targetIndex < 0 || targetIndex >= prev.images.length) return prev;
+      const updated = [...prev.images];
+      const temp = updated[index];
+      updated[index] = updated[targetIndex];
+      updated[targetIndex] = temp;
+      return { ...prev, images: updated };
+    });
   };
 
   const [categories, setCategories] = useState<any[]>([]);
@@ -138,11 +180,11 @@ export default function AdminProductsPage() {
       originalPrice: "",
       stockCount: "15",
       description: "",
-      imageUrl: "",
+      images: [],
       tag: "NEW",
       featured: false,
     });
-    setLocalPreviewUrl("");
+    setCustomUrlInput("");
     if (fileInputRef.current) fileInputRef.current.value = "";
     setModalOpen(true);
   };
@@ -157,11 +199,11 @@ export default function AdminProductsPage() {
       originalPrice: prod.originalPrice ? String(prod.originalPrice) : "",
       stockCount: String(prod.stockCount),
       description: prod.description || "",
-      imageUrl: prod.images[0] || "",
+      images: Array.isArray(prod.images) ? [...prod.images] : [],
       tag: prod.tag || "NEW",
       featured: Boolean(prod.featured),
     });
-    setLocalPreviewUrl(prod.images[0] || "");
+    setCustomUrlInput("");
     if (fileInputRef.current) fileInputRef.current.value = "";
     setModalOpen(true);
   };
@@ -178,16 +220,12 @@ export default function AdminProductsPage() {
       return;
     }
 
-    if (formData.imageUrl.startsWith("blob:")) {
-      showToast("Image is still optimizing, please wait a moment.", "error");
-      return;
-    }
-
     setSaving(true);
     try {
       const matchedCat = categories.find((c) => c.slug === formData.category || c.id === formData.category);
       const catLabel = matchedCat ? matchedCat.name : (formData.category ? formData.category.charAt(0).toUpperCase() + formData.category.slice(1) : "General");
-      const productImages = formData.imageUrl.trim() ? [formData.imageUrl.trim()] : [];
+      const validImages = formData.images.filter(Boolean);
+      const productImages = validImages.length > 0 ? validImages : ["/editorial-craft.jpg"];
 
       if (editingProduct) {
         // Edit existing product
@@ -575,73 +613,131 @@ export default function AdminProductsPage() {
                   </div>
                 </div>
 
-                {/* 4. Product Image Upload with Sharp processing & Compact Demo Preview */}
-                <div className="space-y-2 pt-1">
-                  <label className="block text-[10px] uppercase tracking-widest font-semibold text-[#495464]">
-                    Product Photography *
-                  </label>
+                {/* 4. Product Image Upload with Sharp processing & Multi-Image Gallery Manager */}
+                <div className="space-y-2.5 pt-1">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-[10px] uppercase tracking-widest font-semibold text-[#495464]">
+                      Product Photography ({formData.images.length} {formData.images.length === 1 ? "Image" : "Images"}) *
+                    </label>
+                    <span className="text-[9px] uppercase tracking-wider text-[#495464]/60 font-mono">
+                      First Image is Primary / Storefront Cover
+                    </span>
+                  </div>
 
-                  {/* Hidden File Input */}
+                  {/* Hidden Multi-File Input */}
                   <input
                     type="file"
                     ref={fileInputRef}
                     onChange={handleFileUpload}
+                    multiple
                     accept="image/png, image/jpeg, image/webp, image/avif, image/jpg"
                     className="hidden"
                   />
 
-                  <div className="flex items-center gap-2">
+                  {/* Upload Controls & URL input */}
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                     <button
                       type="button"
                       disabled={uploadingImage}
                       onClick={() => fileInputRef.current?.click()}
-                      className="inline-flex items-center gap-1.5 bg-[#495464] text-[#F4F4F2] px-3.5 py-2 text-[10px] uppercase tracking-wider font-medium hover:bg-[#363E4B] transition-colors flex-shrink-0 cursor-pointer shadow-xs disabled:opacity-50"
+                      className="inline-flex items-center justify-center gap-1.5 bg-[#495464] text-[#F4F4F2] px-3.5 py-2 text-[10px] uppercase tracking-wider font-medium hover:bg-[#363E4B] transition-colors flex-shrink-0 cursor-pointer shadow-xs disabled:opacity-50"
                     >
                       {uploadingImage ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UploadCloud className="w-3.5 h-3.5" />}
-                      <span>{uploadingImage ? "Sharpening..." : "Upload from Computer"}</span>
+                      <span>{uploadingImage ? "Optimizing..." : "Upload from Computer"}</span>
                     </button>
-                    <input
-                      type="text"
-                      value={formData.imageUrl}
-                      onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-                      placeholder="Or paste external image URL..."
-                      className="flex-1 bg-[#E8E8E8] border border-[#BBBFCA] p-2 text-xs font-mono text-[#495464] focus:outline-none focus:border-[#495464]"
-                    />
-                  </div>
-
-                  {/* Compact Picture Demo Preview Box */}
-                  {(localPreviewUrl || formData.imageUrl) && (
-                    <div className="flex items-center justify-between gap-3 p-2 bg-[#E8E8E8] border border-[#BBBFCA] shadow-xs">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="relative w-12 h-12 bg-[#BBBFCA]/40 flex-shrink-0 overflow-hidden border border-[#BBBFCA]">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={localPreviewUrl || formData.imageUrl}
-                            alt="Product Preview Demo"
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                        <div className="min-w-0">
-                          <span className="text-[10px] uppercase tracking-wider font-semibold text-[#495464] flex items-center gap-1">
-                            <span className={`w-1.5 h-1.5 rounded-full ${uploadingImage ? "bg-amber-500 animate-pulse" : "bg-emerald-500"}`} />
-                            {uploadingImage ? "Compressing & Saving to DB..." : "Picture Ready"}
-                          </span>
-                          <p className="text-[10px] text-[#495464]/60 truncate font-mono max-w-[240px] sm:max-w-[340px]">
-                            {formData.imageUrl || "Optimizing with Sharp..."}
-                          </p>
-                        </div>
-                      </div>
+                    
+                    <div className="flex items-center gap-1 flex-1">
+                      <input
+                        type="text"
+                        value={customUrlInput}
+                        onChange={(e) => setCustomUrlInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            handleAddCustomUrl();
+                          }
+                        }}
+                        placeholder="Or paste image URL and press Add..."
+                        className="flex-1 bg-[#E8E8E8] border border-[#BBBFCA] p-2 text-xs font-mono text-[#495464] focus:outline-none focus:border-[#495464]"
+                      />
                       <button
                         type="button"
-                        onClick={() => {
-                          setFormData((prev) => ({ ...prev, imageUrl: "" }));
-                          setLocalPreviewUrl("");
-                          if (fileInputRef.current) fileInputRef.current.value = "";
-                        }}
-                        className="text-[10px] uppercase tracking-wider text-[#495464] hover:text-black px-2.5 py-1 bg-[#BBBFCA]/40 hover:bg-[#BBBFCA]/70 transition-colors flex-shrink-0 font-medium"
+                        onClick={() => handleAddCustomUrl()}
+                        disabled={!customUrlInput.trim()}
+                        className="px-3 py-2 bg-[#BBBFCA]/50 hover:bg-[#BBBFCA] text-[#495464] text-[10px] uppercase tracking-wider font-semibold transition-colors disabled:opacity-40"
                       >
-                        Remove
+                        Add
                       </button>
+                    </div>
+                  </div>
+
+                  {/* Multi-Image List with Primary Tag, Reordering, and Removal */}
+                  {formData.images.length > 0 && (
+                    <div className="space-y-2 pt-1 max-h-56 overflow-y-auto pr-1">
+                      {formData.images.map((imgUrl, idx) => (
+                        <div
+                          key={`${imgUrl}-${idx}`}
+                          className="flex items-center justify-between gap-3 p-2 bg-[#E8E8E8] border border-[#BBBFCA] shadow-xs"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="relative w-12 h-12 bg-[#BBBFCA]/40 flex-shrink-0 overflow-hidden border border-[#BBBFCA]">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={imgUrl}
+                                alt={`Product Photo ${idx + 1}`}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1.5 mb-0.5">
+                                {idx === 0 ? (
+                                  <span className="bg-[#495464] text-[#F4F4F2] text-[8px] uppercase tracking-widest font-semibold px-1.5 py-0.5">
+                                    Primary / Cover
+                                  </span>
+                                ) : (
+                                  <span className="text-[9px] uppercase tracking-wider text-[#495464]/60 font-semibold font-mono">
+                                    Photo #{idx + 1}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-[10px] text-[#495464]/70 truncate font-mono max-w-[180px] sm:max-w-[280px]">
+                                {imgUrl}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1 flex-shrink-0">
+                            {/* Move Left / Up (reorder priority) */}
+                            <button
+                              type="button"
+                              disabled={idx === 0}
+                              onClick={() => handleMoveImage(idx, "left")}
+                              title="Move left (make primary)"
+                              className="p-1.5 text-[#495464] hover:bg-[#BBBFCA]/60 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                            >
+                              <ArrowLeft className="w-3.5 h-3.5" />
+                            </button>
+                            {/* Move Right / Down */}
+                            <button
+                              type="button"
+                              disabled={idx === formData.images.length - 1}
+                              onClick={() => handleMoveImage(idx, "right")}
+                              title="Move right"
+                              className="p-1.5 text-[#495464] hover:bg-[#BBBFCA]/60 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                            >
+                              <ArrowRight className="w-3.5 h-3.5" />
+                            </button>
+                            {/* Delete specific image */}
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveImage(idx)}
+                              className="text-[10px] uppercase tracking-wider text-[#495464] hover:text-black px-2.5 py-1 bg-[#BBBFCA]/40 hover:bg-[#BBBFCA]/70 transition-colors font-medium ml-1"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>

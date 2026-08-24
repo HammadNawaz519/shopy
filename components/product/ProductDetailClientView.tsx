@@ -50,6 +50,9 @@ export default function ProductDetailClientView({
     setOpenAccordion((prev) => (prev === key ? null : key));
   };
 
+  const imageList = Array.isArray(product?.images) && product.images.length > 0 ? product.images : ["/editorial-craft.jpg"];
+  const currentImage = imageList[selectedImageIdx] || imageList[0];
+
   return (
     <div className="pt-24 sm:pt-28 lg:pt-32 pb-20 bg-[#F4F4F2] text-[#495464]">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -74,9 +77,9 @@ export default function ProductDetailClientView({
           {/* Left: Gallery (Thumbnails + Main View) */}
           <div className="lg:col-span-7 flex flex-col-reverse sm:flex-row gap-3 lg:gap-4">
             {/* Thumbnails */}
-            {product.images && product.images.length > 1 && (
+            {imageList.length > 1 && (
               <div className="flex sm:flex-col gap-2.5 overflow-x-auto sm:overflow-y-auto sm:w-20 lg:w-24 flex-shrink-0">
-                {product.images.map((img: string, idx: number) => (
+                {imageList.map((img: string, idx: number) => (
                   <button
                     key={idx}
                     onClick={() => setSelectedImageIdx(idx)}
@@ -101,7 +104,7 @@ export default function ProductDetailClientView({
             {/* Main Stage Image */}
             <div className="relative flex-1 aspect-[3/4] max-h-[460px] sm:max-h-[500px] lg:max-h-[540px] bg-[#E8E8E8] overflow-hidden border border-[#BBBFCA]/30">
               <Image
-                src={product.images[selectedImageIdx]}
+                src={currentImage}
                 alt={product.name}
                 fill
                 priority
