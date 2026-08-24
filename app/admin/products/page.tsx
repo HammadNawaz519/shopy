@@ -185,6 +185,10 @@ export default function AdminProductsPage() {
 
     setSaving(true);
     try {
+      const matchedCat = categories.find((c) => c.slug === formData.category || c.id === formData.category);
+      const catLabel = matchedCat ? matchedCat.name : (formData.category ? formData.category.charAt(0).toUpperCase() + formData.category.slice(1) : "General");
+      const productImages = formData.imageUrl.trim() ? [formData.imageUrl.trim()] : [];
+
       if (editingProduct) {
         // Edit existing product
         const res = await fetch("/api/admin/products", {
@@ -192,14 +196,14 @@ export default function AdminProductsPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             id: editingProduct.id,
-            name: formData.name,
+            name: formData.name.trim(),
             category: formData.category,
-            categoryLabel: formData.category.charAt(0).toUpperCase() + formData.category.slice(1),
+            categoryLabel: catLabel,
             price: Number(formData.price),
             originalPrice: formData.originalPrice ? Number(formData.originalPrice) : undefined,
-            stockCount: Number(formData.stockCount),
-            description: formData.description,
-            images: [formData.imageUrl],
+            stockCount: Number(formData.stockCount || 0),
+            description: formData.description.trim(),
+            images: productImages,
             tag: formData.tag,
             featured: formData.featured,
           }),
@@ -219,14 +223,14 @@ export default function AdminProductsPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            name: formData.name,
+            name: formData.name.trim(),
             category: formData.category,
-            categoryLabel: formData.category.charAt(0).toUpperCase() + formData.category.slice(1),
+            categoryLabel: catLabel,
             price: Number(formData.price),
             originalPrice: formData.originalPrice ? Number(formData.originalPrice) : undefined,
-            stockCount: Number(formData.stockCount),
-            description: formData.description,
-            images: [formData.imageUrl],
+            stockCount: Number(formData.stockCount || 0),
+            description: formData.description.trim(),
+            images: productImages,
             tag: formData.tag,
             featured: formData.featured,
           }),

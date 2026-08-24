@@ -276,11 +276,38 @@ class SupabaseDataStore {
 
   async addProduct(productData: Omit<Product, "id"> & { id?: string }): Promise<Product> {
     const id = productData.id || `prod_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
-    const slug = productData.slug || productData.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    let slug = productData.slug || productData.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    if (!slug) slug = `product-${Date.now()}`;
     const stockCount = productData.stockCount !== undefined ? productData.stockCount : 15;
 
-    const categorySlug = typeof productData.category === "string" ? productData.category.toLowerCase() : "tops";
-    const categoryLabel = productData.categoryLabel || categorySlug.toUpperCase();
+    const categoryInput = typeof productData.category === "string" ? productData.category.trim() : "tops";
+    
+    // Resolve dynamic category_id from PostgreSQL categories table
+    let categoryId: string | null = null;
+    let categorySlug = categoryInput.toLowerCase();
+    let categoryLabel = productData.categoryLabel || categoryInput.toUpperCase();
+
+    try {
+      const catRes = await query(
+        `SELECT id, name, slug FROM categories WHERE LOWER(slug) = LOWER($1) OR id = $1 OR LOWER(name) = LOWER($1) LIMIT 1;`,
+        [categoryInput]
+      );
+      if (catRes.rows.length > 0) {
+        categoryId = catRes.rows[0].id;
+        categorySlug = catRes.rows[0].slug;
+        categoryLabel = catRes.rows[0].name;
+      }
+    } catch {
+      // ignore
+    }
+
+    // Ensure unique slug by appending suffix if duplicate
+    try {
+      const existingSlug = await query(`SELECT id FROM products WHERE slug = $1 LIMIT 1;`, [slug]);
+      if (existingSlug.rows.length > 0) {
+        slug = `${slug}-${Date.now().toString().slice(-4)}`;
+      }
+    } catch {}
 
     const res = await query(
       `INSERT INTO products (
@@ -293,12 +320,12 @@ class SupabaseDataStore {
         id,
         productData.name,
         slug,
-        "cat-1",
+        categoryId,
         categorySlug,
         categoryLabel,
         productData.price,
         productData.originalPrice || null,
-        productData.description,
+        productData.description || "",
         productData.tag || "NEW",
         productData.images || [],
         JSON.stringify(productData.colors || []),
@@ -322,20 +349,41 @@ class SupabaseDataStore {
     const stockCount = updates.stockCount !== undefined ? updates.stockCount : existing.stockCount;
     const inStock = stockCount > 0;
 
+    let categoryId: string | null = null;
+    let categorySlug: string | null = updates.category ? updates.category.toLowerCase() : null;
+    let categoryLabel: string | null = updates.categoryLabel || null;
+
+    if (updates.category) {
+      try {
+        const catRes = await query(
+          `SELECT id, name, slug FROM categories WHERE LOWER(slug) = LOWER($1) OR id = $1 OR LOWER(name) = LOWER($1) LIMIT 1;`,
+          [updates.category]
+        );
+        if (catRes.rows.length > 0) {
+          categoryId = catRes.rows[0].id;
+          categorySlug = catRes.rows[0].slug;
+          categoryLabel = catRes.rows[0].name;
+        }
+      } catch {}
+    }
+
     const res = await query(
       `UPDATE products SET
         name = COALESCE($2, name),
         slug = COALESCE($3, slug),
-        price = COALESCE($4, price),
-        original_price = $5,
-        description = COALESCE($6, description),
-        tag = COALESCE($7, tag),
-        featured = COALESCE($8, featured),
-        stock_count = $9,
-        in_stock = $10,
-        images = COALESCE($11, images),
-        colors = COALESCE($12, colors),
-        sizes = COALESCE($13, sizes),
+        category_id = COALESCE($4, category_id),
+        category_slug = COALESCE($5, category_slug),
+        category_label = COALESCE($6, category_label),
+        price = COALESCE($7, price),
+        original_price = $8,
+        description = COALESCE($9, description),
+        tag = COALESCE($10, tag),
+        featured = COALESCE($11, featured),
+        stock_count = $12,
+        in_stock = $13,
+        images = COALESCE($14, images),
+        colors = COALESCE($15, colors),
+        sizes = COALESCE($16, sizes),
         updated_at = NOW()
       WHERE id = $1
       RETURNING *;`,
@@ -343,9 +391,12 @@ class SupabaseDataStore {
         id,
         updates.name || null,
         updates.slug || null,
+        categoryId,
+        categorySlug,
+        categoryLabel,
         updates.price !== undefined ? updates.price : null,
         updates.originalPrice !== undefined ? updates.originalPrice : (existing.originalPrice || null),
-        updates.description || null,
+        updates.description !== undefined ? updates.description : null,
         updates.tag || null,
         updates.featured !== undefined ? updates.featured : null,
         stockCount,
