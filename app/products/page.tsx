@@ -21,8 +21,8 @@ export default function ProductsPage() {
       try {
         setLoading(true);
         const [prodRes, catRes] = await Promise.all([
-          fetch("/api/products", { cache: "no-store" }),
-          fetch("/api/categories", { cache: "no-store" }),
+          fetch("/api/products"),
+          fetch("/api/categories"),
         ]);
 
         if (prodRes.ok) {

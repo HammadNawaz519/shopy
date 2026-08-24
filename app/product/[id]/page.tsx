@@ -42,7 +42,7 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
     let isMounted = true;
     const fetchLiveProduct = async () => {
       try {
-        const res = await fetch(`/api/products`, { cache: "no-store" });
+        const res = await fetch(`/api/products`);
         if (res.ok) {
           const data = await res.json();
           if (isMounted && Array.isArray(data.products)) {

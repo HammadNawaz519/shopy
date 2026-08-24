@@ -50,7 +50,7 @@ export default function Navbar() {
     let isMounted = true;
     const fetchNav = async () => {
       try {
-        const res = await fetch("/api/navigation", { cache: "no-store" });
+        const res = await fetch("/api/navigation");
         if (res.ok) {
           const data = await res.json();
           if (isMounted && Array.isArray(data.navigation)) {

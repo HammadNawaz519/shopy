@@ -19,8 +19,8 @@ export default function FeaturedProducts() {
     const loadData = async () => {
       try {
         const [prodRes, homeRes] = await Promise.all([
-          fetch("/api/products?featured=true", { cache: "no-store" }),
-          fetch("/api/homepage", { cache: "no-store" }),
+          fetch("/api/products?featured=true"),
+          fetch("/api/homepage"),
         ]);
 
         if (prodRes.ok) {

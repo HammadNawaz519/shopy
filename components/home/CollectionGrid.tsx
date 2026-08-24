@@ -14,7 +14,7 @@ export default function CollectionGrid() {
     let isMounted = true;
     const fetchCats = async () => {
       try {
-        const res = await fetch("/api/categories", { cache: "no-store" });
+        const res = await fetch("/api/categories");
         if (res.ok) {
           const data = await res.json();
           if (isMounted) {

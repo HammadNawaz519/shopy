@@ -27,7 +27,7 @@ export async function GET(req: Request) {
       {
         status: 200,
         headers: {
-          "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+          "Cache-Control": "public, s-maxage=30, stale-while-revalidate=120",
         },
       }
     );
