@@ -349,7 +349,7 @@ export default function AdminCategoriesPage() {
         {modalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="fixed inset-0 bg-black/50" onClick={() => setModalOpen(false)} />
-            <div className="relative w-full max-w-lg bg-[#F4F4F2] text-[#495464] z-10 p-6 space-y-4 shadow-2xl border border-[#BBBFCA]/60">
+            <div className="relative w-full max-w-lg bg-[#F4F4F2] text-[#495464] z-10 p-6 space-y-4 shadow-2xl border border-[#BBBFCA]/60 max-h-[90vh] overflow-y-auto">
               <div className="flex justify-between items-center border-b border-[#BBBFCA]/40 pb-3">
                 <h3 className="font-serif text-lg font-medium">
                   {editingCat ? `Edit Category: "${editingCat.name}"` : "Add New Category"}
@@ -390,7 +390,7 @@ export default function AdminCategoriesPage() {
                   />
                 </div>
 
-                {/* Image Upload & Live Demo Preview */}
+                {/* Compact Image Upload Line */}
                 <div className="space-y-2">
                   <label className="block text-[10px] uppercase font-semibold text-[#495464]">
                     Category Cover Image *
@@ -404,63 +404,14 @@ export default function AdminCategoriesPage() {
                     className="hidden"
                   />
 
-                  {/* Visual Picture Demo Box */}
-                  {image ? (
-                    <div className="relative aspect-video w-full bg-[#E8E8E8] border border-[#BBBFCA] overflow-hidden group shadow-xs">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={image}
-                        alt="Category Cover Preview"
-                        className="w-full h-full object-cover"
-                      />
-                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
-                        <button
-                          type="button"
-                          onClick={() => fileInputRef.current?.click()}
-                          disabled={uploading}
-                          className="bg-white text-black px-3 py-1.5 text-[10px] uppercase font-medium tracking-wider hover:bg-gray-200 transition-colors"
-                        >
-                          Change Picture
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setImage("");
-                            if (fileInputRef.current) fileInputRef.current.value = "";
-                          }}
-                          className="bg-[#495464] text-[#F4F4F2] px-3 py-1.5 text-[10px] uppercase font-medium tracking-wider hover:bg-black transition-colors"
-                        >
-                          Remove
-                        </button>
-                      </div>
-                      <div className="absolute bottom-2 left-2 bg-black/75 text-white text-[9px] uppercase px-2 py-0.5 tracking-widest flex items-center gap-1.5">
-                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                        <span>{uploading ? "Sharpening..." : "Live Picture Demo"}</span>
-                      </div>
-                    </div>
-                  ) : (
-                    <div
-                      onClick={() => fileInputRef.current?.click()}
-                      className="border-2 border-dashed border-[#BBBFCA] hover:border-[#495464] p-6 text-center cursor-pointer transition-colors bg-[#E8E8E8]/30 hover:bg-[#E8E8E8]/60"
-                    >
-                      <Upload className="w-6 h-6 text-[#495464]/60 mx-auto mb-2" />
-                      <p className="text-xs text-[#495464] font-medium uppercase tracking-wider">
-                        {uploading ? "Optimizing & Sharpening..." : "Click to upload picture from computer"}
-                      </p>
-                      <p className="text-[10px] text-[#495464]/60 mt-1">
-                        JPG, PNG, WebP, AVIF — Crystal clarity enhanced automatically
-                      </p>
-                    </div>
-                  )}
-
-                  <div className="flex items-center gap-2 pt-1">
+                  <div className="flex items-center gap-2">
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
                       disabled={uploading}
-                      className="inline-flex items-center gap-1.5 bg-[#495464] text-[#F4F4F2] px-3 py-1.5 text-[10px] uppercase tracking-wider font-medium hover:bg-[#363E4B] transition-colors"
+                      className="inline-flex items-center gap-1.5 bg-[#495464] text-[#F4F4F2] px-3.5 py-2 text-[10px] uppercase tracking-wider font-medium hover:bg-[#363E4B] transition-colors flex-shrink-0 cursor-pointer shadow-xs"
                     >
-                      {uploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
+                      {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
                       <span>{uploading ? "Sharpening..." : "Upload from Computer"}</span>
                     </button>
                     <input
@@ -468,9 +419,44 @@ export default function AdminCategoriesPage() {
                       value={image}
                       onChange={(e) => setImage(e.target.value)}
                       placeholder="Or paste external image URL..."
-                      className="flex-1 bg-[#E8E8E8] border border-[#BBBFCA] p-1.5 text-xs font-mono text-[#495464]"
+                      className="flex-1 bg-[#E8E8E8] border border-[#BBBFCA] p-2 text-xs font-mono text-[#495464] focus:outline-none focus:border-[#495464]"
                     />
                   </div>
+
+                  {/* Compact Picture Demo Preview Box */}
+                  {image && (
+                    <div className="flex items-center justify-between gap-3 p-2 bg-[#E8E8E8] border border-[#BBBFCA] shadow-xs">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="relative w-12 h-12 bg-[#BBBFCA]/40 flex-shrink-0 overflow-hidden border border-[#BBBFCA]">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={image}
+                            alt="Category Preview Demo"
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <div className="min-w-0">
+                          <span className="text-[10px] uppercase tracking-wider font-semibold text-[#495464] flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                            {uploading ? "Sharpening..." : "Picture Demo Ready"}
+                          </span>
+                          <p className="text-[10px] text-[#495464]/60 truncate font-mono max-w-[200px] sm:max-w-[260px]">
+                            {image}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setImage("");
+                          if (fileInputRef.current) fileInputRef.current.value = "";
+                        }}
+                        className="text-[10px] uppercase tracking-wider text-[#495464] hover:text-black px-2.5 py-1 bg-[#BBBFCA]/40 hover:bg-[#BBBFCA]/70 transition-colors flex-shrink-0 font-medium"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <div>

@@ -556,20 +556,11 @@ export default function AdminProductsPage() {
                   </div>
                 </div>
 
-                {/* 4. Product Image Upload with Sharp processing & Preview */}
-                <div className="space-y-3 pt-1">
-                  <div className="flex items-center justify-between">
-                    <label className="block text-[10px] uppercase tracking-widest font-semibold text-[#495464]">
-                      Product Photography *
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => setIsCustomUrl(!isCustomUrl)}
-                      className="text-[10px] uppercase tracking-wider text-[#495464]/70 hover:text-[#495464] underline cursor-pointer"
-                    >
-                      {isCustomUrl ? "Switch to Computer Upload" : "Or enter direct URL"}
-                    </button>
-                  </div>
+                {/* 4. Product Image Upload with Sharp processing & Compact Demo Preview */}
+                <div className="space-y-2 pt-1">
+                  <label className="block text-[10px] uppercase tracking-widest font-semibold text-[#495464]">
+                    Product Photography *
+                  </label>
 
                   {/* Hidden File Input */}
                   <input
@@ -580,86 +571,57 @@ export default function AdminProductsPage() {
                     className="hidden"
                   />
 
-                  {!isCustomUrl ? (
-                    <div className="space-y-3">
-                      {/* Image Preview & Enhancement Demo Box */}
-                      {formData.imageUrl ? (
-                        <div className="relative aspect-video w-full bg-[#E8E8E8] border border-[#BBBFCA] overflow-hidden group shadow-xs">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={uploadingImage}
+                      onClick={() => fileInputRef.current?.click()}
+                      className="inline-flex items-center gap-1.5 bg-[#495464] text-[#F4F4F2] px-3.5 py-2 text-[10px] uppercase tracking-wider font-medium hover:bg-[#363E4B] transition-colors flex-shrink-0 cursor-pointer shadow-xs disabled:opacity-50"
+                    >
+                      {uploadingImage ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UploadCloud className="w-3.5 h-3.5" />}
+                      <span>{uploadingImage ? "Sharpening..." : "Upload from Computer"}</span>
+                    </button>
+                    <input
+                      type="text"
+                      value={formData.imageUrl}
+                      onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
+                      placeholder="Or paste external image URL..."
+                      className="flex-1 bg-[#E8E8E8] border border-[#BBBFCA] p-2 text-xs font-mono text-[#495464] focus:outline-none focus:border-[#495464]"
+                    />
+                  </div>
+
+                  {/* Compact Picture Demo Preview Box */}
+                  {formData.imageUrl && (
+                    <div className="flex items-center justify-between gap-3 p-2 bg-[#E8E8E8] border border-[#BBBFCA] shadow-xs">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="relative w-12 h-12 bg-[#BBBFCA]/40 flex-shrink-0 overflow-hidden border border-[#BBBFCA]">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={formData.imageUrl}
                             alt="Product Preview Demo"
                             className="w-full h-full object-cover"
                           />
-                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
-                            <button
-                              type="button"
-                              onClick={() => fileInputRef.current?.click()}
-                              disabled={uploadingImage}
-                              className="bg-white text-black px-3 py-1.5 text-[10px] uppercase font-medium tracking-wider hover:bg-gray-200 transition-colors"
-                            >
-                              Change Picture
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setFormData((prev) => ({ ...prev, imageUrl: "" }));
-                                if (fileInputRef.current) fileInputRef.current.value = "";
-                              }}
-                              className="bg-[#495464] text-[#F4F4F2] px-3 py-1.5 text-[10px] uppercase font-medium tracking-wider hover:bg-black transition-colors"
-                            >
-                              Remove
-                            </button>
-                          </div>
-                          <div className="absolute bottom-2 left-2 bg-black/75 text-white text-[9px] uppercase px-2 py-0.5 tracking-widest flex items-center gap-1.5">
-                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                            <span>{uploadingImage ? "Sharpening..." : "Live Picture Demo"}</span>
-                          </div>
                         </div>
-                      ) : (
-                        <div
-                          onClick={() => fileInputRef.current?.click()}
-                          className="border-2 border-dashed border-[#BBBFCA] hover:border-[#495464] p-6 text-center cursor-pointer transition-colors bg-[#E8E8E8]/30 hover:bg-[#E8E8E8]/60"
-                        >
-                          <UploadCloud className="w-6 h-6 text-[#495464]/60 mx-auto mb-2" />
-                          <p className="text-xs text-[#495464] font-medium uppercase tracking-wider">
-                            {uploadingImage ? "Optimizing & Sharpening..." : "Click to upload product photo from computer"}
-                          </p>
-                          <p className="text-[10px] text-[#495464]/60 mt-1">
-                            JPG, PNG, WebP, AVIF — Auto-enhanced with Sharp
+                        <div className="min-w-0">
+                          <span className="text-[10px] uppercase tracking-wider font-semibold text-[#495464] flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                            {uploadingImage ? "Sharpening..." : "Picture Demo Ready"}
+                          </span>
+                          <p className="text-[10px] text-[#495464]/60 truncate font-mono max-w-[240px] sm:max-w-[340px]">
+                            {formData.imageUrl}
                           </p>
                         </div>
-                      )}
-
-                      <div className="flex items-center gap-2 pt-1">
-                        <button
-                          type="button"
-                          disabled={uploadingImage}
-                          onClick={() => fileInputRef.current?.click()}
-                          className="inline-flex items-center gap-1.5 bg-[#495464] text-[#F4F4F2] px-3 py-1.5 text-[10px] uppercase tracking-wider font-medium hover:bg-[#363E4B] transition-colors"
-                        >
-                          {uploadingImage ? <Loader2 className="w-3 h-3 animate-spin" /> : <UploadCloud className="w-3 h-3" />}
-                          <span>{uploadingImage ? "Sharpening..." : "Upload from Computer"}</span>
-                        </button>
-                        <input
-                          type="text"
-                          value={formData.imageUrl}
-                          onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-                          placeholder="Or paste external image URL..."
-                          className="flex-1 bg-[#E8E8E8] border border-[#BBBFCA] p-1.5 text-xs font-mono text-[#495464]"
-                        />
                       </div>
-                    </div>
-                  ) : (
-                    <div>
-                      <input
-                        type="url"
-                        required
-                        value={formData.imageUrl}
-                        onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-                        placeholder="https://..."
-                        className="h-10 w-full bg-[#E8E8E8] border border-[#BBBFCA] px-3.5 text-xs text-[#495464] focus:outline-none focus:border-[#495464] transition-colors"
-                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFormData((prev) => ({ ...prev, imageUrl: "" }));
+                          if (fileInputRef.current) fileInputRef.current.value = "";
+                        }}
+                        className="text-[10px] uppercase tracking-wider text-[#495464] hover:text-black px-2.5 py-1 bg-[#BBBFCA]/40 hover:bg-[#BBBFCA]/70 transition-colors flex-shrink-0 font-medium"
+                      >
+                        Remove
+                      </button>
                     </div>
                   )}
                 </div>
