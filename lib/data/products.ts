@@ -31,8 +31,8 @@ export const PRODUCTS: Product[] = [
     description: "Constructed from 280 GSM custom-milled organic French terry cotton. Features dropped shoulders, an oversized silhouette, and a structured mock-rib collar.",
     tag: "NEW",
     images: [
-      "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&q=80&w=1200",
-      "https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?auto=format&fit=crop&q=80&w=1200",
+      "/category-tops.jpg",
+      "/product-linen-overshirt.jpg",
     ],
     colors: [
       { name: "Raw Ecru", hex: "#F4F4F2" },
@@ -62,8 +62,8 @@ export const PRODUCTS: Product[] = [
     description: "Double front-pleated wide-leg trousers cut in lightweight tropical wool blend. Designed with a clean high-rise waist and concealed horn button fastening.",
     tag: "LIMITED",
     images: [
-      "https://images.unsplash.com/photo-1506629082955-511b1aa562c8?auto=format&fit=crop&q=80&w=1200",
-      "https://images.unsplash.com/photo-1594633312681-425c7b97ccd1?auto=format&fit=crop&q=80&w=1200",
+      "/category-bottoms.jpg",
+      "/product-linen-pants.jpg",
     ],
     colors: [
       { name: "Charcoal Slate", hex: "#495464" },
@@ -93,8 +93,7 @@ export const PRODUCTS: Product[] = [
     description: "Two-piece relaxed set featuring a minimalist zip jacket with stand collar and coordinating tapered cargo pants in textured double-knit fleece.",
     tag: "SALE",
     images: [
-      "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&q=80&w=1200",
-      "https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&q=80&w=1200",
+      "/category-coord-sets.jpg",
     ],
     colors: [
       { name: "Ecru Shadow", hex: "#E8E8E8" },
@@ -123,8 +122,7 @@ export const PRODUCTS: Product[] = [
     description: "Modern square-toe slip-on loafers crafted from full-grain Italian calfskin with an exaggerated welt and stacked leather heel.",
     tag: "NEW",
     images: [
-      "https://images.unsplash.com/photo-1533867617858-e7b97e060509?auto=format&fit=crop&q=80&w=1200",
-      "https://images.unsplash.com/photo-1549298916-b41d501d3772?auto=format&fit=crop&q=80&w=1200",
+      "/category-footwear.jpg",
     ],
     colors: [
       { name: "Onyx Black", hex: "#1A1A1A" },
@@ -153,8 +151,7 @@ export const PRODUCTS: Product[] = [
     description: "An intoxicating 30% concentration extrait de parfum opening with bergamot and pink pepper, settling into smoky Haitian vetiver, leather, and golden amber.",
     tag: "LIMITED",
     images: [
-      "https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?auto=format&fit=crop&q=80&w=1200",
-      "https://images.unsplash.com/photo-1547887537-6158d64c35b3?auto=format&fit=crop&q=80&w=1200",
+      "/category-fragrances.jpg",
     ],
     colors: [
       { name: "Amber Flacon (50ml)", hex: "#BBBFCA" },
@@ -182,8 +179,7 @@ export const PRODUCTS: Product[] = [
     description: "Structured daily tote constructed from semi-rigid vegetable-tanned leather. Fits up to a 16-inch laptop with an internal zipped sleeve.",
     tag: "NEW",
     images: [
-      "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?auto=format&fit=crop&q=80&w=1200",
-      "https://images.unsplash.com/photo-1590874103328-eac38a683ce7?auto=format&fit=crop&q=80&w=1200",
+      "/category-accessories.jpg",
     ],
     colors: [
       { name: "Slate Grey", hex: "#495464" },
@@ -212,8 +208,7 @@ export const PRODUCTS: Product[] = [
     description: "Heavy-gauge waffle knit cardigan spun from Mongolian cashmere and merino wool. Finished with raw horn buttons and relaxed dropped shoulders.",
     tag: "NEW",
     images: [
-      "https://images.unsplash.com/photo-1434389677669-e08b4cac3105?auto=format&fit=crop&q=80&w=1200",
-      "https://images.unsplash.com/photo-1620799140408-edc6dcb6d633?auto=format&fit=crop&q=80&w=1200",
+      "/product-knit-cardigan.jpg",
     ],
     colors: [
       { name: "Oatmeal Heather", hex: "#F4F4F2" },
@@ -243,8 +238,7 @@ export const PRODUCTS: Product[] = [
     description: "Breathable European flax linen pants featuring a continuous elastic waistband with internal cotton drawstring and straight relaxed legs.",
     tag: "SALE",
     images: [
-      "https://images.unsplash.com/photo-1541099649105-f69ad21f3246?auto=format&fit=crop&q=80&w=1200",
-      "https://images.unsplash.com/photo-1517445312882-bc9910d016b7?auto=format&fit=crop&q=80&w=1200",
+      "/product-linen-pants.jpg",
     ],
     colors: [
       { name: "Bleached Sand", hex: "#E8E8E8" },
