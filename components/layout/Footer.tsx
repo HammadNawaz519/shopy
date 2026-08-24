@@ -9,8 +9,18 @@ import { Instagram, Facebook, Linkedin, Youtube } from "lucide-react";
 export default function Footer() {
   const pathname = usePathname();
 
-  // Do NOT render customer footer on admin routes
-  if (pathname.startsWith("/admin")) {
+  // Do NOT render footer on admin, checkout, account, order-confirmation, and auth pages
+  const noFooterRoutes = [
+    "/admin",
+    "/checkout",
+    "/account",
+    "/order-confirmation",
+    "/login",
+    "/register",
+    "/forgot-password",
+  ];
+
+  if (noFooterRoutes.some((route) => pathname.startsWith(route))) {
     return null;
   }
 
