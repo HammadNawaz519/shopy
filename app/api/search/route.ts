@@ -3,6 +3,9 @@ import { db } from "@/lib/db/store";
 import { sanitizeSearchQuery } from "@/lib/security/sanitize";
 import { checkRateLimit, getClientIp } from "@/lib/security/rateLimit";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function GET(req: Request) {
   try {
     const ip = getClientIp(req);

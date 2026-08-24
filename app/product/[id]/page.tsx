@@ -42,7 +42,7 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
     let isMounted = true;
     const fetchLiveProduct = async () => {
       try {
-        const res = await fetch(`/api/products`);
+        const res = await fetch(`/api/products`, { cache: "no-store" });
         if (res.ok) {
           const data = await res.json();
           if (isMounted && Array.isArray(data.products)) {
@@ -57,6 +57,8 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
                 .filter((p: Product) => p.category === found.category && p.id !== found.id)
                 .slice(0, 4);
               setRelatedProducts(related);
+            } else {
+              setProduct(undefined);
             }
           }
         }
@@ -70,10 +72,7 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
   }, [params.id]);
 
   if (!product) {
-    if (!initialProduct) {
-      notFound();
-    }
-    return null;
+    notFound();
   }
 
   const handleAddToCart = () => {

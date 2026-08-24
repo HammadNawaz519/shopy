@@ -15,24 +15,11 @@ interface CategoryPageProps {
   };
 }
 
-export const revalidate = 60;
-
-export async function generateStaticParams() {
-  try {
-    const dbCats = await db.getCategories();
-    if (dbCats && dbCats.length > 0) {
-      return dbCats.map((cat) => ({ category: cat.slug }));
-    }
-  } catch {}
-  return CATEGORIES.map((cat) => ({
-    category: cat.slug,
-  }));
-}
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function CategoryPage({ params }: CategoryPageProps) {
-  let category = CATEGORIES.find(
-    (c) => c.slug.toLowerCase() === params.category.toLowerCase()
-  );
+  let category: any = null;
 
   try {
     const dbCats = await db.getCategories();
@@ -56,16 +43,13 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
     notFound();
   }
 
-  let categoryProducts: any[] = PRODUCTS.filter(
-    (p) => p.category.toLowerCase() === category.slug.toLowerCase()
-  );
-
+  let categoryProducts: any[] = [];
   try {
     const dbProducts = await db.getProducts({ category: category.slug });
-    if (dbProducts && dbProducts.length > 0) {
-      categoryProducts = dbProducts;
-    }
-  } catch {}
+    categoryProducts = dbProducts || [];
+  } catch {
+    categoryProducts = [];
+  }
 
   return (
     <div className="pt-20 pb-20 bg-[#F4F4F2] text-[#495464]">

@@ -21,7 +21,7 @@ function SearchContent() {
       }
       setLoading(true);
       try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+        const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`, { cache: "no-store" });
         if (res.ok) {
           const data = await res.json();
           setResults(data.results || []);

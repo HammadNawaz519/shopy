@@ -7,26 +7,37 @@ import { ArrowRight } from "lucide-react";
 import { CATEGORIES } from "@/lib/data/categories";
 
 export default function CollectionGrid() {
-  const [categories, setCategories] = useState<any[]>(CATEGORIES);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
     const fetchCats = async () => {
       try {
-        const res = await fetch("/api/categories");
+        const res = await fetch("/api/categories", { cache: "no-store" });
         if (res.ok) {
           const data = await res.json();
-          if (isMounted && Array.isArray(data.categories) && data.categories.length > 0) {
-            setCategories(data.categories);
+          if (isMounted) {
+            setCategories(data.categories || []);
           }
         }
-      } catch {}
+      } catch {} finally {
+        if (isMounted) setIsLoaded(true);
+      }
     };
     fetchCats();
     return () => {
       isMounted = false;
     };
   }, []);
+
+  if (isLoaded && categories.length === 0) {
+    return null;
+  }
+
+  if (categories.length === 0) {
+    return null;
+  }
 
   return (
     <section className="py-24 lg:py-32 bg-[#F4F4F2] text-[#495464]">

@@ -7,9 +7,9 @@ import ProductCard from "@/components/product/ProductCard";
 import { Filter, SlidersHorizontal, ArrowUpDown, Loader2 } from "lucide-react";
 
 export default function ProductsPage() {
-  const [productsList, setProductsList] = useState<Product[]>(PRODUCTS);
-  const [categoriesList, setCategoriesList] = useState<any[]>(CATEGORIES);
-  const [loading, setLoading] = useState(false);
+  const [productsList, setProductsList] = useState<Product[]>([]);
+  const [categoriesList, setCategoriesList] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedSort, setSelectedSort] = useState<string>("featured");
@@ -21,20 +21,20 @@ export default function ProductsPage() {
       try {
         setLoading(true);
         const [prodRes, catRes] = await Promise.all([
-          fetch("/api/products"),
-          fetch("/api/categories"),
+          fetch("/api/products", { cache: "no-store" }),
+          fetch("/api/categories", { cache: "no-store" }),
         ]);
 
         if (prodRes.ok) {
           const prodData = await prodRes.json();
-          if (isMounted && Array.isArray(prodData.products) && prodData.products.length > 0) {
+          if (isMounted && Array.isArray(prodData.products)) {
             setProductsList(prodData.products);
           }
         }
 
         if (catRes.ok) {
           const catData = await catRes.json();
-          if (isMounted && Array.isArray(catData.categories) && catData.categories.length > 0) {
+          if (isMounted && Array.isArray(catData.categories)) {
             setCategoriesList(catData.categories);
           }
         }

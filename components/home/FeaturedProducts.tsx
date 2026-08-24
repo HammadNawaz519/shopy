@@ -7,7 +7,8 @@ import { PRODUCTS, Product } from "@/lib/data/products";
 import ProductCard from "../product/ProductCard";
 
 export default function FeaturedProducts() {
-  const [products, setProducts] = useState<Product[]>(PRODUCTS.slice(0, 4));
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoaded, setIsLoaded] = useState(false);
   const [headline, setHeadline] = useState({
     title: "Featured Essentials",
     subtitle: "SELECTION OF THE SEASON",
@@ -18,14 +19,14 @@ export default function FeaturedProducts() {
     const loadData = async () => {
       try {
         const [prodRes, homeRes] = await Promise.all([
-          fetch("/api/products?featured=true"),
-          fetch("/api/homepage"),
+          fetch("/api/products?featured=true", { cache: "no-store" }),
+          fetch("/api/homepage", { cache: "no-store" }),
         ]);
 
         if (prodRes.ok) {
           const prodData = await prodRes.json();
-          if (isMounted && Array.isArray(prodData.products) && prodData.products.length > 0) {
-            setProducts(prodData.products.slice(0, 4));
+          if (isMounted) {
+            setProducts(Array.isArray(prodData.products) ? prodData.products.slice(0, 4) : []);
           }
         }
 
@@ -38,7 +39,9 @@ export default function FeaturedProducts() {
             });
           }
         }
-      } catch {}
+      } catch {} finally {
+        if (isMounted) setIsLoaded(true);
+      }
     };
 
     loadData();
@@ -46,6 +49,14 @@ export default function FeaturedProducts() {
       isMounted = false;
     };
   }, []);
+
+  if (isLoaded && products.length === 0) {
+    return null;
+  }
+
+  if (products.length === 0) {
+    return null;
+  }
 
   return (
     <section className="py-24 lg:py-32 bg-[#F4F4F2] text-[#495464]">
