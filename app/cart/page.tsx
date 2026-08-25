@@ -249,10 +249,10 @@ export default function CartPage() {
 
                 <Link
                   href="/checkout"
-                  className="w-full flex items-center justify-center gap-3 bg-[#495464] text-[#F4F4F2] py-4 text-xs uppercase tracking-widest font-medium hover:bg-[#363E4B] transition-all shadow-md group"
+                  className="w-full flex items-center justify-center gap-2.5 sm:gap-3 bg-[#495464] text-[#F4F4F2] py-3.5 sm:py-4 px-4 text-[11px] sm:text-xs uppercase tracking-wider sm:tracking-widest font-medium hover:bg-[#363E4B] transition-all shadow-md group text-center"
                 >
-                  <span>Proceed to Checkout</span>
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  <span className="truncate">Proceed to Checkout</span>
+                  <ArrowRight className="w-4 h-4 flex-shrink-0 group-hover:translate-x-1 transition-transform" />
                 </Link>
 
                 <div className="flex items-center justify-center gap-2 text-[10px] text-[#495464]/60 tracking-wider text-center">

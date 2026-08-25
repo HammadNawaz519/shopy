@@ -85,10 +85,10 @@ export default function EditorialSection() {
             <div className="pt-2">
               <Link
                 href="/products"
-                className="group inline-flex items-center gap-3 px-7 py-3.5 bg-[#495464] text-[#F4F4F2] text-[10px] tracking-[0.22em] uppercase font-medium hover:bg-[#1A1A1A] transition-all duration-300 shadow-sm"
+                className="group inline-flex items-center justify-center gap-2.5 sm:gap-3 px-5 sm:px-7 py-3 sm:py-3.5 bg-[#495464] text-[#F4F4F2] text-[10px] tracking-wider sm:tracking-[0.22em] uppercase font-medium hover:bg-[#1A1A1A] transition-all duration-300 shadow-sm max-w-full text-center"
               >
-                <span>{quoteData.ctaText || "Claim Your Signature Silhouette"}</span>
-                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1.5 transition-transform duration-300" />
+                <span className="truncate">{quoteData.ctaText || "Claim Your Signature Silhouette"}</span>
+                <ArrowRight className="w-3.5 h-3.5 flex-shrink-0 group-hover:translate-x-1.5 transition-transform duration-300" />
               </Link>
             </div>
 

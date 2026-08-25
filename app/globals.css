@@ -44,6 +44,14 @@
   letter-spacing: 0.25em;
 }
 
+@layer components {
+  /* Prevent button text from overflowing its bounding box on mobile */
+  button, [role="button"] {
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+}
+
 /* Custom Thin Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;

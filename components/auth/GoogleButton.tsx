@@ -31,7 +31,7 @@ export default function GoogleButton({
       type="button"
       onClick={handleGoogleSignIn}
       disabled={loading}
-      className="w-full flex items-center justify-center gap-3 bg-[#F4F4F2] hover:bg-[#E8E8E8] text-[#495464] border border-[#BBBFCA] py-3.5 px-4 text-xs uppercase tracking-widest font-medium transition-all shadow-xs disabled:opacity-60 disabled:cursor-not-allowed select-none group"
+      className="w-full flex items-center justify-center gap-2.5 sm:gap-3 bg-[#F4F4F2] hover:bg-[#E8E8E8] text-[#495464] border border-[#BBBFCA] py-3.5 px-3 sm:px-4 text-[11px] sm:text-xs uppercase tracking-wider sm:tracking-widest font-medium transition-all shadow-xs disabled:opacity-60 disabled:cursor-not-allowed select-none group text-center"
     >
       {loading ? (
         <>

@@ -65,10 +65,10 @@ export default function Hero({ initialConfig }: HeroProps) {
         <div className="pt-2">
           <Link
             href={hero.heroCtaLink}
-            className="group inline-flex items-center gap-3 px-8 py-3.5 border border-white/70 text-white text-[11px] tracking-[0.25em] uppercase font-light backdrop-blur-xs hover:bg-white hover:text-[#495464] hover:border-white transition-all duration-400 shadow-sm"
+            className="group inline-flex items-center justify-center gap-2.5 sm:gap-3 px-6 sm:px-8 py-3 sm:py-3.5 border border-white/70 text-white text-[10px] sm:text-[11px] tracking-wider sm:tracking-[0.25em] uppercase font-light backdrop-blur-xs hover:bg-white hover:text-[#495464] hover:border-white transition-all duration-400 shadow-sm max-w-full text-center"
           >
-            <span>{hero.heroCtaText}</span>
-            <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1.5 transition-transform duration-300" />
+            <span className="truncate">{hero.heroCtaText}</span>
+            <ArrowRight className="w-3.5 h-3.5 flex-shrink-0 group-hover:translate-x-1.5 transition-transform duration-300" />
           </Link>
         </div>
       </div>

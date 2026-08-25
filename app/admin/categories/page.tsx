@@ -274,9 +274,9 @@ export default function AdminCategoriesPage() {
             </button>
             <button
               onClick={openAddModal}
-              className="inline-flex items-center gap-2 bg-[#495464] text-[#F4F4F2] px-5 py-2.5 text-xs uppercase tracking-widest font-medium hover:bg-[#363E4B] transition-colors"
+              className="inline-flex items-center justify-center gap-1.5 sm:gap-2 bg-[#495464] text-[#F4F4F2] px-3.5 sm:px-5 py-2 sm:py-2.5 text-[11px] sm:text-xs uppercase tracking-wider sm:tracking-widest font-medium hover:bg-[#363E4B] transition-colors whitespace-nowrap"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
               <span>Add Category</span>
             </button>
           </div>

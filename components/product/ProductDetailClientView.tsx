@@ -232,18 +232,22 @@ export default function ProductDetailClientView({
                   <button
                     onClick={handleAddToCart}
                     disabled={!product.inStock || product.stockCount <= 0}
-                    className="flex-1 bg-[#495464] text-[#F4F4F2] py-2.5 px-4 text-xs uppercase tracking-widest font-medium hover:bg-[#363E4B] transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 bg-[#495464] text-[#F4F4F2] py-3 px-3 sm:px-4 text-[11px] sm:text-xs uppercase tracking-wider sm:tracking-widest font-medium hover:bg-[#363E4B] transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed text-center truncate flex items-center justify-center min-w-0"
                   >
-                    {(!product.inStock || product.stockCount <= 0) ? "Sold Out" : `Add to Bag • ${formatPrice(product.price * quantity)}`}
+                    <span className="truncate">
+                      {(!product.inStock || product.stockCount <= 0) ? "Sold Out" : `Add to Bag • ${formatPrice(product.price * quantity)}`}
+                    </span>
                   </button>
                 </div>
 
                 <button
                   onClick={handleBuyNow}
                   disabled={!product.inStock || product.stockCount <= 0}
-                  className="w-full border border-[#495464] text-[#495464] py-2.5 px-4 text-xs uppercase tracking-widest font-medium hover:bg-[#495464] hover:text-[#F4F4F2] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="w-full border border-[#495464] text-[#495464] py-3 px-4 text-[11px] sm:text-xs uppercase tracking-wider sm:tracking-widest font-medium hover:bg-[#495464] hover:text-[#F4F4F2] transition-colors disabled:opacity-40 disabled:cursor-not-allowed text-center truncate flex items-center justify-center min-w-0"
                 >
-                  {(!product.inStock || product.stockCount <= 0) ? "Archive Only" : "Instant Bag Review"}
+                  <span className="truncate">
+                    {(!product.inStock || product.stockCount <= 0) ? "Archive Only" : "Instant Bag Review"}
+                  </span>
                 </button>
               </div>
 

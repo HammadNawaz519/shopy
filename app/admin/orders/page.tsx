@@ -41,20 +41,26 @@ function OrdersContent() {
   const [printingOrder, setPrintingOrder] = useState<any>(null);
   const [updating, setUpdating] = useState(false);
 
-  // Directly trigger native system print dialog without intermediate modals
+  // Directly trigger native system print dialog with orderNumber document.title
   useEffect(() => {
     if (printingOrder) {
+      const originalTitle = document.title;
+      // Set document.title so browser's "Save as PDF" suggests the clean Order ID filename
+      document.title = printingOrder.orderNumber || `Order-${printingOrder.id}`;
+
       const timer = setTimeout(() => {
         window.print();
       }, 50);
 
       const handleAfterPrint = () => {
+        document.title = originalTitle;
         setPrintingOrder(null);
       };
 
       window.addEventListener("afterprint", handleAfterPrint);
       return () => {
         clearTimeout(timer);
+        document.title = originalTitle;
         window.removeEventListener("afterprint", handleAfterPrint);
       };
     }
@@ -282,19 +288,19 @@ function OrdersContent() {
                         </span>
                       </td>
                       <td className="p-4 text-right">
-                        <div className="inline-flex items-center justify-end gap-1.5">
+                        <div className="inline-flex items-center justify-end gap-1.5 flex-nowrap">
                           <button
                             onClick={() => setSelectedOrder(ord)}
-                            className="inline-flex items-center gap-1 bg-[#495464] text-[#F4F4F2] px-3 py-1 text-xs uppercase tracking-wider hover:bg-[#363E4B] transition-colors"
+                            className="inline-flex items-center justify-center gap-1 bg-[#495464] text-[#F4F4F2] px-2.5 sm:px-3 py-1.5 text-[11px] sm:text-xs uppercase tracking-normal sm:tracking-wider font-medium hover:bg-[#363E4B] transition-colors whitespace-nowrap"
                           >
-                            <Eye className="w-3 h-3" />
+                            <Eye className="w-3 h-3 flex-shrink-0" />
                             <span>View</span>
                           </button>
                           <button
                             onClick={() => setPrintingOrder(ord)}
-                            className="inline-flex items-center gap-1 bg-[#495464] text-[#F4F4F2] px-3 py-1 text-xs uppercase tracking-wider hover:bg-[#363E4B] transition-colors"
+                            className="inline-flex items-center justify-center gap-1 bg-[#495464] text-[#F4F4F2] px-2.5 sm:px-3 py-1.5 text-[11px] sm:text-xs uppercase tracking-normal sm:tracking-wider font-medium hover:bg-[#363E4B] transition-colors whitespace-nowrap"
                           >
-                            <Printer className="w-3 h-3" />
+                            <Printer className="w-3 h-3 flex-shrink-0" />
                             <span>Print</span>
                           </button>
                         </div>
@@ -327,9 +333,9 @@ function OrdersContent() {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setPrintingOrder(selectedOrder)}
-                    className="inline-flex items-center gap-1 bg-[#495464] text-[#F4F4F2] px-3 py-1 text-xs uppercase tracking-wider hover:bg-[#363E4B] transition-colors"
+                    className="inline-flex items-center justify-center gap-1 bg-[#495464] text-[#F4F4F2] px-2.5 sm:px-3 py-1.5 text-[11px] sm:text-xs uppercase tracking-normal sm:tracking-wider font-medium hover:bg-[#363E4B] transition-colors whitespace-nowrap"
                   >
-                    <Printer className="w-3 h-3" />
+                    <Printer className="w-3 h-3 flex-shrink-0" />
                     <span>Print</span>
                   </button>
                   <button

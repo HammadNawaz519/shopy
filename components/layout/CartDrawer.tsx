@@ -219,7 +219,7 @@ export default function CartDrawer() {
               <button
                 type="submit"
                 disabled={promoLoading}
-                className="bg-[#495464] text-[#F4F4F2] px-4 py-2 text-xs tracking-widest uppercase hover:bg-[#363E4B] transition-colors disabled:opacity-50"
+                className="bg-[#495464] text-[#F4F4F2] px-3 sm:px-4 py-2 text-[11px] sm:text-xs tracking-wider sm:tracking-widest uppercase hover:bg-[#363E4B] transition-colors disabled:opacity-50 text-center flex-shrink-0"
               >
                 {promoLoading ? "..." : "Apply"}
               </button>
@@ -268,18 +268,18 @@ export default function CartDrawer() {
               <Link
                 href="/checkout"
                 onClick={closeCart}
-                className="w-full flex items-center justify-center gap-3 bg-[#495464] text-[#F4F4F2] py-3.5 text-xs tracking-widest uppercase font-medium hover:bg-[#363E4B] transition-all shadow-md group"
+                className="w-full flex items-center justify-center gap-2.5 sm:gap-3 bg-[#495464] text-[#F4F4F2] py-3.5 px-4 text-[11px] sm:text-xs tracking-wider sm:tracking-widest uppercase font-medium hover:bg-[#363E4B] transition-all shadow-md group text-center"
               >
-                <span>Proceed to Checkout</span>
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                <span className="truncate">Proceed to Checkout</span>
+                <ArrowRight className="w-4 h-4 flex-shrink-0 group-hover:translate-x-1 transition-transform" />
               </Link>
 
               <Link
                 href="/cart"
                 onClick={closeCart}
-                className="w-full flex items-center justify-center border border-[#BBBFCA] text-[#495464] py-2.5 text-xs tracking-widest uppercase hover:border-[#495464] transition-colors"
+                className="w-full flex items-center justify-center border border-[#BBBFCA] text-[#495464] py-2.5 px-4 text-[11px] sm:text-xs tracking-wider sm:tracking-widest uppercase hover:border-[#495464] transition-colors text-center"
               >
-                View Full Bag
+                <span className="truncate">View Full Bag</span>
               </Link>
             </div>
 
