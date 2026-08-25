@@ -6,6 +6,14 @@ function formatCurrency(amount: number): string {
   return `Rs. ${amount.toLocaleString("en-PK")}`;
 }
 
+function getAppUrl(): string {
+  return (
+    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.APP_URL ||
+    "https://shopy.vercel.app"
+  ).replace(/\/+$/, "");
+}
+
 export interface OrderConfirmationProps {
   order: OrderRecord;
   customerName?: string;
@@ -19,27 +27,72 @@ export function renderOrderConfirmationEmail({
   const safeOrderNumber = escapeEmailHtml(order.orderNumber);
   const fullName = customerName || `${order.shippingAddress.firstName} ${order.shippingAddress.lastName}`.trim();
   const safeName = escapeEmailHtml(fullName || "Client");
-  const subject = `SHOPY — Order Confirmation #${safeOrderNumber}`;
+  const appUrl = getAppUrl();
+  const orderUrl = `${appUrl}/order-confirmation/${order.id}`;
 
-  // Render line items
+  const isBankTransfer = order.paymentMethod === "bank_transfer" || order.paymentMethod === "online";
+  const isPaid = order.paymentStatus === "PAID";
+
+  // Dynamic Subject and Subtitle according to Payment Method
+  const subject = isBankTransfer && !isPaid
+    ? `SHOPY — Payment Verification Pending · #${safeOrderNumber}`
+    : `SHOPY — Order Confirmed · #${safeOrderNumber}`;
+
+  const heading = isBankTransfer && !isPaid
+    ? "PAYMENT VERIFICATION PENDING"
+    : "ORDER CONFIRMED";
+
+  const message = isBankTransfer && !isPaid
+    ? "We've received your order and are currently verifying your payment. Your order will be prepared once your payment has been confirmed."
+    : "Your order has been confirmed and is being prepared with utmost care in our atelier. Payment will be collected upon delivery.";
+
+  const paymentBadgeText = isPaid
+    ? "✓ PAID"
+    : isBankTransfer
+    ? "BANK TRANSFER · PENDING VERIFICATION"
+    : "CASH ON DELIVERY · UNPAID";
+
+  const statusBadgeText = isBankTransfer && !isPaid
+    ? "VERIFYING PAYMENT"
+    : "CONFIRMED";
+
+  // Product cards with image fallback
   const itemsHtml = order.items
     .map((item) => {
       const safeItemName = escapeEmailHtml(item.name);
       const safeSize = item.size ? escapeEmailHtml(item.size) : "";
       const safeColor = item.color ? escapeEmailHtml(item.color) : "";
-      const variantMeta = [safeSize, safeColor].filter(Boolean).join(" / ");
+      const variantMeta = [safeSize ? `Size: ${safeSize}` : "", safeColor ? `Color: ${safeColor}` : ""].filter(Boolean).join(" &bull; ");
+      const itemImage = item.image && item.image.startsWith("http") ? item.image : "";
 
       return `
         <tr>
-          <td style="padding: 12px 0; border-bottom: 1px solid #E8E8E8; text-align: left;">
-            <div style="font-size: 13px; font-weight: 500; color: #495464; letter-spacing: 0.02em;">
-              ${safeItemName}
-            </div>
-            ${variantMeta ? `<div style="font-size: 11px; color: #BBBFCA; text-transform: uppercase; margin-top: 2px;">${variantMeta}</div>` : ""}
-            <div style="font-size: 11px; color: #495464; opacity: 0.8; margin-top: 2px;">Qty: ${item.quantity}</div>
-          </td>
-          <td style="padding: 12px 0; border-bottom: 1px solid #E8E8E8; text-align: right; font-size: 13px; font-weight: 600; color: #495464; vertical-align: top;">
-            ${formatCurrency(item.price * item.quantity)}
+          <td style="padding: 14px 0; border-bottom: 1px solid #E8E8E8; text-align: left; vertical-align: top;">
+            <table border="0" cellpadding="0" cellspacing="0" width="100%">
+              <tr>
+                ${
+                  itemImage
+                    ? `
+                  <td width="56" style="padding-right: 14px; vertical-align: top;">
+                    <img src="${escapeEmailHtml(itemImage)}" alt="${safeItemName}" width="52" height="64" style="display: block; width: 52px; height: 64px; object-fit: cover; border: 1px solid #BBBFCA; background-color: #E8E8E8;" />
+                  </td>
+                `
+                    : ""
+                }
+                <td style="vertical-align: top; text-align: left;">
+                  <div style="font-family: 'Cormorant Garamond', 'Georgia', serif; font-size: 15px; font-weight: 600; color: #495464; line-height: 1.3;">
+                    ${safeItemName}
+                  </div>
+                  ${variantMeta ? `<div style="font-size: 11px; color: #717D8F; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 3px;">${variantMeta}</div>` : ""}
+                  <div style="font-size: 11px; color: #495464; margin-top: 3px; font-weight: 500;">
+                    Qty: ${item.quantity} &times; ${formatCurrency(item.price)}
+                  </div>
+                </td>
+                <td style="vertical-align: top; text-align: right; font-size: 13px; font-weight: 600; color: #495464; white-space: nowrap; padding-left: 10px;">
+                  ${formatCurrency(item.price * item.quantity)}
+                </td>
+              </tr>
+            </table>
           </td>
         </tr>
       `;
@@ -54,43 +107,43 @@ export function renderOrderConfirmationEmail({
 
   const bodyContent = `
     <table border="0" cellpadding="0" cellspacing="0" width="100%">
+      <!-- HEADER -->
       <tr>
-        <td align="center" style="padding: 0 16px 20px 16px;">
-          <h1 style="font-family: 'Cormorant Garamond', 'Georgia', serif; font-size: 22px; font-weight: 400; letter-spacing: 0.2em; text-transform: uppercase; color: #495464; margin: 0 0 10px 0;">
-            ORDER CONFIRMED
+        <td align="center" style="padding: 0 16px 20px 16px; text-align: center;">
+          <h1 style="font-family: 'Cormorant Garamond', 'Georgia', serif; font-size: 22px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: #495464; margin: 0 0 10px 0;">
+            ${heading}
           </h1>
-          <p style="font-size: 13px; line-height: 1.6; letter-spacing: 0.04em; color: #495464; margin: 0; opacity: 0.85;">
-            Thank you for your acquisition, ${safeName}. Your order is being prepared with utmost care.
+          <p style="font-size: 13px; line-height: 1.6; letter-spacing: 0.03em; color: #495464; margin: 0; opacity: 0.9;">
+            Hello ${safeName}, thank you for choosing SHOPY. ${message}
           </p>
         </td>
       </tr>
 
-      <!-- ORDER META CARD -->
+      <!-- ORDER META & BADGES -->
       <tr>
-        <td style="padding: 8px 0 20px 0;">
+        <td style="padding: 6px 0 20px 0;">
           <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #E8E8E8; border: 1px solid #BBBFCA; padding: 14px 16px; border-radius: 2px;">
             <tr>
-              <td style="text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: #495464;">
-                Order: <strong style="font-mono">${safeOrderNumber}</strong>
+              <td style="text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: #495464;">
+                Order: <strong style="font-family: monospace; font-size: 12px;">#${safeOrderNumber}</strong>
               </td>
-              <td style="text-align: right; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: #495464;">
-                Payment: <strong>${order.paymentMethod === "cod" ? "Cash on Delivery" : "Online Payment"}</strong>
+              <td style="text-align: right; font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: #495464; font-weight: 600;">
+                <span style="display: inline-block; background-color: #F4F4F2; border: 1px solid #BBBFCA; padding: 4px 8px;">
+                  ${paymentBadgeText}
+                </span>
               </td>
             </tr>
           </table>
         </td>
       </tr>
 
-      <!-- ITEMS BREAKDOWN -->
+      <!-- PRODUCTS ORDERED -->
       <tr>
         <td style="padding: 0 0 16px 0;">
+          <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.15em; color: #717D8F; font-weight: 600; padding-bottom: 8px; border-bottom: 1px solid #BBBFCA;">
+            Ordered Items (${order.items.length})
+          </div>
           <table border="0" cellpadding="0" cellspacing="0" width="100%">
-            <thead>
-              <tr>
-                <th style="text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.15em; color: #BBBFCA; padding-bottom: 8px; border-bottom: 1px solid #BBBFCA;">Item</th>
-                <th style="text-align: right; font-size: 11px; text-transform: uppercase; letter-spacing: 0.15em; color: #BBBFCA; padding-bottom: 8px; border-bottom: 1px solid #BBBFCA;">Amount</th>
-              </tr>
-            </thead>
             <tbody>
               ${itemsHtml}
             </tbody>
@@ -98,47 +151,66 @@ export function renderOrderConfirmationEmail({
         </td>
       </tr>
 
-      <!-- TOTALS -->
+      <!-- TOTALS BREAKDOWN -->
       <tr>
-        <td style="padding: 0 0 24px 0;">
+        <td style="padding: 0 0 20px 0;">
           <table border="0" cellpadding="0" cellspacing="0" width="100%" style="font-size: 12px; color: #495464; line-height: 1.8;">
             <tr>
-              <td style="text-align: left; opacity: 0.8;">Subtotal</td>
+              <td style="text-align: left; opacity: 0.85;">Subtotal</td>
               <td style="text-align: right; font-weight: 500;">${formatCurrency(order.subtotal)}</td>
             </tr>
-            ${order.discount > 0 ? `
+            ${
+              order.discount > 0
+                ? `
             <tr>
-              <td style="text-align: left; color: #495464;">Discount applied</td>
-              <td style="text-align: right; font-weight: 500;">-${formatCurrency(order.discount)}</td>
-            </tr>` : ""}
+              <td style="text-align: left; color: #065F46;">Discount Applied</td>
+              <td style="text-align: right; font-weight: 500; color: #065F46;">-${formatCurrency(order.discount)}</td>
+            </tr>`
+                : ""
+            }
             <tr>
-              <td style="text-align: left; opacity: 0.8;">Shipping</td>
+              <td style="text-align: left; opacity: 0.85;">Insured Shipping</td>
               <td style="text-align: right; font-weight: 500;">${order.shipping === 0 ? "Complimentary" : formatCurrency(order.shipping)}</td>
             </tr>
             <tr>
-              <td style="text-align: left; font-size: 14px; font-weight: 600; padding-top: 8px; border-top: 1px solid #BBBFCA;">Total</td>
+              <td style="text-align: left; font-size: 14px; font-weight: 600; padding-top: 8px; border-top: 1px solid #BBBFCA; color: #495464;">Grand Total</td>
               <td style="text-align: right; font-size: 15px; font-weight: 700; color: #495464; padding-top: 8px; border-top: 1px solid #BBBFCA;">${formatCurrency(order.total)}</td>
             </tr>
           </table>
         </td>
       </tr>
 
-      <!-- SHIPPING ADDRESS -->
+      <!-- DESTINATION ADDRESS -->
       <tr>
-        <td style="text-align: left; background-color: #FFFFFF; border: 1px solid #E8E8E8; padding: 18px 20px; border-radius: 2px;">
-          <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.15em; color: #BBBFCA; margin-bottom: 6px; font-weight: 600;">
-            Destination Address
-          </div>
-          <div style="font-size: 13px; color: #495464; font-weight: 500;">
-            ${safeName}
-          </div>
-          <div style="font-size: 12px; color: #495464; opacity: 0.85; margin-top: 2px;">
-            ${safeAddressLine}<br />
-            ${safeCity}${safeProvince ? `, ${safeProvince}` : ""}
-          </div>
-          <div style="font-size: 11px; color: #495464; opacity: 0.7; margin-top: 4px;">
-            Phone: ${safePhone}
-          </div>
+        <td style="padding: 0 0 24px 0;">
+          <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #FFFFFF; border: 1px solid #E8E8E8; padding: 16px 18px; border-radius: 2px;">
+            <tr>
+              <td>
+                <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.15em; color: #717D8F; margin-bottom: 6px; font-weight: 600;">
+                  Dispatch Destination
+                </div>
+                <div style="font-size: 13px; color: #495464; font-weight: 600;">
+                  ${safeName}
+                </div>
+                <div style="font-size: 12px; color: #495464; opacity: 0.85; margin-top: 2px;">
+                  ${safeAddressLine}<br />
+                  ${safeCity}${safeProvince ? `, ${safeProvince}` : ""}
+                </div>
+                <div style="font-size: 11px; color: #495464; opacity: 0.75; margin-top: 4px;">
+                  Phone: ${safePhone}
+                </div>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+
+      <!-- CTA BUTTON -->
+      <tr>
+        <td align="center" style="padding: 0 0 16px 0; text-align: center;">
+          <a href="${orderUrl}" style="background-color: #495464; color: #F4F4F2; text-decoration: none; padding: 13px 32px; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; font-weight: 600; display: inline-block; border-radius: 2px;">
+            View Your Order
+          </a>
         </td>
       </tr>
     </table>
@@ -146,7 +218,7 @@ export function renderOrderConfirmationEmail({
 
   const html = renderEmailLayout({
     title: subject,
-    preheader: `Thank you for your order #${order.orderNumber}. Total: ${formatCurrency(order.total)}.`,
+    preheader: `${message} Total: ${formatCurrency(order.total)}.`,
     bodyContent,
   });
 
@@ -155,31 +227,33 @@ export function renderOrderConfirmationEmail({
     .join("\n");
 
   const text = `
-SHOPY — ORDER CONFIRMATION
+SHOPY — ${heading}
 ----------------------------------------
-Order Number: #${order.orderNumber}
-Payment: ${order.paymentMethod === "cod" ? "Cash on Delivery" : "Online Payment"}
+Order Reference: #${order.orderNumber}
+Payment: ${paymentBadgeText}
+Status: ${statusBadgeText}
 Total: ${formatCurrency(order.total)}
+
+${message}
 
 ITEMS:
 ${textItems}
 
 Subtotal: ${formatCurrency(order.subtotal)}
-Discount: ${order.discount > 0 ? `-${formatCurrency(order.discount)}` : "None"}
-Shipping: ${order.shipping === 0 ? "Complimentary" : formatCurrency(order.shipping)}
+${order.discount > 0 ? `Discount: -${formatCurrency(order.discount)}\n` : ""}Shipping: ${order.shipping === 0 ? "Complimentary" : formatCurrency(order.shipping)}
 Total: ${formatCurrency(order.total)}
 
-SHIPPING DESTINATION:
+DELIVERY DESTINATION:
 ${fullName}
 ${address.address}
 ${address.city}
 Phone: ${address.phone}
 
+View Order Online: ${orderUrl}
+
 ----------------------------------------
-SHOPY
-Modern essentials.
-Refined presence.
-© 2026 SHOPY
+SHOPY Concierge Support: shopy.support@gmail.com
+© 2026 SHOPY Atelier
   `.trim();
 
   return { subject, text, html };
@@ -198,77 +272,220 @@ export function renderOrderStatusUpdateEmail({
   order,
   customerName,
   newStatus,
+  previousStatus,
   notes,
 }: OrderStatusProps): { subject: string; text: string; html: string } {
   const safeOrderNumber = escapeEmailHtml(order.orderNumber);
   const fullName = customerName || `${order.shippingAddress.firstName} ${order.shippingAddress.lastName}`.trim();
   const safeName = escapeEmailHtml(fullName || "Client");
-  const safeStatus = escapeEmailHtml(newStatus.toUpperCase());
   const safeNotes = notes ? escapeEmailHtml(notes) : "";
+  const appUrl = getAppUrl();
+  const orderUrl = `${appUrl}/order-confirmation/${order.id}`;
 
-  const subject = `SHOPY — Order #${safeOrderNumber} Status: ${safeStatus}`;
+  const normStatus = newStatus.toUpperCase().replace(/\s+/g, "_");
+  const isBank = order.paymentMethod === "bank_transfer" || order.paymentMethod === "online";
+  const isPaid = order.paymentStatus === "PAID";
 
-  const statusDescriptions: Record<string, string> = {
-    VERIFYING_PAYMENT: "We have received your order and are verifying your payment details.",
-    AWAITING_PAYMENT_VERIFICATION: "We have received your order and are verifying your payment details.",
-    PENDING: "Your order is pending confirmation.",
-    CONFIRMED: "Your order has been verified and confirmed.",
-    PREPARING: "Your order is currently being prepared and tailored with care in our atelier.",
-    PROCESSING: "Your order is currently being prepared and tailored with care in our atelier.",
-    SHIPPED: "Your order has departed our atelier and is in transit with our logistics partner.",
-    OUT_FOR_DELIVERY: "Your order is out for delivery today and will arrive shortly.",
-    DELIVERED: "Your order has been successfully delivered. Thank you for shopping with SHOPY.",
-    CANCELLED: "Your order has been cancelled.",
-    RETURN_REQUESTED: "Your return request has been received and is being reviewed by our team.",
-    RETURNED: "Your order return has been received and processed by our atelier.",
-    REFUNDED: "Your order payment has been successfully refunded.",
-    PAID: "Your payment has been successfully verified and confirmed.",
-  };
+  // Tailored Subjects and Headings per Status
+  let subject = `SHOPY — Order #${safeOrderNumber} Update`;
+  let heading = "ORDER STATUS UPDATE";
+  let statusMessage = "Your order status has been updated.";
+  let badgeLabel = normStatus.replace(/_/g, " ");
 
-  const statusMessage = statusDescriptions[newStatus.toUpperCase()] || `Your order status has been updated to ${safeStatus}.`;
+  switch (normStatus) {
+    case "PREPARING":
+    case "PROCESSING":
+      if (isBank && (previousStatus === "VERIFYING_PAYMENT" || isPaid)) {
+        subject = `SHOPY — Payment Confirmed · #${safeOrderNumber}`;
+        heading = "PAYMENT CONFIRMED & PREPARING";
+        statusMessage = "Your payment has been verified and your order is now being carefully prepared in our atelier.";
+      } else {
+        subject = `SHOPY — Your Order Is Being Prepared · #${safeOrderNumber}`;
+        heading = "ORDER BEING PREPARED";
+        statusMessage = "Your order is now being carefully prepared and tailored in our atelier.";
+      }
+      badgeLabel = "PREPARING";
+      break;
+
+    case "SHIPPED":
+      subject = `SHOPY — Your Order Has Shipped · #${safeOrderNumber}`;
+      heading = "ORDER DISPATCHED";
+      statusMessage = "Your SHOPY order has departed our atelier and is on its way with our premium logistics partner.";
+      badgeLabel = "SHIPPED";
+      break;
+
+    case "OUT_FOR_DELIVERY":
+      subject = `SHOPY — Your Order Is Out for Delivery · #${safeOrderNumber}`;
+      heading = "OUT FOR DELIVERY";
+      statusMessage = "Your order is on its way to you and is expected to arrive today.";
+      badgeLabel = "OUT FOR DELIVERY";
+      break;
+
+    case "DELIVERED":
+      subject = `SHOPY — Your Order Has Been Delivered · #${safeOrderNumber}`;
+      heading = "ORDER DELIVERED";
+      statusMessage = "Your order has been delivered successfully. We hope you cherish your new pieces.";
+      badgeLabel = "DELIVERED";
+      break;
+
+    case "CANCELLED":
+      subject = `SHOPY — Order Cancelled · #${safeOrderNumber}`;
+      heading = "ORDER CANCELLED";
+      statusMessage = "Your order has been cancelled. If you have any inquiries, please contact our concierge.";
+      badgeLabel = "CANCELLED";
+      break;
+
+    case "REFUNDED":
+      subject = `SHOPY — Refund Processed · #${safeOrderNumber}`;
+      heading = "REFUND PROCESSED";
+      statusMessage = `A refund of ${formatCurrency(order.total)} has been processed for your order.`;
+      badgeLabel = "REFUNDED";
+      break;
+
+    case "VERIFYING_PAYMENT":
+      subject = `SHOPY — Payment Verification Pending · #${safeOrderNumber}`;
+      heading = "VERIFYING PAYMENT";
+      statusMessage = "We are currently verifying your payment details. You will receive an update once verified.";
+      badgeLabel = "VERIFYING PAYMENT";
+      break;
+
+    case "CONFIRMED":
+      subject = `SHOPY — Order Confirmed · #${safeOrderNumber}`;
+      heading = "ORDER CONFIRMED";
+      statusMessage = "Your order has been confirmed and placed in the fulfillment queue.";
+      badgeLabel = "CONFIRMED";
+      break;
+  }
+
+  const paymentBadgeText = order.paymentStatus === "PAID"
+    ? "✓ PAID"
+    : order.paymentStatus === "REFUNDED"
+    ? "REFUNDED"
+    : isBank
+    ? "BANK TRANSFER · PENDING"
+    : "CASH ON DELIVERY · UNPAID";
+
+  // Product cards
+  const itemsHtml = order.items
+    .map((item) => {
+      const safeItemName = escapeEmailHtml(item.name);
+      const safeSize = item.size ? escapeEmailHtml(item.size) : "";
+      const safeColor = item.color ? escapeEmailHtml(item.color) : "";
+      const variantMeta = [safeSize ? `Size: ${safeSize}` : "", safeColor ? `Color: ${safeColor}` : ""].filter(Boolean).join(" &bull; ");
+      const itemImage = item.image && item.image.startsWith("http") ? item.image : "";
+
+      return `
+        <tr>
+          <td style="padding: 12px 0; border-bottom: 1px solid #E8E8E8; text-align: left; vertical-align: top;">
+            <table border="0" cellpadding="0" cellspacing="0" width="100%">
+              <tr>
+                ${
+                  itemImage
+                    ? `
+                  <td width="48" style="padding-right: 12px; vertical-align: top;">
+                    <img src="${escapeEmailHtml(itemImage)}" alt="${safeItemName}" width="44" height="54" style="display: block; width: 44px; height: 54px; object-fit: cover; border: 1px solid #BBBFCA; background-color: #E8E8E8;" />
+                  </td>
+                `
+                    : ""
+                }
+                <td style="vertical-align: top; text-align: left;">
+                  <div style="font-family: 'Cormorant Garamond', 'Georgia', serif; font-size: 14px; font-weight: 600; color: #495464;">
+                    ${safeItemName}
+                  </div>
+                  ${variantMeta ? `<div style="font-size: 11px; color: #717D8F; text-transform: uppercase; margin-top: 2px;">${variantMeta}</div>` : ""}
+                  <div style="font-size: 11px; color: #495464; margin-top: 2px;">
+                    Qty: ${item.quantity}
+                  </div>
+                </td>
+                <td style="vertical-align: top; text-align: right; font-size: 13px; font-weight: 600; color: #495464; white-space: nowrap;">
+                  ${formatCurrency(item.price * item.quantity)}
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      `;
+    })
+    .join("");
 
   const bodyContent = `
     <table border="0" cellpadding="0" cellspacing="0" width="100%">
+      <!-- HEADING -->
       <tr>
-        <td align="center" style="padding: 0 16px 20px 16px;">
-          <h1 style="font-family: 'Cormorant Garamond', 'Georgia', serif; font-size: 22px; font-weight: 400; letter-spacing: 0.2em; text-transform: uppercase; color: #495464; margin: 0 0 10px 0;">
-            ORDER STATUS UPDATE
+        <td align="center" style="padding: 0 16px 20px 16px; text-align: center;">
+          <h1 style="font-family: 'Cormorant Garamond', 'Georgia', serif; font-size: 22px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: #495464; margin: 0 0 10px 0;">
+            ${heading}
           </h1>
-          <p style="font-size: 13px; line-height: 1.6; letter-spacing: 0.04em; color: #495464; margin: 0; opacity: 0.85;">
-            Hello ${safeName}, here is the latest status on your order #${safeOrderNumber}.
+          <p style="font-size: 13px; line-height: 1.6; letter-spacing: 0.03em; color: #495464; margin: 0; opacity: 0.9;">
+            Hello ${safeName}, ${statusMessage}
           </p>
         </td>
       </tr>
 
-      <!-- STATUS BADGE -->
+      <!-- STATUS BADGE BLOCK -->
       <tr>
-        <td align="center" style="padding: 10px 0 24px 0;">
+        <td align="center" style="padding: 6px 0 20px 0; text-align: center;">
           <table border="0" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
             <tr>
-              <td align="center" style="background-color: #495464; color: #F4F4F2; padding: 12px 32px; font-size: 12px; font-weight: 600; letter-spacing: 0.25em; text-transform: uppercase; border-radius: 2px;">
-                ${safeStatus}
+              <td align="center" style="background-color: #495464; color: #F4F4F2; padding: 10px 28px; font-size: 11px; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase; border-radius: 2px;">
+                ${badgeLabel}
               </td>
             </tr>
           </table>
-          <p style="font-size: 13px; color: #495464; line-height: 1.6; margin: 16px 0 0 0;">
-            ${statusMessage}
-          </p>
-          ${safeNotes ? `<p style="font-size: 12px; color: #495464; opacity: 0.8; font-style: italic; margin: 8px 0 0 0;">"${safeNotes}"</p>` : ""}
+          ${safeNotes ? `<p style="font-size: 12px; color: #495464; opacity: 0.85; font-style: italic; margin: 12px 0 0 0;">&ldquo;${safeNotes}&rdquo;</p>` : ""}
         </td>
       </tr>
 
-      <!-- RECAP CARD -->
+      <!-- ORDER META CARD -->
       <tr>
-        <td style="background-color: #FFFFFF; border: 1px solid #E8E8E8; padding: 16px 20px; text-align: left; border-radius: 2px;">
-          <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.15em; color: #BBBFCA; margin-bottom: 4px;">
-            Order Reference
+        <td style="padding: 0 0 20px 0;">
+          <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #E8E8E8; border: 1px solid #BBBFCA; padding: 14px 16px; border-radius: 2px;">
+            <tr>
+              <td style="text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: #495464;">
+                Order Reference: <strong style="font-family: monospace;">#${safeOrderNumber}</strong>
+              </td>
+              <td style="text-align: right; font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: #495464; font-weight: 600;">
+                <span style="display: inline-block; background-color: #F4F4F2; border: 1px solid #BBBFCA; padding: 4px 8px;">
+                  ${paymentBadgeText}
+                </span>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+
+      <!-- PRODUCTS SUMMARY -->
+      <tr>
+        <td style="padding: 0 0 16px 0;">
+          <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.15em; color: #717D8F; font-weight: 600; padding-bottom: 8px; border-bottom: 1px solid #BBBFCA;">
+            Items in Order (${order.items.length})
           </div>
-          <div style="font-size: 13px; font-weight: 600; color: #495464;">
-            Order #${safeOrderNumber} &bull; Total: ${formatCurrency(order.total)}
-          </div>
-          <div style="font-size: 12px; color: #495464; opacity: 0.8; margin-top: 4px;">
-            Items: ${order.items.length} item(s) &bull; ${order.shippingAddress.city}
-          </div>
+          <table border="0" cellpadding="0" cellspacing="0" width="100%">
+            <tbody>
+              ${itemsHtml}
+            </tbody>
+          </table>
+        </td>
+      </tr>
+
+      <!-- FINANCIAL TOTAL -->
+      <tr>
+        <td style="padding: 0 0 24px 0;">
+          <table border="0" cellpadding="0" cellspacing="0" width="100%" style="font-size: 12px; color: #495464; line-height: 1.8; border-top: 1px solid #BBBFCA; padding-top: 8px;">
+            <tr>
+              <td style="text-align: left; font-size: 13px; font-weight: 600; color: #495464;">Total Amount</td>
+              <td style="text-align: right; font-size: 14px; font-weight: 700; color: #495464;">${formatCurrency(order.total)}</td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+
+      <!-- CTA BUTTON -->
+      <tr>
+        <td align="center" style="padding: 0 0 16px 0; text-align: center;">
+          <a href="${orderUrl}" style="background-color: #495464; color: #F4F4F2; text-decoration: none; padding: 13px 32px; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; font-weight: 600; display: inline-block; border-radius: 2px;">
+            View Order Status
+          </a>
         </td>
       </tr>
     </table>
@@ -276,25 +493,122 @@ export function renderOrderStatusUpdateEmail({
 
   const html = renderEmailLayout({
     title: subject,
-    preheader: `Order #${order.orderNumber} status updated to ${safeStatus}.`,
+    preheader: `Order #${order.orderNumber}: ${statusMessage}`,
     bodyContent,
   });
 
   const text = `
-SHOPY — ORDER STATUS UPDATE
+SHOPY — ${heading}
 ----------------------------------------
-Order #${order.orderNumber}
-New Status: ${safeStatus}
-
-${statusMessage}
-${notes ? `Notes: ${notes}\n` : ""}
+Order Reference: #${order.orderNumber}
+Status: ${badgeLabel}
+Payment: ${paymentBadgeText}
 Total: ${formatCurrency(order.total)}
 
+${statusMessage}
+${notes ? `Note: ${notes}\n` : ""}
+View Order Online: ${orderUrl}
+
 ----------------------------------------
-SHOPY
-Modern essentials.
-Refined presence.
-© 2026 SHOPY
+SHOPY Concierge Support: shopy.support@gmail.com
+© 2026 SHOPY Atelier
+  `.trim();
+
+  return { subject, text, html };
+}
+
+export interface PaymentReceivedProps {
+  order: OrderRecord;
+  customerName?: string;
+  customerEmail?: string;
+}
+
+export function renderPaymentReceivedEmail({
+  order,
+  customerName,
+}: PaymentReceivedProps): { subject: string; text: string; html: string } {
+  const safeOrderNumber = escapeEmailHtml(order.orderNumber);
+  const fullName = customerName || `${order.shippingAddress.firstName} ${order.shippingAddress.lastName}`.trim();
+  const safeName = escapeEmailHtml(fullName || "Client");
+  const appUrl = getAppUrl();
+  const orderUrl = `${appUrl}/order-confirmation/${order.id}`;
+  const subject = `SHOPY — Payment Confirmed · #${safeOrderNumber}`;
+
+  const bodyContent = `
+    <table border="0" cellpadding="0" cellspacing="0" width="100%">
+      <tr>
+        <td align="center" style="padding: 0 16px 20px 16px; text-align: center;">
+          <h1 style="font-family: 'Cormorant Garamond', 'Georgia', serif; font-size: 22px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: #495464; margin: 0 0 10px 0;">
+            PAYMENT CONFIRMED
+          </h1>
+          <p style="font-size: 13px; line-height: 1.6; letter-spacing: 0.03em; color: #495464; margin: 0; opacity: 0.9;">
+            Hello ${safeName}, your payment of <strong>${formatCurrency(order.total)}</strong> for order #${safeOrderNumber} has been verified and confirmed.
+          </p>
+        </td>
+      </tr>
+
+      <tr>
+        <td align="center" style="padding: 6px 0 24px 0;">
+          <table border="0" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
+            <tr>
+              <td align="center" style="background-color: #065F46; color: #FFFFFF; padding: 10px 28px; font-size: 11px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; border-radius: 2px;">
+                ✓ PAYMENT RECEIVED
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+
+      <tr>
+        <td style="padding: 0 0 24px 0;">
+          <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #FFFFFF; border: 1px solid #E8E8E8; padding: 16px 20px; text-align: left; border-radius: 2px;">
+            <tr>
+              <td>
+                <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.15em; color: #717D8F; margin-bottom: 4px; font-weight: 600;">
+                  Order Summary
+                </div>
+                <div style="font-size: 14px; font-weight: 600; color: #495464;">
+                  Order #${safeOrderNumber} &bull; Total Paid: ${formatCurrency(order.total)}
+                </div>
+                <div style="font-size: 12px; color: #495464; opacity: 0.8; margin-top: 4px;">
+                  Payment Method: ${order.paymentMethod === "bank_transfer" || order.paymentMethod === "online" ? "Bank Transfer / Raast" : "Cash on Delivery"}
+                </div>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+
+      <tr>
+        <td align="center" style="padding: 0 0 16px 0; text-align: center;">
+          <a href="${orderUrl}" style="background-color: #495464; color: #F4F4F2; text-decoration: none; padding: 13px 32px; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; font-weight: 600; display: inline-block; border-radius: 2px;">
+            View Order Details
+          </a>
+        </td>
+      </tr>
+    </table>
+  `;
+
+  const html = renderEmailLayout({
+    title: subject,
+    preheader: `Payment of ${formatCurrency(order.total)} confirmed for order #${order.orderNumber}.`,
+    bodyContent,
+  });
+
+  const text = `
+SHOPY — PAYMENT CONFIRMED
+----------------------------------------
+Order #${order.orderNumber}
+Payment Status: PAID
+Total Paid: ${formatCurrency(order.total)}
+
+Your payment has been verified. Your order is proceeding with atelier preparation.
+
+View Order Online: ${orderUrl}
+
+----------------------------------------
+SHOPY Concierge Support: shopy.support@gmail.com
+© 2026 SHOPY Atelier
   `.trim();
 
   return { subject, text, html };
@@ -307,6 +621,7 @@ export interface AdminNewOrderProps {
 
 export function renderAdminNewOrderNotification({
   order,
+  adminEmail,
 }: AdminNewOrderProps): { subject: string; text: string; html: string } {
   const safeOrderNumber = escapeEmailHtml(order.orderNumber);
   const address = order.shippingAddress;
@@ -371,79 +686,6 @@ Payment: ${order.paymentMethod.toUpperCase()}
 
 Items:
 ${order.items.map((i) => `- ${i.name} x${i.quantity} (${formatCurrency(i.price * i.quantity)})`).join("\n")}
-
-----------------------------------------
-SHOPY Atelier
-  `.trim();
-
-  return { subject, text, html };
-}
-
-export function renderPaymentReceivedEmail({
-  order,
-  customerName,
-}: OrderConfirmationProps): { subject: string; text: string; html: string } {
-  const safeOrderNumber = escapeEmailHtml(order.orderNumber);
-  const fullName = customerName || `${order.shippingAddress.firstName} ${order.shippingAddress.lastName}`.trim();
-  const safeName = escapeEmailHtml(fullName || "Client");
-  const subject = `SHOPY — Payment Received for Order #${safeOrderNumber}`;
-
-  const bodyContent = `
-    <table border="0" cellpadding="0" cellspacing="0" width="100%">
-      <tr>
-        <td align="center" style="padding: 0 16px 20px 16px;">
-          <h1 style="font-family: 'Cormorant Garamond', 'Georgia', serif; font-size: 22px; font-weight: 400; letter-spacing: 0.2em; text-transform: uppercase; color: #495464; margin: 0 0 10px 0;">
-            PAYMENT CONFIRMED
-          </h1>
-          <p style="font-size: 13px; line-height: 1.6; letter-spacing: 0.04em; color: #495464; margin: 0; opacity: 0.85;">
-            Thank you, ${safeName}. Your payment of <strong>${formatCurrency(order.total)}</strong> for order #${safeOrderNumber} has been verified.
-          </p>
-        </td>
-      </tr>
-
-      <tr>
-        <td align="center" style="padding: 10px 0 24px 0;">
-          <table border="0" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
-            <tr>
-              <td align="center" style="background-color: #495464; color: #F4F4F2; padding: 10px 28px; font-size: 11px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; border-radius: 2px;">
-                PAID IN FULL
-              </td>
-            </tr>
-          </table>
-        </td>
-      </tr>
-
-      <tr>
-        <td style="background-color: #FFFFFF; border: 1px solid #E8E8E8; padding: 16px 20px; text-align: left; border-radius: 2px;">
-          <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.15em; color: #BBBFCA; margin-bottom: 4px;">
-            Payment Summary
-          </div>
-          <div style="font-size: 13px; font-weight: 600; color: #495464;">
-            Order #${safeOrderNumber} &bull; Total Paid: ${formatCurrency(order.total)}
-          </div>
-          <div style="font-size: 12px; color: #495464; opacity: 0.8; margin-top: 4px;">
-            Payment Method: ${order.paymentMethod === "online" ? "Online / Bank Transfer" : "Cash on Delivery"}
-          </div>
-        </td>
-      </tr>
-    </table>
-  `;
-
-  const html = renderEmailLayout({
-    title: subject,
-    preheader: `Payment received for order #${order.orderNumber}. Amount: ${formatCurrency(order.total)}.`,
-    bodyContent,
-  });
-
-  const text = `
-SHOPY — PAYMENT RECEIVED
-----------------------------------------
-Order #${order.orderNumber}
-Payment Status: PAID
-Total: ${formatCurrency(order.total)}
-Payment Method: ${order.paymentMethod === "online" ? "Online / Bank Transfer" : "Cash on Delivery"}
-
-Your payment has been successfully confirmed. Your order is proceeding with fulfillment.
 
 ----------------------------------------
 SHOPY Atelier

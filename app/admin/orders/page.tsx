@@ -637,6 +637,61 @@ function OrdersContent() {
                   </span>
                 </p>
               </div>
+
+              {/* Email Activity Audit Log */}
+              <div className="bg-[#E8E8E8]/50 border border-[#BBBFCA]/30 p-4 space-y-3 text-xs">
+                <div className="flex items-center justify-between border-b border-[#BBBFCA]/30 pb-2">
+                  <h4 className="text-[11px] uppercase tracking-widest font-semibold text-[#495464] flex items-center gap-1.5">
+                    <Mail className="w-3.5 h-3.5 text-[#495464]/70" />
+                    <span>Email Activity</span>
+                  </h4>
+                  <span className="text-[10px] text-[#495464]/60">
+                    shopy.orderupdate@gmail.com
+                  </span>
+                </div>
+                {selectedOrder.emailLogs && selectedOrder.emailLogs.length > 0 ? (
+                  <div className="space-y-2">
+                    {selectedOrder.emailLogs.map((log: any, idx: number) => (
+                      <div
+                        key={idx}
+                        className="bg-[#F4F4F2] border border-[#BBBFCA]/30 p-2.5 flex items-start justify-between gap-2"
+                      >
+                        <div className="space-y-0.5">
+                          <div className="font-semibold text-[#495464] text-[11px] uppercase tracking-wide">
+                            {log.eventType?.replace(/_/g, " ") || "Order Update"}
+                          </div>
+                          <div className="text-[10px] text-[#495464]/70">
+                            To: {log.recipient}
+                          </div>
+                          <div className="text-[9px] text-[#495464]/50">
+                            {new Date(log.sentAt).toLocaleDateString()} &bull;{" "}
+                            {new Date(log.sentAt).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </div>
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          {log.status === "SENT" ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] text-emerald-700 font-semibold bg-emerald-50 border border-emerald-200 px-2 py-0.5">
+                              <CheckCircle2 className="w-3 h-3" />
+                              <span>Sent</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[10px] text-rose-700 font-semibold bg-rose-50 border border-rose-200 px-2 py-0.5">
+                              <span>✕ Failed</span>
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-[#495464]/60 italic">
+                    No automated order update emails logged yet for this order.
+                  </p>
+                )}
+              </div>
             </div>
           </div>
         )}

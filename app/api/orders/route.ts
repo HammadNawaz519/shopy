@@ -57,16 +57,14 @@ export async function POST(req: Request) {
       db.clearUserCart(userId).catch(() => {});
     }
 
-    // Dispatch background order confirmation & admin notification emails (non-blocking)
+    // Dispatch order confirmation & admin notification emails safely
     try {
-      sendOrderConfirmationEmail(order).catch((err) =>
-        console.error("[ORDER EMAIL ERROR] Customer confirmation failed:", err)
-      );
-      sendAdminNewOrderNotification(order).catch((err) =>
-        console.error("[ORDER EMAIL ERROR] Admin notification failed:", err)
-      );
-    } catch {
-      // Prevent email transport issues from failing order checkout
+      await Promise.allSettled([
+        sendOrderConfirmationEmail(order),
+        sendAdminNewOrderNotification(order),
+      ]);
+    } catch (emailErr) {
+      console.error("[ORDER EMAIL DISPATCH ERROR]", emailErr);
     }
 
     return NextResponse.json(

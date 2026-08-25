@@ -121,6 +121,17 @@ export interface OrderItemRecord {
   image?: string;
 }
 
+export interface OrderEmailLogEntry {
+  eventType: string;
+  recipient: string;
+  sender: string;
+  subject: string;
+  status: "SENT" | "FAILED";
+  messageId?: string;
+  error?: string;
+  sentAt: string;
+}
+
 export interface OrderRecord {
   id: string;
   orderNumber: string;
@@ -136,6 +147,7 @@ export interface OrderRecord {
   paymentDetails?: OrderPaymentDetails;
   orderHistory?: OrderStatusHistoryEntry[];
   paymentHistory?: PaymentStatusHistoryEntry[];
+  emailLogs?: OrderEmailLogEntry[];
   shippingAddress: {
     firstName: string;
     lastName: string;
@@ -319,6 +331,14 @@ function mapOrderRow(row: any): OrderRecord {
         : row.payment_history;
   }
 
+  let emailLogs: OrderEmailLogEntry[] | undefined = undefined;
+  if (row.email_logs) {
+    emailLogs =
+      typeof row.email_logs === "string"
+        ? JSON.parse(row.email_logs)
+        : row.email_logs;
+  }
+
   return {
     id: row.id,
     orderNumber: row.order_number,
@@ -334,6 +354,7 @@ function mapOrderRow(row: any): OrderRecord {
     paymentDetails,
     orderHistory: Array.isArray(orderHistory) ? orderHistory : [],
     paymentHistory: Array.isArray(paymentHistory) ? paymentHistory : [],
+    emailLogs: Array.isArray(emailLogs) ? emailLogs : [],
     shippingAddress,
     notes: row.notes,
     createdAt: row.created_at ? new Date(row.created_at).toISOString() : new Date().toISOString(),
@@ -374,11 +395,12 @@ export async function ensurePaymentSchema(): Promise<void> {
       ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS bank_payment_instructions TEXT DEFAULT 'Please transfer the exact total order amount to the bank account above and share screenshot on WhatsApp with your Order ID for instant payment verification.';
     `);
 
-    // 2. Add payment_details, order_history, and payment_history JSONB snapshots to orders
+    // 2. Add payment_details, order_history, payment_history, and email_logs JSONB snapshots to orders
     await query(`
       ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_details JSONB;
       ALTER TABLE orders ADD COLUMN IF NOT EXISTS order_history JSONB DEFAULT '[]'::jsonb;
       ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_history JSONB DEFAULT '[]'::jsonb;
+      ALTER TABLE orders ADD COLUMN IF NOT EXISTS email_logs JSONB DEFAULT '[]'::jsonb;
     `);
 
     // 3. Relax constraints to safely support modern and legacy payment methods and statuses
@@ -1498,6 +1520,24 @@ class SupabaseDataStore {
 
     if (res.rows.length === 0) return undefined;
     return this.getOrderById(res.rows[0].id);
+  }
+
+  /**
+   * Appends an email dispatch event log to the order's history.
+   */
+  async logOrderEmail(orderId: string, logEntry: OrderEmailLogEntry): Promise<void> {
+    await ensurePaymentSchema();
+    try {
+      await query(
+        `UPDATE orders SET
+          email_logs = COALESCE(email_logs, '[]'::jsonb) || $1::jsonb,
+          updated_at = NOW()
+        WHERE id = $2 OR order_number = $2;`,
+        [JSON.stringify([logEntry]), orderId]
+      );
+    } catch (err) {
+      console.error("[LOG ORDER EMAIL ERROR]", err);
+    }
   }
 
   // --------------------------------------------------------------------------

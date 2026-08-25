@@ -26,7 +26,7 @@ import {
   renderContactFormAdminEmail,
   renderContactFormAcknowledgmentEmail,
 } from "./templates/supportTemplates";
-import type { OrderRecord } from "@/lib/db/store";
+import { db, type OrderRecord } from "@/lib/db/store";
 
 // ============================================================================
 // 1. AUTHENTICATION & OTP EMAILS (SENDER: shopy.otp@gmail.com)
@@ -139,7 +139,7 @@ export async function sendWelcomeEmail(to: string, name?: string) {
 
 /**
  * Dispatches an order confirmation email to the purchasing customer upon checkout.
- * SENDER: shopy.orderupdate@gmail.com
+ * SENDER: shopy.orderupdate@gmail.com | REPLY-TO: shopy.support@gmail.com
  */
 export async function sendOrderConfirmationEmail(
   order: OrderRecord,
@@ -149,24 +149,42 @@ export async function sendOrderConfirmationEmail(
   const destinationEmail = customerEmail || order.shippingAddress.email;
   if (!destinationEmail) return { success: false, error: "No destination email available." };
 
+  const systemConfig = getEmailSystemConfig();
+  const supportReplyTo = systemConfig.support.fromAddress || "shopy.support@gmail.com";
+
   const { subject, text, html } = renderOrderConfirmationEmail({
     order,
     customerEmail: destinationEmail,
     customerName,
   });
 
-  return sendEmailSafe({
+  const result = await sendEmailSafe({
     emailType: "ORDER_CONFIRMED",
     to: destinationEmail,
+    replyTo: supportReplyTo,
     subject,
     text,
     html,
   });
+
+  // Log dispatch event to order's persistent audit trail
+  db.logOrderEmail(order.id, {
+    eventType: "ORDER_CONFIRMED",
+    recipient: destinationEmail,
+    sender: systemConfig.order.user,
+    subject,
+    status: result.success ? "SENT" : "FAILED",
+    messageId: result.messageId,
+    error: result.error,
+    sentAt: new Date().toISOString(),
+  }).catch((err) => console.error("[ORDER EMAIL LOG ERROR]", err));
+
+  return result;
 }
 
 /**
- * Dispatches an order status change update (PROCESSING, SHIPPED, DELIVERED, CANCELLED, etc.) to the customer.
- * SENDER: shopy.orderupdate@gmail.com
+ * Dispatches an order status change update (PREPARING, SHIPPED, DELIVERED, CANCELLED, etc.) to the customer.
+ * SENDER: shopy.orderupdate@gmail.com | REPLY-TO: shopy.support@gmail.com
  */
 export async function sendOrderStatusUpdateEmail(
   order: OrderRecord,
@@ -177,10 +195,13 @@ export async function sendOrderStatusUpdateEmail(
   const destinationEmail = order.shippingAddress.email;
   if (!destinationEmail) return { success: false, error: "No destination email available." };
 
+  const systemConfig = getEmailSystemConfig();
+  const supportReplyTo = systemConfig.support.fromAddress || "shopy.support@gmail.com";
+
   const normStatus = newStatus.toUpperCase().replace(/\s+/g, "_");
   let emailType: EmailType = "ORDER_CONFIRMED";
 
-  if (normStatus === "PROCESSING") emailType = "ORDER_PROCESSING";
+  if (normStatus === "PREPARING" || normStatus === "PROCESSING") emailType = "ORDER_PROCESSING";
   else if (normStatus === "SHIPPED") emailType = "ORDER_SHIPPED";
   else if (normStatus === "OUT_FOR_DELIVERY") emailType = "ORDER_OUT_FOR_DELIVERY";
   else if (normStatus === "DELIVERED") emailType = "ORDER_DELIVERED";
@@ -196,22 +217,40 @@ export async function sendOrderStatusUpdateEmail(
     notes,
   });
 
-  return sendEmailSafe({
+  const result = await sendEmailSafe({
     emailType,
     to: destinationEmail,
+    replyTo: supportReplyTo,
     subject,
     text,
     html,
   });
+
+  // Log dispatch event to order's persistent audit trail
+  db.logOrderEmail(order.id, {
+    eventType: normStatus,
+    recipient: destinationEmail,
+    sender: systemConfig.order.user,
+    subject,
+    status: result.success ? "SENT" : "FAILED",
+    messageId: result.messageId,
+    error: result.error,
+    sentAt: new Date().toISOString(),
+  }).catch((err) => console.error("[STATUS EMAIL LOG ERROR]", err));
+
+  return result;
 }
 
 /**
  * Dispatches a payment confirmation email when an order payment is verified.
- * SENDER: shopy.orderupdate@gmail.com
+ * SENDER: shopy.orderupdate@gmail.com | REPLY-TO: shopy.support@gmail.com
  */
 export async function sendPaymentReceivedEmail(order: OrderRecord, customerName?: string) {
   const destinationEmail = order.shippingAddress.email;
   if (!destinationEmail) return { success: false, error: "No destination email available." };
+
+  const systemConfig = getEmailSystemConfig();
+  const supportReplyTo = systemConfig.support.fromAddress || "shopy.support@gmail.com";
 
   const { subject, text, html } = renderPaymentReceivedEmail({
     order,
@@ -219,13 +258,28 @@ export async function sendPaymentReceivedEmail(order: OrderRecord, customerName?
     customerName,
   });
 
-  return sendEmailSafe({
+  const result = await sendEmailSafe({
     emailType: "PAYMENT_RECEIVED",
     to: destinationEmail,
+    replyTo: supportReplyTo,
     subject,
     text,
     html,
   });
+
+  // Log dispatch event to order's persistent audit trail
+  db.logOrderEmail(order.id, {
+    eventType: "PAYMENT_RECEIVED",
+    recipient: destinationEmail,
+    sender: systemConfig.order.user,
+    subject,
+    status: result.success ? "SENT" : "FAILED",
+    messageId: result.messageId,
+    error: result.error,
+    sentAt: new Date().toISOString(),
+  }).catch((err) => console.error("[PAYMENT EMAIL LOG ERROR]", err));
+
+  return result;
 }
 
 /**

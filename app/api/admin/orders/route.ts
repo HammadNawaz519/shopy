@@ -71,7 +71,7 @@ export async function PATCH(req: Request) {
         } catch {}
       }
 
-      // Customer status update email
+      // Customer status update email (only if status actually changed)
       const customerNotifiableStatuses = [
         "CONFIRMED",
         "PREPARING",
@@ -81,15 +81,14 @@ export async function PATCH(req: Request) {
         "CANCELLED",
         "RETURNED",
         "REFUNDED",
+        "VERIFYING_PAYMENT",
       ];
 
       if (customerNotifiableStatuses.includes(String(status).toUpperCase())) {
         try {
-          sendOrderStatusUpdateEmail(updatedOrder, status, previousOrder.status, notes).catch((err) =>
-            console.error("[STATUS EMAIL ERROR] Failed to send status update:", err)
-          );
-        } catch {
-          // Prevent email issue from failing status update
+          await sendOrderStatusUpdateEmail(updatedOrder, status, previousOrder.status, notes);
+        } catch (statusEmailErr) {
+          console.error("[STATUS EMAIL ERROR] Failed to send status update:", statusEmailErr);
         }
       }
     }
@@ -101,24 +100,24 @@ export async function PATCH(req: Request) {
         (await db.updateOrderPaymentStatus(orderId, paymentStatus as PaymentStatus, notes, adminName)) ||
         updatedOrder;
 
-      // If payment transitioned to PAID, send Payment Received receipt
-      if (paymentStatus === "PAID" && prevPayment !== "PAID") {
+      // If payment transitioned to PAID and order status wasn't already updated to PREPARING/DELIVERED
+      if (paymentStatus === "PAID" && prevPayment !== "PAID" && !status) {
         try {
-          sendPaymentReceivedEmail(updatedOrder).catch((err) =>
-            console.error("[PAYMENT EMAIL ERROR] Failed to send payment received update:", err)
-          );
-        } catch {}
-      } else if (paymentStatus === "REFUNDED" && status !== "CANCELLED") {
+          await sendPaymentReceivedEmail(updatedOrder);
+        } catch (paymentEmailErr) {
+          console.error("[PAYMENT EMAIL ERROR] Failed to send payment received update:", paymentEmailErr);
+        }
+      } else if (paymentStatus === "REFUNDED" && status !== "CANCELLED" && status !== "REFUNDED") {
         try {
-          sendOrderStatusUpdateEmail(
+          await sendOrderStatusUpdateEmail(
             updatedOrder,
             "REFUNDED",
             previousOrder.status,
             notes || "Payment has been processed for refund."
-          ).catch((err) =>
-            console.error("[REFUND EMAIL ERROR] Failed to send refund update:", err)
           );
-        } catch {}
+        } catch (refundEmailErr) {
+          console.error("[REFUND EMAIL ERROR] Failed to send refund update:", refundEmailErr);
+        }
       }
     }
 
