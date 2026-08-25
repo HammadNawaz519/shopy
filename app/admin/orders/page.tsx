@@ -41,6 +41,25 @@ function OrdersContent() {
   const [printingOrder, setPrintingOrder] = useState<any>(null);
   const [updating, setUpdating] = useState(false);
 
+  // Directly trigger native system print dialog without intermediate modals
+  useEffect(() => {
+    if (printingOrder) {
+      const timer = setTimeout(() => {
+        window.print();
+      }, 50);
+
+      const handleAfterPrint = () => {
+        setPrintingOrder(null);
+      };
+
+      window.addEventListener("afterprint", handleAfterPrint);
+      return () => {
+        clearTimeout(timer);
+        window.removeEventListener("afterprint", handleAfterPrint);
+      };
+    }
+  }, [printingOrder]);
+
   const fetchOrders = async () => {
     try {
       setLoading(true);
@@ -447,13 +466,10 @@ function OrdersContent() {
           </div>
         )}
 
-        {/* Printable Order Invoice Document Modal */}
-        {printingOrder && (
-          <OrderInvoicePrint
-            order={printingOrder}
-            onClose={() => setPrintingOrder(null)}
-          />
-        )}
+        {/* Dedicated Print-Only Order Document (Hidden on screen, pure A4 invoice during print) */}
+        <div id="printable-order-document" className="print-only">
+          {printingOrder && <OrderInvoicePrint order={printingOrder} />}
+        </div>
       </main>
     </div>
   );

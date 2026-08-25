@@ -63,12 +63,21 @@
 }
 
 /* ==========================================================================
-   PRINT MEDIA RULES — Professional A4 Invoice Output
+   PRINT MEDIA RULES — Isolated High-Fidelity Order Document Printing
    ========================================================================== */
+
+/* Screen Mode: completely hide print-only container */
+@media screen {
+  .print-only {
+    display: none !important;
+  }
+}
+
+/* Print Mode: isolate ONLY the printable order document */
 @media print {
   @page {
     size: A4 portrait;
-    margin: 10mm 12mm;
+    margin: 8mm 10mm;
   }
 
   html, body {
@@ -76,14 +85,20 @@
     background-color: #ffffff !important;
     color: #111111 !important;
     font-size: 11pt !important;
-    overflow: visible !important;
     margin: 0 !important;
     padding: 0 !important;
+    overflow: visible !important;
+    height: auto !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
 
-  /* Hide all background admin navigation, headers, sidebars, buttons, drawers, and overlays */
+  /* 1. Hide everything on the page */
+  body * {
+    visibility: hidden !important;
+  }
+
+  /* 2. Explicitly hide all interactive and administrative elements */
   header,
   nav,
   aside,
@@ -91,20 +106,30 @@
   select,
   input,
   form,
-  .print\\:hidden,
+  .no-print,
   [role="navigation"],
   [aria-label="Open menu"] {
     display: none !important;
   }
 
-  /* Ensure printable invoice takes full width and clean presentation */
-  #printable-order-invoice {
+  /* 3. Make ONLY the printable document and its descendants visible */
+  #printable-order-document,
+  #printable-order-document * {
+    visibility: visible !important;
+  }
+
+  /* 4. Position printable document at the top left of the physical sheet */
+  #printable-order-document {
     display: block !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
     width: 100% !important;
     max-width: 100% !important;
     margin: 0 !important;
     padding: 0 !important;
     background: #ffffff !important;
+    color: #111111 !important;
     box-shadow: none !important;
     border: none !important;
     page-break-inside: avoid;
