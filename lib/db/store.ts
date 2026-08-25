@@ -1328,36 +1328,39 @@ class SupabaseDataStore {
     if (prev.status === normStatus) return prev;
 
     // Intelligent automated payment status derivation
-    let targetPaymentStatus = prev.paymentStatus;
+    let targetPaymentStatus: PaymentStatus = prev.paymentStatus;
     let paymentChanged = false;
     let paymentNote = "";
 
-    const isBankTransfer = prev.paymentMethod === "bank_transfer" || prev.paymentMethod === "online";
+    const isBank = prev.paymentMethod === "bank_transfer" || prev.paymentMethod === "online";
     const isCod = prev.paymentMethod === "cod";
 
-    // 1. Bank Transfer Verification Rule: Moving to PREPARING / CONFIRMED verifies payment
-    if (
-      (normStatus === "PREPARING" || normStatus === "CONFIRMED") &&
-      (prev.status === "VERIFYING_PAYMENT" || prev.status === "AWAITING_PAYMENT_VERIFICATION" || prev.paymentStatus === "PENDING_VERIFICATION") &&
-      isBankTransfer
-    ) {
-      targetPaymentStatus = "PAID";
-      paymentChanged = true;
-      paymentNote = "Bank transfer payment verified & confirmed";
-    }
-
-    // 2. COD Delivery Rule: Moving to DELIVERED automatically marks COD as PAID
-    if (normStatus === "DELIVERED" && isCod && prev.paymentStatus !== "PAID") {
-      targetPaymentStatus = "PAID";
-      paymentChanged = true;
-      paymentNote = "Cash on Delivery payment collected upon successful delivery";
-    }
-
-    // 3. Refunded Order Rule
-    if (normStatus === "REFUNDED" && prev.paymentStatus !== "REFUNDED") {
+    if (normStatus === "REFUNDED") {
       targetPaymentStatus = "REFUNDED";
+    } else if (isBank) {
+      if (normStatus === "VERIFYING_PAYMENT" || normStatus === "AWAITING_PAYMENT_VERIFICATION") {
+        targetPaymentStatus = "UNPAID";
+      } else {
+        // All other fulfillment statuses for Bank are PAID
+        targetPaymentStatus = "PAID";
+      }
+    } else if (isCod) {
+      if (normStatus === "DELIVERED") {
+        targetPaymentStatus = "PAID";
+      } else {
+        // All other statuses for COD (except REFUNDED) are UNPAID
+        targetPaymentStatus = "UNPAID";
+      }
+    }
+
+    if (targetPaymentStatus !== prev.paymentStatus) {
       paymentChanged = true;
-      paymentNote = "Payment marked as refunded alongside order refund";
+      paymentNote =
+        targetPaymentStatus === "PAID"
+          ? (isBank ? "Bank payment verified & marked Paid" : "COD payment collected upon delivery")
+          : targetPaymentStatus === "REFUNDED"
+          ? "Payment marked as refunded alongside order refund"
+          : "Payment status set to Unpaid";
     }
 
     const nowIso = new Date().toISOString();

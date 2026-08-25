@@ -184,26 +184,13 @@ function OrdersContent() {
 
   const getPaymentBadge = (ord: any) => {
     const isBank = ord.paymentMethod === "bank_transfer" || ord.paymentMethod === "online";
-    const methodText = isBank ? "BANK TRANSFER" : "COD";
+    const methodText = isBank ? "BANK" : "COD";
     const isPaid = ord.paymentStatus === "PAID";
-    const isPending = ord.paymentStatus === "PENDING_VERIFICATION" || ord.paymentStatus === "PENDING";
     const isRefunded = ord.paymentStatus === "REFUNDED";
-
-    let statusText = isPaid ? "PAID" : isPending ? (isBank ? "PENDING" : "UNPAID") : ord.paymentStatus;
-    if (!isBank && !isPaid && !isRefunded) {
-      statusText = "UNPAID";
-    }
+    const statusText = isPaid ? "PAID" : isRefunded ? "REFUNDED" : "UNPAID";
 
     return (
-      <span
-        className={`inline-block text-center px-2.5 py-1 text-[10px] font-semibold tracking-wider border ${
-          isPaid
-            ? "bg-emerald-50 text-emerald-800 border-emerald-300"
-            : isRefunded
-            ? "bg-purple-50 text-purple-800 border-purple-300"
-            : "bg-[#E8E8E8] text-[#495464] border-[#BBBFCA]"
-        }`}
-      >
+      <span className="inline-flex items-center justify-center px-2.5 py-1 text-[10px] uppercase font-semibold tracking-wider bg-[#E8E8E8] text-[#495464] border border-[#BBBFCA] whitespace-nowrap">
         {methodText} · {statusText}
       </span>
     );

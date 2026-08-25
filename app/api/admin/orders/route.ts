@@ -58,20 +58,6 @@ export async function PATCH(req: Request) {
 
     // 1. If status is provided and changed
     if (status && status !== previousOrder.status) {
-      // Guardrail: Bank transfer order in VERIFYING_PAYMENT cannot directly become SHIPPED or DELIVERED without first becoming PREPARING
-      const isBankTransfer = previousOrder.paymentMethod === "bank_transfer" || previousOrder.paymentMethod === "online";
-      if (
-        isBankTransfer &&
-        (previousOrder.status === "VERIFYING_PAYMENT" || previousOrder.status === "AWAITING_PAYMENT_VERIFICATION") &&
-        (status === "SHIPPED" || status === "OUT_FOR_DELIVERY" || status === "DELIVERED") &&
-        previousOrder.paymentStatus !== "PAID"
-      ) {
-        return NextResponse.json(
-          { error: "Payment must be verified (order set to PREPARING) before dispatching or delivering." },
-          { status: 400 }
-        );
-      }
-
       updatedOrder =
         (await db.updateOrderStatus(orderId, status as OrderStatus, notes, adminName)) ||
         updatedOrder;
