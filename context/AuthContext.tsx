@@ -155,6 +155,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         lastVerifiedTimestamp = Date.now();
         setUser(data.user);
         try {
+          document.cookie = "shopy_client_auth=1; path=/; max-age=2592000; SameSite=Lax";
           localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(data.user));
         } catch {}
       }
@@ -178,6 +179,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       lastVerifiedTimestamp = Date.now();
       setUser(data.user);
       try {
+        document.cookie = "shopy_client_auth=1; path=/; max-age=2592000; SameSite=Lax";
         localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(data.user));
       } catch {}
       return { success: true, user: data.user };

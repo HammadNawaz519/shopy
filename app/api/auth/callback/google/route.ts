@@ -145,6 +145,13 @@ export async function GET(req: Request) {
       session.id,
       getSessionCookieOptions()
     );
+    response.cookies.set("shopy_client_auth", "1", {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 7 * 24 * 60 * 60,
+    });
 
     // Invalidate single-use OAuth state cookie
     response.cookies.set("shopy_oauth_state", "", {

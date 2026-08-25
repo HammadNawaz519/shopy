@@ -13,7 +13,7 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const redirect = searchParams.get("redirect");
   const errorParam = searchParams.get("error");
-  const { login } = useAuth();
+  const { user, loading: authLoading, login } = useAuth();
   const { showToast } = useToast();
 
   const [email, setEmail] = useState("");
@@ -24,6 +24,19 @@ function LoginForm() {
   useEffect(() => {
     document.title = "Sign In | SHOPY";
   }, []);
+
+  // If already authenticated, redirect immediately
+  useEffect(() => {
+    if (!authLoading && user) {
+      if (user.role === "admin") {
+        window.location.replace("/admin");
+      } else if (isValidRedirectUrl(redirect)) {
+        window.location.replace(redirect!);
+      } else {
+        window.location.replace("/account");
+      }
+    }
+  }, [user, authLoading, redirect]);
 
   useEffect(() => {
     if (errorParam) {
@@ -50,11 +63,11 @@ function LoginForm() {
     if (res.success) {
       showToast("Welcome back to SHOPY", "success");
       if (res.user?.role === "admin") {
-        window.location.href = "/admin";
+        window.location.replace("/admin");
       } else if (isValidRedirectUrl(redirect)) {
-        window.location.href = redirect!;
+        window.location.replace(redirect!);
       } else {
-        window.location.href = "/account";
+        window.location.replace("/account");
       }
     } else {
       setErrorMessage(res.error || "Login failed");

@@ -8,7 +8,7 @@ import { Lock, Mail, User, KeyRound, ArrowRight, ArrowLeft, Loader2, Check, Refr
 import GoogleButton from "@/components/auth/GoogleButton";
 
 export default function RegisterPage() {
-  const { register, verifyRegisterOtp, resendRegisterOtp } = useAuth();
+  const { user, loading: authLoading, register, verifyRegisterOtp, resendRegisterOtp } = useAuth();
   const { showToast } = useToast();
 
   const [step, setStep] = useState<"details" | "verify" | "complete">("details");
@@ -23,6 +23,17 @@ export default function RegisterPage() {
   React.useEffect(() => {
     document.title = "Register | SHOPY";
   }, []);
+
+  // If already authenticated, redirect to account/admin
+  React.useEffect(() => {
+    if (!authLoading && user && step !== "complete") {
+      if (user.role === "admin") {
+        window.location.replace("/admin");
+      } else {
+        window.location.replace("/account");
+      }
+    }
+  }, [user, authLoading, step]);
 
   const hasUpperCase = /[A-Z]/.test(password);
   const hasLowerCase = /[a-z]/.test(password);
@@ -51,9 +62,9 @@ export default function RegisterPage() {
       } else {
         showToast("Account created successfully. Welcome to SHOPY.", "success");
         if (res.user?.role === "admin") {
-          window.location.href = "/admin";
+          window.location.replace("/admin");
         } else {
-          window.location.href = "/account";
+          window.location.replace("/account");
         }
       }
     } else {
@@ -77,16 +88,16 @@ export default function RegisterPage() {
     const res = await verifyRegisterOtp(email.trim(), otpCode.trim());
     setLoading(false);
 
-    if (res.success && res.user) {
+    if (res.success) {
       showToast("Account verified successfully! Welcome to SHOPY.", "success");
       setStep("complete");
       setTimeout(() => {
         if (res.user?.role === "admin") {
-          window.location.href = "/admin";
+          window.location.replace("/admin");
         } else {
-          window.location.href = "/account";
+          window.location.replace("/account");
         }
-      }, 1200);
+      }, 600);
     } else {
       setErrorMessage(res.error || "Invalid or expired verification code.");
       showToast(res.error || "Invalid or expired verification code.", "error");

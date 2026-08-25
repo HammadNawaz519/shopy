@@ -6,7 +6,7 @@ export async function GET() {
     const session = await getCurrentUser();
 
     if (!session) {
-      return NextResponse.json(
+      const res = NextResponse.json(
         { user: null },
         {
           status: 200,
@@ -15,9 +15,14 @@ export async function GET() {
           },
         }
       );
+      res.cookies.set("shopy_client_auth", "", {
+        path: "/",
+        expires: new Date(0),
+      });
+      return res;
     }
 
-    return NextResponse.json(
+    const res = NextResponse.json(
       {
         user: {
           id: session.userId,
@@ -34,6 +39,14 @@ export async function GET() {
         },
       }
     );
+    res.cookies.set("shopy_client_auth", "1", {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 7 * 24 * 60 * 60,
+    });
+    return res;
   } catch {
     return NextResponse.json(
       { user: null },

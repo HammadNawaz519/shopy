@@ -20,15 +20,16 @@ export default function AccountPage() {
   // Background check for unauthorized visitors
   useEffect(() => {
     if (!loading && !user) {
-      router.replace("/login?redirect=/account");
+      window.location.replace("/login?redirect=/account");
     }
-  }, [user, loading, router]);
+  }, [user, loading]);
 
-  // Fetch orders immediately on mount
+  // Fetch orders when user is authenticated
   useEffect(() => {
     let isMounted = true;
 
     async function fetchUserOrders() {
+      if (!user) return;
       try {
         const res = await fetch("/api/orders");
         if (res.ok) {
@@ -48,12 +49,16 @@ export default function AccountPage() {
       }
     }
 
-    fetchUserOrders();
+    if (user) {
+      fetchUserOrders();
+    } else if (!loading) {
+      setLoadingOrders(false);
+    }
 
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [user, loading]);
 
   // If initial load with no cached user and still validating
   if (loading && !user) {
