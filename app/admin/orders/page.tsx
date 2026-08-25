@@ -280,49 +280,54 @@ function OrdersContent() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#BBBFCA]/20">
-                  {orders.map((ord) => (
-                    <tr key={ord.id} className="hover:bg-[#E8E8E8]/40 transition-colors">
-                      <td className="px-3 py-3 font-serif font-semibold text-[#495464] whitespace-nowrap">
-                        {ord.orderNumber}
-                      </td>
-                      <td className="px-2.5 py-3 text-[#495464]/70 whitespace-nowrap">
-                        {new Date(ord.createdAt).toLocaleDateString()}
-                      </td>
-                      <td className="px-2.5 py-3 max-w-[160px]">
-                        <span className="font-medium block text-[#495464] truncate">
-                          {ord.shippingAddress.firstName} {ord.shippingAddress.lastName}
-                        </span>
-                        <span className="text-[10px] text-[#495464]/60 block truncate">{ord.shippingAddress.city}</span>
-                      </td>
-                      <td className="px-2 py-3 text-[#495464]/80 whitespace-nowrap text-left">
-                        {ord.items.length} {ord.items.length === 1 ? "pc" : "pcs"}
-                      </td>
-                      <td className="px-2.5 py-3 font-serif font-semibold text-[#495464] whitespace-nowrap">
-                        {formatPrice(ord.total)}
-                      </td>
-                      <td className="px-2 py-3 text-center">
-                        {getPaymentBadge(ord)}
-                      </td>
-                      <td className="px-2 py-3 text-center">
-                        <select
-                          value={ord.status}
-                          disabled={updating}
-                          onChange={(e) => handleUpdateStatus(ord.id, e.target.value)}
-                          className="bg-[#E8E8E8] border border-[#BBBFCA] px-2 py-1 text-[10px] uppercase font-semibold text-[#495464] focus:outline-none cursor-pointer w-[105px] h-[28px] text-center"
-                        >
-                          <option value="VERIFYING_PAYMENT">VERIFYING</option>
-                          <option value="CONFIRMED">CONFIRMED</option>
-                          <option value="PREPARING">PREPARING</option>
-                          <option value="SHIPPED">SHIPPED</option>
-                          <option value="OUT_FOR_DELIVERY">DELIVERY</option>
-                          <option value="DELIVERED">DELIVERED</option>
-                          <option value="CANCELLED">CANCELLED</option>
-                          <option value="RETURN_REQUESTED">RETURN REQ</option>
-                          <option value="RETURNED">RETURNED</option>
-                          <option value="REFUNDED">REFUNDED</option>
-                        </select>
-                      </td>
-                      <td className="px-3 py-3 text-right whitespace-nowrap">
+                  {orders.map((ord) => {
+                    const isBank = ord.paymentMethod === "bank_transfer" || ord.paymentMethod === "online";
+                    return (
+                      <tr key={ord.id} className="hover:bg-[#E8E8E8]/40 transition-colors">
+                        <td className="px-3 py-3 font-serif font-semibold text-[#495464] whitespace-nowrap">
+                          {ord.orderNumber}
+                        </td>
+                        <td className="px-2.5 py-3 text-[#495464]/70 whitespace-nowrap">
+                          {new Date(ord.createdAt).toLocaleDateString()}
+                        </td>
+                        <td className="px-2.5 py-3 max-w-[160px]">
+                          <span className="font-medium block text-[#495464] truncate">
+                            {ord.shippingAddress.firstName} {ord.shippingAddress.lastName}
+                          </span>
+                          <span className="text-[10px] text-[#495464]/60 block truncate">{ord.shippingAddress.city}</span>
+                        </td>
+                        <td className="px-2 py-3 text-[#495464]/80 whitespace-nowrap text-left">
+                          {ord.items.length} {ord.items.length === 1 ? "pc" : "pcs"}
+                        </td>
+                        <td className="px-2.5 py-3 font-serif font-semibold text-[#495464] whitespace-nowrap">
+                          {formatPrice(ord.total)}
+                        </td>
+                        <td className="px-2 py-3 text-center">
+                          {getPaymentBadge(ord)}
+                        </td>
+                        <td className="px-2 py-3 text-center">
+                          <select
+                            value={ord.status}
+                            disabled={updating}
+                            onChange={(e) => handleUpdateStatus(ord.id, e.target.value)}
+                            className="bg-[#E8E8E8] border border-[#BBBFCA] px-2 py-1 text-[10px] uppercase font-semibold text-[#495464] focus:outline-none cursor-pointer w-[105px] h-[28px] text-center"
+                          >
+                            {/* For Bank: VERIFYING is allowed. For COD: only if currently in that state */}
+                            {(isBank || ord.status === "VERIFYING_PAYMENT") && (
+                              <option value="VERIFYING_PAYMENT">VERIFYING</option>
+                            )}
+                            <option value="CONFIRMED">CONFIRMED</option>
+                            <option value="PREPARING">PREPARING</option>
+                            {ord.status === "SHIPPED" && <option value="SHIPPED">SHIPPED</option>}
+                            {ord.status === "OUT_FOR_DELIVERY" && <option value="OUT_FOR_DELIVERY">DELIVERY</option>}
+                            <option value="DELIVERED">DELIVERED</option>
+                            <option value="CANCELLED">CANCELLED</option>
+                            {ord.status === "RETURN_REQUESTED" && <option value="RETURN_REQUESTED">RETURN REQ</option>}
+                            <option value="RETURNED">RETURNED</option>
+                            <option value="REFUNDED">REFUNDED</option>
+                          </select>
+                        </td>
+                        <td className="px-3 py-3 text-right whitespace-nowrap">
                         <div className="inline-flex items-center justify-end gap-1.5 flex-nowrap">
                           <button
                             onClick={() => setSelectedOrder(ord)}
@@ -341,7 +346,8 @@ function OrdersContent() {
                         </div>
                       </td>
                     </tr>
-                  ))}
+                  );
+                })}
                 </tbody>
               </table>
             </div>
