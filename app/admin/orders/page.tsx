@@ -270,12 +270,12 @@ function OrdersContent() {
                 <thead className="bg-[#E8E8E8]/70 border-b border-[#BBBFCA]/40 text-[#495464] uppercase text-[10px]">
                   <tr>
                     <th className="px-3 py-3 font-semibold whitespace-nowrap">Order ID</th>
-                    <th className="px-3 py-3 font-semibold whitespace-nowrap">Date</th>
-                    <th className="px-3 py-3 font-semibold">Customer</th>
-                    <th className="px-2.5 py-3 font-semibold whitespace-nowrap">Items</th>
-                    <th className="px-3 py-3 font-semibold whitespace-nowrap">Total</th>
-                    <th className="px-2.5 py-3 font-semibold whitespace-nowrap text-center">Payment</th>
-                    <th className="px-2.5 py-3 font-semibold whitespace-nowrap text-center">Order Status</th>
+                    <th className="px-2.5 py-3 font-semibold whitespace-nowrap">Date</th>
+                    <th className="px-2.5 py-3 font-semibold whitespace-nowrap max-w-[160px]">Customer</th>
+                    <th className="px-2 py-3 font-semibold whitespace-nowrap text-left">Items</th>
+                    <th className="px-2.5 py-3 font-semibold whitespace-nowrap">Total</th>
+                    <th className="px-2 py-3 font-semibold whitespace-nowrap text-center">Payment</th>
+                    <th className="px-2 py-3 font-semibold whitespace-nowrap text-center">Order Status</th>
                     <th className="px-3 py-3 font-semibold text-right whitespace-nowrap">Action</th>
                   </tr>
                 </thead>
@@ -285,25 +285,25 @@ function OrdersContent() {
                       <td className="px-3 py-3 font-serif font-semibold text-[#495464] whitespace-nowrap">
                         {ord.orderNumber}
                       </td>
-                      <td className="px-3 py-3 text-[#495464]/70 whitespace-nowrap">
+                      <td className="px-2.5 py-3 text-[#495464]/70 whitespace-nowrap">
                         {new Date(ord.createdAt).toLocaleDateString()}
                       </td>
-                      <td className="px-3 py-3">
-                        <span className="font-medium block text-[#495464] whitespace-nowrap">
+                      <td className="px-2.5 py-3 max-w-[160px]">
+                        <span className="font-medium block text-[#495464] truncate">
                           {ord.shippingAddress.firstName} {ord.shippingAddress.lastName}
                         </span>
-                        <span className="text-[10px] text-[#495464]/60 block">{ord.shippingAddress.city}</span>
+                        <span className="text-[10px] text-[#495464]/60 block truncate">{ord.shippingAddress.city}</span>
                       </td>
-                      <td className="px-2.5 py-3 text-[#495464]/80 whitespace-nowrap">
+                      <td className="px-2 py-3 text-[#495464]/80 whitespace-nowrap text-left">
                         {ord.items.length} {ord.items.length === 1 ? "pc" : "pcs"}
                       </td>
-                      <td className="px-3 py-3 font-serif font-semibold text-[#495464] whitespace-nowrap">
+                      <td className="px-2.5 py-3 font-serif font-semibold text-[#495464] whitespace-nowrap">
                         {formatPrice(ord.total)}
                       </td>
-                      <td className="px-2.5 py-3 text-center">
+                      <td className="px-2 py-3 text-center">
                         {getPaymentBadge(ord)}
                       </td>
-                      <td className="px-2.5 py-3 text-center">
+                      <td className="px-2 py-3 text-center">
                         <select
                           value={ord.status}
                           disabled={updating}
