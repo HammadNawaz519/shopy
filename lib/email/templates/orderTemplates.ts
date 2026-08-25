@@ -224,11 +224,9 @@ export function renderOrderConfirmationEmail({
             </tr>
           </table>
         </td>
-      </tr>
-
-      <!-- DESTINATION ADDRESS -->
+         <!-- DESTINATION ADDRESS -->
       <tr>
-        <td style="padding: 0 0 24px 0;">
+        <td style="padding: 0 0 8px 0;">
           <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #FFFFFF; border: 1px solid #E8E8E8; padding: 16px 18px; border-radius: 2px;">
             <tr>
               <td>
@@ -245,21 +243,6 @@ export function renderOrderConfirmationEmail({
                 <div style="font-size: 11px; color: #495464; opacity: 0.75; margin-top: 4px;">
                   Phone: ${safePhone}
                 </div>
-              </td>
-            </tr>
-          </table>
-        </td>
-      </tr>
-
-      <!-- VIEW YOUR ORDER CTA BUTTON -->
-      <tr>
-        <td align="center" style="padding: 0 0 16px 0; text-align: center;">
-          <table border="0" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
-            <tr>
-              <td align="center" style="background-color: #495464; border-radius: 2px;">
-                <a href="${orderUrl}" style="background-color: #495464; color: #F4F4F2; text-decoration: none; padding: 13px 32px; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; font-weight: 600; display: inline-block; border-radius: 2px;">
-                  View Your Order
-                </a>
               </td>
             </tr>
           </table>
@@ -303,8 +286,6 @@ ${fullName}
 ${address.address}
 ${address.city}, Pakistan
 Phone: ${address.phone}
-
-View Your Order: ${orderUrl}
 
 ----------------------------------------
 Need help?

@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useCart } from "@/context/CartContext";
 import { formatPrice } from "@/lib/utils";
-import { Trash2, Plus, Minus, ArrowRight, ShieldCheck, Tag } from "lucide-react";
+import { Trash2, Plus, Minus, ArrowRight, Tag } from "lucide-react";
 import { useToast } from "@/context/ToastContext";
 
 export default function CartPage() {
@@ -254,11 +254,6 @@ export default function CartPage() {
                   <span className="truncate">Proceed to Checkout</span>
                   <ArrowRight className="w-4 h-4 flex-shrink-0 group-hover:translate-x-1 transition-transform" />
                 </Link>
-
-                <div className="flex items-center justify-center gap-2 text-[10px] text-[#495464]/60 tracking-wider text-center">
-                  <ShieldCheck className="w-4 h-4 text-[#495464]" />
-                  <span>Prices verified server-side. Secure checkout.</span>
-                </div>
               </div>
             </div>
           </div>

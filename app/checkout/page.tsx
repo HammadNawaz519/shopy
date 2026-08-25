@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
 import { formatPrice } from "@/lib/utils";
-import { ShieldCheck, Lock, ArrowRight, Loader2, CheckCircle2, Building2, Banknote, Copy, Check, Info } from "lucide-react";
+import { Lock, ArrowRight, Loader2, CheckCircle2, Building2, Banknote, Copy, Check, Info } from "lucide-react";
 import { useToast } from "@/context/ToastContext";
 
 export default function CheckoutPage() {
@@ -628,7 +628,7 @@ export default function CheckoutPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full flex items-center justify-center gap-2.5 sm:gap-3 bg-[#495464] text-[#F4F4F2] py-3.5 sm:py-4 px-4 text-[11px] sm:text-xs uppercase tracking-wider sm:tracking-widest font-medium hover:bg-[#363E4B] transition-all shadow-md disabled:opacity-50 text-center"
+                className="w-full flex items-center justify-center gap-2.5 sm:gap-3 bg-[#495464] text-[#F4F4F2] py-3.5 sm:py-4 px-4 text-[11px] sm:text-xs uppercase tracking-wider sm:tracking-widest font-medium hover:bg-[#363E4B] transition-all shadow-md disabled:opacity-50 text-center cursor-pointer"
               >
                 {loading ? (
                   <>
@@ -642,11 +642,6 @@ export default function CheckoutPage() {
                   </>
                 )}
               </button>
-
-              <div className="flex items-center justify-center gap-2 text-[10px] text-[#495464]/60 tracking-wider text-center">
-                <ShieldCheck className="w-4 h-4 text-[#495464]" />
-                <span>Zero-Trust Server Validation • Guaranteed Authenticity</span>
-              </div>
             </div>
           </div>
         </form>
