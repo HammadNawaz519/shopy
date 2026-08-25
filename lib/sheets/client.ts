@@ -158,8 +158,10 @@ export async function ensureSpreadsheetStructure(): Promise<boolean> {
     const updatedMetadata = await sheets.spreadsheets.get({ spreadsheetId });
     const sheetMap = new Map<string, number>();
     for (const s of updatedMetadata.data.sheets || []) {
-      if (s.properties?.title && typeof s.properties.sheetId === "number") {
-        sheetMap.set(s.properties.title, s.properties.sheetId);
+      const title = s.properties?.title;
+      const sheetId = s.properties?.sheetId;
+      if (title && typeof sheetId === "number") {
+        sheetMap.set(title, sheetId);
       }
     }
 

@@ -32,7 +32,7 @@ export function renderEmailLayout({ title, preheader, bodyContent }: EmailLayout
     @media only screen and (max-width: 600px) {
       .email-container { width: 100% !important; max-width: 100% !important; }
       .content-padding { padding: 24px 16px !important; }
-      .otp-text { font-size: 26px !important; letter-spacing: 0.2em !important; }
+      .otp-text { font-size: 24px !important; letter-spacing: 4px !important; white-space: nowrap !important; word-break: keep-all !important; display: inline-block !important; }
     }
   </style>
 </head>

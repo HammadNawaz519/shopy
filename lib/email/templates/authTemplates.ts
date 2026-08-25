@@ -15,7 +15,6 @@ export function renderVerificationOtpEmail({
   expiresInMinutes = 10,
 }: VerificationOtpProps): { subject: string; text: string; html: string } {
   const safeName = name ? escapeEmailHtml(name) : "Client";
-  const formattedOtp = otpCode.split("").join(" ");
   const subject = "Verification Code";
 
   const bodyContent = `
@@ -32,14 +31,14 @@ export function renderVerificationOtpEmail({
         </td>
       </tr>
 
-      <!-- OTP CODE CONTAINER -->
+      <!-- OTP CODE CONTAINER (STRICT SINGLE LINE ON MOBILE) -->
       <tr>
         <td align="center" style="padding: 10px 16px 24px 16px;">
-          <table border="0" cellpadding="0" cellspacing="0" style="margin: 0 auto; width: 100%; max-width: 360px;">
+          <table border="0" cellpadding="0" cellspacing="0" style="margin: 0 auto; width: 100%; max-width: 280px;">
             <tr>
-              <td align="center" style="background-color: #E8E8E8; border: 1px solid #BBBFCA; padding: 22px 16px; border-radius: 2px;">
-                <div class="otp-text" style="font-family: 'Courier New', Courier, monospace; font-size: 32px; font-weight: 700; letter-spacing: 0.25em; color: #495464; line-height: 1; margin-left: 0.25em;">
-                  ${formattedOtp}
+              <td align="center" style="background-color: #E8E8E8; border: 1px solid #BBBFCA; padding: 18px 12px; border-radius: 2px; white-space: nowrap;">
+                <div class="otp-text" style="font-family: 'Courier New', Courier, monospace; font-size: 26px; font-weight: 700; letter-spacing: 6px; color: #495464; line-height: 1.2; white-space: nowrap !important; word-break: keep-all !important; display: inline-block !important; text-align: center;">
+                  ${otpCode}
                 </div>
               </td>
             </tr>
@@ -74,7 +73,7 @@ Hello ${safeName},
 
 Use the verification code below to continue:
 
-      ${formattedOtp}
+      ${otpCode}
 
 This code expires in ${expiresInMinutes} minutes.
 If you did not request this code, you can safely ignore this email.
@@ -96,7 +95,6 @@ export function renderLoginOtpEmail({
   expiresInMinutes = 10,
 }: VerificationOtpProps): { subject: string; text: string; html: string } {
   const safeName = name ? escapeEmailHtml(name) : "Client";
-  const formattedOtp = otpCode.split("").join(" ");
   const subject = "Verification Code";
 
   const bodyContent = `
@@ -114,11 +112,11 @@ export function renderLoginOtpEmail({
 
       <tr>
         <td align="center" style="padding: 10px 16px 24px 16px;">
-          <table border="0" cellpadding="0" cellspacing="0" style="margin: 0 auto; width: 100%; max-width: 360px;">
+          <table border="0" cellpadding="0" cellspacing="0" style="margin: 0 auto; width: 100%; max-width: 280px;">
             <tr>
-              <td align="center" style="background-color: #E8E8E8; border: 1px solid #BBBFCA; padding: 22px 16px; border-radius: 2px;">
-                <div class="otp-text" style="font-family: 'Courier New', Courier, monospace; font-size: 32px; font-weight: 700; letter-spacing: 0.25em; color: #495464; line-height: 1; margin-left: 0.25em;">
-                  ${formattedOtp}
+              <td align="center" style="background-color: #E8E8E8; border: 1px solid #BBBFCA; padding: 18px 12px; border-radius: 2px; white-space: nowrap;">
+                <div class="otp-text" style="font-family: 'Courier New', Courier, monospace; font-size: 26px; font-weight: 700; letter-spacing: 6px; color: #495464; line-height: 1.2; white-space: nowrap !important; word-break: keep-all !important; display: inline-block !important; text-align: center;">
+                  ${otpCode}
                 </div>
               </td>
             </tr>
@@ -152,7 +150,7 @@ Hello ${safeName},
 
 Use the login code below to access your account:
 
-      ${formattedOtp}
+      ${otpCode}
 
 This code expires in ${expiresInMinutes} minutes.
 If you did not request this login code, please secure your credentials.
@@ -189,11 +187,11 @@ export function renderPasswordResetEmail({
     ? `
       <tr>
         <td align="center" style="padding: 10px 16px 24px 16px;">
-          <table border="0" cellpadding="0" cellspacing="0" style="margin: 0 auto; width: 100%; max-width: 360px;">
+          <table border="0" cellpadding="0" cellspacing="0" style="margin: 0 auto; width: 100%; max-width: 280px;">
             <tr>
-              <td align="center" style="background-color: #E8E8E8; border: 1px solid #BBBFCA; padding: 22px 16px; border-radius: 2px;">
-                <div class="otp-text" style="font-family: 'Courier New', Courier, monospace; font-size: 32px; font-weight: 700; letter-spacing: 0.25em; color: #495464; line-height: 1; margin-left: 0.25em;">
-                  ${otpCode.split("").join(" ")}
+              <td align="center" style="background-color: #E8E8E8; border: 1px solid #BBBFCA; padding: 18px 12px; border-radius: 2px; white-space: nowrap;">
+                <div class="otp-text" style="font-family: 'Courier New', Courier, monospace; font-size: 26px; font-weight: 700; letter-spacing: 6px; color: #495464; line-height: 1.2; white-space: nowrap !important; word-break: keep-all !important; display: inline-block !important; text-align: center;">
+                  ${otpCode}
                 </div>
               </td>
             </tr>

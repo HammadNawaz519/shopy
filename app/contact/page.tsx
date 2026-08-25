@@ -1,11 +1,13 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Mail, Phone, MapPin, ArrowRight, Loader2, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/context/ToastContext";
 
 export default function ContactPage() {
   const { showToast } = useToast();
+  const CONTACT_STORAGE_KEY = "shopy_contact_form_v1";
+
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -15,8 +17,17 @@ export default function ContactPage() {
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
-  React.useEffect(() => {
+  // Restore saved form data on mount
+  useEffect(() => {
     document.title = "Contact | SHOPY";
+    try {
+      const saved = localStorage.getItem(CONTACT_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setFormData((prev) => ({ ...prev, ...parsed }));
+      }
+    } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -33,6 +44,8 @@ export default function ContactPage() {
       const data = await res.json();
       if (res.ok) {
         setSubmitted(true);
+        // Clear saved draft on success
+        try { localStorage.removeItem(CONTACT_STORAGE_KEY); } catch {}
         showToast(data.message || "Message delivered to atelier concierge.", "success");
       } else {
         showToast(data.error || "Failed to deliver message.", "error");
@@ -116,7 +129,11 @@ export default function ContactPage() {
                       type="text"
                       required
                       value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      onChange={(e) => {
+                        const updated = { ...formData, name: e.target.value };
+                        setFormData(updated);
+                        try { localStorage.setItem(CONTACT_STORAGE_KEY, JSON.stringify(updated)); } catch {}
+                      }}
                       className="w-full bg-[#F4F4F2] border border-[#BBBFCA] px-4 py-3 text-xs text-[#495464] focus:outline-none focus:border-[#495464]"
                     />
                   </div>
@@ -128,7 +145,11 @@ export default function ContactPage() {
                       type="email"
                       required
                       value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      onChange={(e) => {
+                        const updated = { ...formData, email: e.target.value };
+                        setFormData(updated);
+                        try { localStorage.setItem(CONTACT_STORAGE_KEY, JSON.stringify(updated)); } catch {}
+                      }}
                       className="w-full bg-[#F4F4F2] border border-[#BBBFCA] px-4 py-3 text-xs text-[#495464] focus:outline-none focus:border-[#495464]"
                     />
                   </div>
@@ -143,7 +164,11 @@ export default function ContactPage() {
                     required
                     placeholder="Sizing inquiry, order tracking, bespoke styling..."
                     value={formData.subject}
-                    onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+                      onChange={(e) => {
+                        const updated = { ...formData, subject: e.target.value };
+                        setFormData(updated);
+                        try { localStorage.setItem(CONTACT_STORAGE_KEY, JSON.stringify(updated)); } catch {}
+                      }}
                     className="w-full bg-[#F4F4F2] border border-[#BBBFCA] px-4 py-3 text-xs text-[#495464] focus:outline-none focus:border-[#495464]"
                   />
                 </div>
@@ -157,7 +182,11 @@ export default function ContactPage() {
                     required
                     placeholder="How may our concierge assist you?"
                     value={formData.message}
-                    onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                      onChange={(e) => {
+                        const updated = { ...formData, message: e.target.value };
+                        setFormData(updated);
+                        try { localStorage.setItem(CONTACT_STORAGE_KEY, JSON.stringify(updated)); } catch {}
+                      }}
                     className="w-full bg-[#F4F4F2] border border-[#BBBFCA] px-4 py-3 text-xs text-[#495464] focus:outline-none focus:border-[#495464]"
                   />
                 </div>

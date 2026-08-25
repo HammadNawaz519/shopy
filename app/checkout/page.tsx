@@ -33,6 +33,8 @@ export default function CheckoutPage() {
     instructions: "Please transfer the exact total order amount to the bank account above and share screenshot on WhatsApp with your Order ID for instant payment verification.",
   });
 
+  const CHECKOUT_STORAGE_KEY = "shopy_checkout_shipping_v1";
+
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -44,6 +46,18 @@ export default function CheckoutPage() {
     province: "Punjab",
     paymentMethod: "cod" as "cod" | "bank_transfer",
   });
+
+  // Restore saved shipping details on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(CHECKOUT_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setFormData((prev) => ({ ...prev, ...parsed }));
+      }
+    } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     document.title = "Checkout | SHOPY";
@@ -73,6 +87,15 @@ export default function CheckoutPage() {
     fetchPaymentConfig();
   }, []);
 
+  // Save a single shipping field and persist all fields to localStorage
+  const handleFieldChange = (field: keyof typeof formData, value: string) => {
+    setFormData((prev) => {
+      const next = { ...prev, [field]: value };
+      try { localStorage.setItem(CHECKOUT_STORAGE_KEY, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  };
+
   const handleCopy = (text: string, label: string) => {
     if (!text) return;
     navigator.clipboard.writeText(text);
@@ -81,17 +104,20 @@ export default function CheckoutPage() {
     setTimeout(() => setCopiedField(null), 2000);
   };
 
+  // Pre-fill from user session if form still empty
   useEffect(() => {
-    if (user && !formData.email) {
-      const names = user.name.split(" ");
-      setFormData((prev) => ({
-        ...prev,
-        firstName: names[0] || "",
-        lastName: names.slice(1).join(" ") || "",
-        email: user.email,
-      }));
+    if (user) {
+      setFormData((prev) => {
+        const names = user.name.split(" ");
+        return {
+          ...prev,
+          firstName: prev.firstName || names[0] || "",
+          lastName: prev.lastName || names.slice(1).join(" ") || "",
+          email: prev.email || user.email,
+        };
+      });
     }
-  }, [user, formData.email]);
+  }, [user]);
 
   useEffect(() => {
     validateWithServer();
@@ -152,6 +178,8 @@ export default function CheckoutPage() {
 
       if (res.ok && data.success) {
         clearCart();
+        // Clear saved shipping draft on successful order
+        try { localStorage.removeItem(CHECKOUT_STORAGE_KEY); } catch {}
         showToast("Order placed successfully!", "success");
         router.push(`/order-confirmation/${data.orderId}`);
       } else {
@@ -204,7 +232,7 @@ export default function CheckoutPage() {
                     type="text"
                     required
                     value={formData.firstName}
-                    onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                    onChange={(e) => handleFieldChange("firstName", e.target.value)}
                     className="w-full bg-[#F4F4F2] border border-[#BBBFCA] px-4 py-2.5 text-xs text-[#495464] focus:outline-none focus:border-[#495464]"
                   />
                 </div>
@@ -216,7 +244,7 @@ export default function CheckoutPage() {
                     type="text"
                     required
                     value={formData.lastName}
-                    onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                    onChange={(e) => handleFieldChange("lastName", e.target.value)}
                     className="w-full bg-[#F4F4F2] border border-[#BBBFCA] px-4 py-2.5 text-xs text-[#495464] focus:outline-none focus:border-[#495464]"
                   />
                 </div>
@@ -231,7 +259,7 @@ export default function CheckoutPage() {
                     type="email"
                     required
                     value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    onChange={(e) => handleFieldChange("email", e.target.value)}
                     className="w-full bg-[#F4F4F2] border border-[#BBBFCA] px-4 py-2.5 text-xs text-[#495464] focus:outline-none focus:border-[#495464]"
                   />
                 </div>
@@ -244,7 +272,7 @@ export default function CheckoutPage() {
                     required
                     placeholder="0300 1234567"
                     value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    onChange={(e) => handleFieldChange("phone", e.target.value)}
                     className="w-full bg-[#F4F4F2] border border-[#BBBFCA] px-4 py-2.5 text-xs text-[#495464] focus:outline-none focus:border-[#495464]"
                   />
                 </div>
@@ -259,7 +287,7 @@ export default function CheckoutPage() {
                   required
                   placeholder="House 42, Street 8, Block C, Gulberg"
                   value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  onChange={(e) => handleFieldChange("address", e.target.value)}
                   className="w-full bg-[#F4F4F2] border border-[#BBBFCA] px-4 py-2.5 text-xs text-[#495464] focus:outline-none focus:border-[#495464]"
                 />
               </div>
@@ -271,7 +299,7 @@ export default function CheckoutPage() {
                   </label>
                   <select
                     value={formData.city}
-                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                    onChange={(e) => handleFieldChange("city", e.target.value)}
                     className="w-full bg-[#F4F4F2] border border-[#BBBFCA] px-4 py-2.5 text-xs text-[#495464] focus:outline-none focus:border-[#495464]"
                   >
                     <option value="Lahore">Lahore</option>
@@ -293,7 +321,7 @@ export default function CheckoutPage() {
                     type="text"
                     required
                     value={formData.province}
-                    onChange={(e) => setFormData({ ...formData, province: e.target.value })}
+                    onChange={(e) => handleFieldChange("province", e.target.value)}
                     className="w-full bg-[#F4F4F2] border border-[#BBBFCA] px-4 py-2.5 text-xs text-[#495464] focus:outline-none focus:border-[#495464]"
                   />
                 </div>
@@ -306,7 +334,7 @@ export default function CheckoutPage() {
                     required
                     placeholder="54000"
                     value={formData.postalCode}
-                    onChange={(e) => setFormData({ ...formData, postalCode: e.target.value })}
+                    onChange={(e) => handleFieldChange("postalCode", e.target.value)}
                     className="w-full bg-[#F4F4F2] border border-[#BBBFCA] px-4 py-2.5 text-xs text-[#495464] focus:outline-none focus:border-[#495464]"
                   />
                 </div>
