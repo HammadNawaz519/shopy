@@ -8,7 +8,6 @@ export type PaymentMethod = "cod" | "online" | "card";
 
 export interface OrderPaymentDetails {
   accountHolderName?: string;
-  accountTitle?: string;
   bankName?: string;
   accountNumber?: string;
   iban?: string;
@@ -140,7 +139,6 @@ export interface StoreSettings {
   inventoryAlertThreshold: number;
   // Bank & Online Payment Configuration
   bankAccountHolder?: string;
-  bankAccountTitle?: string;
   bankName?: string;
   bankAccountNumber?: string;
   bankIban?: string;
@@ -1087,7 +1085,6 @@ class SupabaseDataStore {
       const settings = await this.getStoreSettings();
       paymentDetails = {
         accountHolderName: settings.bankAccountHolder || "SHOPY Retail Private Limited",
-        accountTitle: settings.bankAccountTitle || "SHOPY Main Operations",
         bankName: settings.bankName || "Meezan Bank Limited",
         accountNumber: settings.bankAccountNumber || "01020304050607",
         iban: settings.bankIban || "PK12MEZN0001020304050607",
@@ -1444,7 +1441,6 @@ class SupabaseDataStore {
           orderNotifications: Boolean(r.order_notifications ?? true),
           inventoryAlertThreshold: Number(r.inventory_alert_threshold ?? 5),
           bankAccountHolder: r.bank_account_holder || "SHOPY Retail Private Limited",
-          bankAccountTitle: r.bank_account_title || "SHOPY Main Operations",
           bankName: r.bank_name || "Meezan Bank Limited",
           bankAccountNumber: r.bank_account_number || "01020304050607",
           bankIban: r.bank_iban || "PK12MEZN0001020304050607",
@@ -1468,7 +1464,6 @@ class SupabaseDataStore {
       orderNotifications: true,
       inventoryAlertThreshold: 5,
       bankAccountHolder: "SHOPY Retail Private Limited",
-      bankAccountTitle: "SHOPY Main Operations",
       bankName: "Meezan Bank Limited",
       bankAccountNumber: "01020304050607",
       bankIban: "PK12MEZN0001020304050607",
@@ -1480,8 +1475,9 @@ class SupabaseDataStore {
   async updateStoreSettings(updates: Partial<StoreSettings>): Promise<StoreSettings> {
     await ensurePaymentSchema();
     const current = await this.getStoreSettings();
+    const targetId = current.id || "settings_default";
     const merged: StoreSettings = {
-      id: "settings_default",
+      id: targetId,
       storeName: updates.storeName !== undefined ? updates.storeName : current.storeName,
       supportEmail: updates.supportEmail !== undefined ? updates.supportEmail : current.supportEmail,
       currency: updates.currency !== undefined ? updates.currency : current.currency,
@@ -1492,7 +1488,6 @@ class SupabaseDataStore {
       orderNotifications: updates.orderNotifications !== undefined ? Boolean(updates.orderNotifications) : current.orderNotifications,
       inventoryAlertThreshold: updates.inventoryAlertThreshold !== undefined ? Number(updates.inventoryAlertThreshold) : current.inventoryAlertThreshold,
       bankAccountHolder: updates.bankAccountHolder !== undefined ? updates.bankAccountHolder : current.bankAccountHolder,
-      bankAccountTitle: updates.bankAccountTitle !== undefined ? updates.bankAccountTitle : current.bankAccountTitle,
       bankName: updates.bankName !== undefined ? updates.bankName : current.bankName,
       bankAccountNumber: updates.bankAccountNumber !== undefined ? updates.bankAccountNumber : current.bankAccountNumber,
       bankIban: updates.bankIban !== undefined ? updates.bankIban : current.bankIban,
@@ -1505,10 +1500,10 @@ class SupabaseDataStore {
         id, store_name, support_email, currency, currency_symbol,
         free_shipping_threshold, flat_shipping_rate, tax_percentage,
         order_notifications, inventory_alert_threshold,
-        bank_account_holder, bank_account_title, bank_name,
+        bank_account_holder, bank_name,
         bank_account_number, bank_iban, bank_payment_contact, bank_payment_instructions,
         updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, NOW())
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, NOW())
       ON CONFLICT (id) DO UPDATE SET
         store_name = EXCLUDED.store_name,
         support_email = EXCLUDED.support_email,
@@ -1520,7 +1515,6 @@ class SupabaseDataStore {
         order_notifications = EXCLUDED.order_notifications,
         inventory_alert_threshold = EXCLUDED.inventory_alert_threshold,
         bank_account_holder = EXCLUDED.bank_account_holder,
-        bank_account_title = EXCLUDED.bank_account_title,
         bank_name = EXCLUDED.bank_name,
         bank_account_number = EXCLUDED.bank_account_number,
         bank_iban = EXCLUDED.bank_iban,
@@ -1540,7 +1534,6 @@ class SupabaseDataStore {
         merged.orderNotifications,
         merged.inventoryAlertThreshold,
         merged.bankAccountHolder || null,
-        merged.bankAccountTitle || null,
         merged.bankName || null,
         merged.bankAccountNumber || null,
         merged.bankIban || null,
@@ -1563,7 +1556,6 @@ class SupabaseDataStore {
         orderNotifications: Boolean(r.order_notifications),
         inventoryAlertThreshold: Number(r.inventory_alert_threshold),
         bankAccountHolder: r.bank_account_holder || undefined,
-        bankAccountTitle: r.bank_account_title || undefined,
         bankName: r.bank_name || undefined,
         bankAccountNumber: r.bank_account_number || undefined,
         bankIban: r.bank_iban || undefined,

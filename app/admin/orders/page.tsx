@@ -415,8 +415,8 @@ function OrdersContent() {
                       <span className="font-semibold">{selectedOrder.paymentDetails.bankName || "Meezan Bank Limited"}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="font-medium text-[#495464]/70">Account Title:</span>
-                      <span>{selectedOrder.paymentDetails.accountTitle || selectedOrder.paymentDetails.accountHolderName}</span>
+                      <span className="font-medium text-[#495464]/70">Account Holder:</span>
+                      <span className="font-semibold">{selectedOrder.paymentDetails.accountHolderName}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="font-medium text-[#495464]/70">Account Number:</span>

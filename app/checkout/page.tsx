@@ -47,7 +47,7 @@ export default function CheckoutPage() {
   useEffect(() => {
     async function fetchPaymentConfig() {
       try {
-        const res = await fetch("/api/settings/payment");
+        const res = await fetch("/api/settings/payment", { cache: "no-store" });
         if (res.ok) {
           const data = await res.json();
           if (data.online?.bankDetails) {
@@ -386,18 +386,11 @@ export default function CheckoutPage() {
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                    <div className="bg-[#E8E8E8]/70 border border-[#BBBFCA]/40 p-3">
-                      <span className="text-[10px] uppercase tracking-widest font-semibold text-[#495464]/70 block mb-0.5">
-                        Account Title
-                      </span>
-                      <p className="font-medium text-[#495464]">{bankSettings.accountTitle || bankSettings.accountHolderName || "SHOPY Main Operations"}</p>
-                    </div>
-
-                    <div className="bg-[#E8E8E8]/70 border border-[#BBBFCA]/40 p-3">
+                    <div className="bg-[#E8E8E8]/70 border border-[#BBBFCA]/40 p-3 sm:col-span-2">
                       <span className="text-[10px] uppercase tracking-widest font-semibold text-[#495464]/70 block mb-0.5">
                         Account Holder
                       </span>
-                      <p className="font-medium text-[#495464]">{bankSettings.accountHolderName || "SHOPY Retail Private Limited"}</p>
+                      <p className="font-medium text-sm text-[#495464]">{bankSettings.accountHolderName || "SHOPY Retail Private Limited"}</p>
                     </div>
 
                     <div className="bg-[#E8E8E8]/70 border border-[#BBBFCA]/40 p-3 flex items-center justify-between">

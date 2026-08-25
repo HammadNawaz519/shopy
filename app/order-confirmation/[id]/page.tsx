@@ -198,8 +198,8 @@ export default function OrderConfirmationPage({ params }: { params: { id: string
                     <strong>{order.paymentDetails.bankName || "Meezan Bank Limited"}</strong>
                   </div>
                   <div>
-                    <span className="text-[#495464]/70">Account Title:</span>{" "}
-                    <span>{order.paymentDetails.accountTitle || order.paymentDetails.accountHolderName}</span>
+                    <span className="text-[#495464]/70">Account Holder:</span>{" "}
+                    <span>{order.paymentDetails.accountHolderName}</span>
                   </div>
                   <div>
                     <span className="text-[#495464]/70">Account #:</span>{" "}

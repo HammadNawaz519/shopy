@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db/store";
 
-export const revalidate = 60; // 60s Edge CDN cache
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function GET() {
   try {
@@ -19,7 +20,6 @@ export async function GET() {
           description: "Pay securely via direct bank transfer or internet banking.",
           bankDetails: {
             accountHolderName: settings.bankAccountHolder || "SHOPY Retail Private Limited",
-            accountTitle: settings.bankAccountTitle || "SHOPY Main Operations",
             bankName: settings.bankName || "Meezan Bank Limited",
             accountNumber: settings.bankAccountNumber || "01020304050607",
             iban: settings.bankIban || "PK12MEZN0001020304050607",
@@ -30,7 +30,7 @@ export async function GET() {
       },
       {
         headers: {
-          "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+          "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
         },
       }
     );

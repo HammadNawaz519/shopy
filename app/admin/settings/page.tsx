@@ -221,20 +221,6 @@ export default function AdminSettingsPage() {
 
               <div>
                 <label className="block text-[10px] uppercase font-semibold text-[#495464] mb-1">
-                  Account Title *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. SHOPY Main Operations"
-                  value={settings.bankAccountTitle || ""}
-                  onChange={(e) => setSettings({ ...settings, bankAccountTitle: e.target.value })}
-                  className="w-full bg-[#E8E8E8] border border-[#BBBFCA] px-3 py-2.5 font-medium text-[#495464]"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[10px] uppercase font-semibold text-[#495464] mb-1">
                   Bank Name *
                 </label>
                 <input
