@@ -24,7 +24,18 @@ export async function generateMetadata({ params }: ProductDetailPageProps) {
   return { title: "Product" };
 }
 
-export const revalidate = 60; // 60s ISR edge cache with on-demand admin revalidation
+export const dynamicParams = true;
+export const revalidate = 300; // 5-minute ISR Edge CDN cache
+
+export async function generateStaticParams() {
+  try {
+    const products = await db.getProducts();
+    if (products && products.length > 0) {
+      return products.map((p) => ({ id: p.id }));
+    }
+  } catch {}
+  return PRODUCTS.map((p) => ({ id: p.id }));
+}
 
 export default async function ProductDetailPage({ params }: ProductDetailPageProps) {
   let product: any = null;

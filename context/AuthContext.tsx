@@ -53,11 +53,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // Guest optimization: if no session cookie exists and no cached user in storage, avoid network request
+    // Guest optimization: if no auth marker cookie exists and no cached user in storage, avoid network request
     if (!force && typeof document !== "undefined") {
-      const hasCookie = document.cookie.includes("shopy_session_id");
+      const hasClientAuth = document.cookie.includes("shopy_client_auth=1");
       const hasCached = Boolean(localStorage.getItem(AUTH_STORAGE_KEY));
-      if (!hasCookie && !hasCached) {
+      if (!hasClientAuth && !hasCached) {
         lastVerifiedTimestamp = now;
         setUser(null);
         setLoading(false);
@@ -83,6 +83,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           lastVerifiedTimestamp = Date.now();
           if (data.user) {
             try {
+              document.cookie = "shopy_client_auth=1; path=/; max-age=2592000; SameSite=Lax";
               localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(data.user));
             } catch {}
             return data.user as User;
@@ -90,6 +91,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         lastVerifiedTimestamp = Date.now();
         try {
+          document.cookie = "shopy_client_auth=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
           localStorage.removeItem(AUTH_STORAGE_KEY);
         } catch {}
         return null;
@@ -126,6 +128,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       lastVerifiedTimestamp = Date.now();
       setUser(data.user);
       try {
+        document.cookie = "shopy_client_auth=1; path=/; max-age=2592000; SameSite=Lax";
         localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(data.user));
       } catch {}
       return { success: true, user: data.user };
@@ -205,6 +208,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       lastVerifiedTimestamp = 0;
       setUser(null);
       try {
+        document.cookie = "shopy_client_auth=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
         localStorage.removeItem(AUTH_STORAGE_KEY);
       } catch {}
       await fetch("/api/auth/logout", { method: "POST" });
@@ -212,6 +216,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {
       setUser(null);
       try {
+        document.cookie = "shopy_client_auth=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
         localStorage.removeItem(AUTH_STORAGE_KEY);
       } catch {}
       window.location.href = "/";
