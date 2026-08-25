@@ -174,8 +174,14 @@ export default function OrderConfirmationPage({ params }: { params: { id: string
                 <span className="text-[11px] text-[#495464]">
                   Payment Method: <strong>{order.paymentMethod === "online" ? "Online / Bank Transfer" : "Cash on Delivery"}</strong>
                 </span>
-                <span className="text-[10px] uppercase font-semibold px-2 py-0.5 bg-amber-100 text-amber-800">
-                  {order.paymentStatus || "PENDING"}
+                <span
+                  className={`text-[10px] uppercase font-semibold px-2 py-0.5 ${
+                    order.paymentStatus === "PAID"
+                      ? "bg-emerald-100 text-emerald-800"
+                      : "bg-amber-100 text-amber-800"
+                  }`}
+                >
+                  {order.paymentStatus === "PAID" ? "PAID" : "UNPAID"}
                 </span>
               </div>
             </div>

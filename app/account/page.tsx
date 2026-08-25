@@ -191,7 +191,7 @@ export default function AccountPage() {
                               : "bg-amber-100 text-amber-800"
                           }`}
                         >
-                          {ord.paymentStatus || "PENDING"}
+                          {ord.paymentStatus === "PAID" ? "PAID" : "UNPAID"}
                         </span>
                         <Link
                           href={`/order-confirmation/${ord.id}`}

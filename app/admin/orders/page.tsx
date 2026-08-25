@@ -274,36 +274,17 @@ function OrdersContent() {
                       </td>
                       <td className="p-4">
                         <div className="flex flex-col gap-1.5 items-start">
-                          <span
-                            className={`inline-block px-2 py-0.5 text-[9px] uppercase font-bold tracking-wider ${
-                              ord.paymentMethod === "online"
-                                ? "bg-indigo-100 text-indigo-900 border border-indigo-200"
-                                : "bg-[#E8E8E8] text-[#495464] border border-[#BBBFCA]"
-                            }`}
-                          >
+                          <span className="inline-block px-2 py-0.5 text-[9px] uppercase font-semibold tracking-wider bg-[#E8E8E8] text-[#495464] border border-[#BBBFCA]">
                             {ord.paymentMethod === "online" ? "ONLINE" : "COD"}
                           </span>
                           <select
-                            value={ord.paymentStatus || "PENDING"}
+                            value={ord.paymentStatus === "PAID" ? "PAID" : "UNPAID"}
                             disabled={updating}
                             onChange={(e) => handleUpdatePaymentStatus(ord.id, e.target.value)}
-                            className={`border px-2 py-1 text-[10px] uppercase font-bold tracking-wider focus:outline-none cursor-pointer ${
-                              ord.paymentStatus === "PAID"
-                                ? "bg-emerald-100 text-emerald-800 border-emerald-300"
-                                : ord.paymentStatus === "UNPAID"
-                                ? "bg-rose-100 text-rose-800 border-rose-300"
-                                : ord.paymentStatus === "REFUNDED"
-                                ? "bg-purple-100 text-purple-800 border-purple-300"
-                                : ord.paymentStatus === "FAILED"
-                                ? "bg-red-100 text-red-800 border-red-300"
-                                : "bg-amber-100 text-amber-800 border-amber-300"
-                            }`}
+                            className="bg-[#E8E8E8] border border-[#BBBFCA] px-2 py-1 text-[10px] uppercase font-semibold text-[#495464] focus:outline-none cursor-pointer"
                           >
-                            <option value="PENDING">PENDING</option>
-                            <option value="PAID">PAID</option>
                             <option value="UNPAID">UNPAID</option>
-                            <option value="FAILED">FAILED</option>
-                            <option value="REFUNDED">REFUNDED</option>
+                            <option value="PAID">PAID</option>
                           </select>
                         </div>
                       </td>
@@ -405,16 +386,13 @@ function OrdersContent() {
                     )}
                   </div>
                   <select
-                    value={selectedOrder.paymentStatus || "PENDING"}
+                    value={selectedOrder.paymentStatus === "PAID" ? "PAID" : "UNPAID"}
                     disabled={updating}
                     onChange={(e) => handleUpdatePaymentStatus(selectedOrder.id, e.target.value)}
                     className="w-full bg-[#F4F4F2] border border-[#BBBFCA] px-3 py-2 text-xs text-[#495464] font-medium"
                   >
-                    <option value="PENDING">PENDING</option>
-                    <option value="PAID">PAID</option>
                     <option value="UNPAID">UNPAID</option>
-                    <option value="FAILED">FAILED</option>
-                    <option value="REFUNDED">REFUNDED</option>
+                    <option value="PAID">PAID</option>
                   </select>
                 </div>
               </div>
