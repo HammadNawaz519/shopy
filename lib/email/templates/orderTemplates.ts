@@ -212,19 +212,17 @@ export function renderOrderConfirmationEmail({
             <tr>
               <td style="text-align: left;">
                 <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; color: #717D8F; font-weight: 600; margin-bottom: 4px;">
-                  Payment
+                  Payment Method
                 </div>
-                <div style="font-size: 12px; color: #495464; font-weight: 600;">
-                  Method: ${paymentMethodLabel}
-                </div>
-                <div style="font-size: 11px; color: #495464; opacity: 0.85; margin-top: 2px;">
-                  Status: <strong>${paymentStatusLabel}</strong>
+                <div style="font-size: 13px; color: #495464; font-weight: 600;">
+                  ${paymentMethodLabel}
                 </div>
               </td>
             </tr>
           </table>
         </td>
-         <!-- DESTINATION ADDRESS -->
+      </tr>
+      <!-- DESTINATION ADDRESS -->
       <tr>
         <td style="padding: 0 0 8px 0;">
           <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #FFFFFF; border: 1px solid #E8E8E8; padding: 16px 18px; border-radius: 2px;">
@@ -268,7 +266,6 @@ Order Reference: #${order.orderNumber}
 Date: ${orderDateFormatted}
 Status: ${orderStatusLabel}
 Payment Method: ${paymentMethodLabel}
-Payment Status: ${paymentStatusLabel}
 Total: ${formatCurrency(order.total)}
 
 ${message}
@@ -394,13 +391,7 @@ export function renderOrderStatusUpdateEmail({
       break;
   }
 
-  const paymentBadgeText = order.paymentStatus === "PAID"
-    ? "✓ PAID"
-    : order.paymentStatus === "REFUNDED"
-    ? "REFUNDED"
-    : isBank
-    ? "BANK TRANSFER · PENDING"
-    : "CASH ON DELIVERY · UNPAID";
+  const paymentBadgeText = isBank ? "Bank Transfer" : "Cash on Delivery";
 
   // Product cards
   const itemsHtml = order.items
