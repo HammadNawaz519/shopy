@@ -1354,7 +1354,7 @@ class SupabaseDataStore {
 
   async updateOrderStatus(
     id: string,
-    status: OrderRecord["status"],
+    status: OrderRecord["status"] | string,
     notes?: string,
     changedBy: string = "Admin"
   ): Promise<OrderRecord | undefined> {
@@ -1363,31 +1363,40 @@ class SupabaseDataStore {
     if (!prev) return undefined;
 
     // Normalizing incoming status
-    const normStatus = status as OrderStatus;
-    if (prev.status === normStatus) return prev;
+    let normStatus = String(status || "").toUpperCase().trim() as OrderStatus;
+    if ((normStatus as string) === "VERIFYING") {
+      normStatus = "VERIFYING_PAYMENT";
+    }
+
+    const methodLower = String(prev.paymentMethod || "").toLowerCase().trim();
+    const isBank = methodLower === "bank_transfer" || methodLower === "online" || methodLower.includes("bank");
+    const isCod = !isBank;
 
     // Intelligent automated payment status derivation
     let targetPaymentStatus: PaymentStatus = prev.paymentStatus;
     let paymentChanged = false;
     let paymentNote = "";
 
-    const isBank = prev.paymentMethod === "bank_transfer" || prev.paymentMethod === "online";
-    const isCod = prev.paymentMethod === "cod";
-
     if (normStatus === "REFUNDED") {
       targetPaymentStatus = "REFUNDED";
+    } else if (normStatus === "CANCELLED") {
+      targetPaymentStatus = prev.paymentStatus === "PAID" ? "REFUNDED" : "UNPAID";
     } else if (isBank) {
-      if (normStatus === "VERIFYING_PAYMENT" || normStatus === "AWAITING_PAYMENT_VERIFICATION") {
+      if (
+        normStatus === "VERIFYING_PAYMENT" ||
+        normStatus === "AWAITING_PAYMENT_VERIFICATION" ||
+        (normStatus as string) === "VERIFYING"
+      ) {
         targetPaymentStatus = "UNPAID";
       } else {
-        // All other fulfillment statuses for Bank are PAID
+        // All active fulfillment statuses for Bank are considered verified & PAID
         targetPaymentStatus = "PAID";
       }
     } else if (isCod) {
       if (normStatus === "DELIVERED") {
         targetPaymentStatus = "PAID";
       } else {
-        // All other statuses for COD (except REFUNDED) are UNPAID
+        // All other statuses for COD (CONFIRMED, PREPARING, CANCELLED, VERIFYING, etc.) are UNPAID
         targetPaymentStatus = "UNPAID";
       }
     }
@@ -1399,8 +1408,10 @@ class SupabaseDataStore {
           ? (isBank ? "Bank payment verified & marked Paid" : "COD payment collected upon delivery")
           : targetPaymentStatus === "REFUNDED"
           ? "Payment marked as refunded alongside order refund"
-          : "Payment status set to Unpaid";
+          : (isBank ? "Payment verification pending / reset to Unpaid" : "Payment status reset to Unpaid");
     }
+
+    if (prev.status === normStatus && !paymentChanged) return prev;
 
     const nowIso = new Date().toISOString();
     const orderHistoryEntry: OrderStatusHistoryEntry = {

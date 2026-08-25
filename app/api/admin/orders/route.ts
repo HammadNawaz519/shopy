@@ -58,10 +58,16 @@ export async function PATCH(req: Request) {
     let updatedOrder = previousOrder;
     let orderChanged = false;
 
-    // 1. If status is provided and changed
-    if (status && status !== previousOrder.status) {
+    // 1. If status is provided
+    const normStatus = status
+      ? String(status).toUpperCase().trim() === "VERIFYING"
+        ? "VERIFYING_PAYMENT"
+        : String(status).toUpperCase().trim()
+      : undefined;
+
+    if (normStatus && (normStatus !== previousOrder.status || normStatus === "VERIFYING_PAYMENT")) {
       updatedOrder =
-        (await db.updateOrderStatus(orderId, status as OrderStatus, notes, adminName)) ||
+        (await db.updateOrderStatus(orderId, normStatus as OrderStatus, notes, adminName)) ||
         updatedOrder;
       orderChanged = true;
 
