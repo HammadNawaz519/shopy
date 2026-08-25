@@ -274,14 +274,14 @@ function OrdersContent() {
                       </td>
                       <td className="p-4">
                         <div className="flex flex-col gap-1.5 items-start">
-                          <span className="inline-block px-2 py-0.5 text-[9px] uppercase font-semibold tracking-wider bg-[#E8E8E8] text-[#495464] border border-[#BBBFCA]">
+                          <span className="block w-[88px] text-center px-2 py-1 text-[10px] uppercase font-semibold tracking-wider bg-[#E8E8E8] text-[#495464] border border-[#BBBFCA]">
                             {ord.paymentMethod === "online" ? "ONLINE" : "COD"}
                           </span>
                           <select
                             value={ord.paymentStatus === "PAID" ? "PAID" : "UNPAID"}
                             disabled={updating}
                             onChange={(e) => handleUpdatePaymentStatus(ord.id, e.target.value)}
-                            className="bg-[#E8E8E8] border border-[#BBBFCA] px-2 py-1 text-[10px] uppercase font-semibold text-[#495464] focus:outline-none cursor-pointer"
+                            className="w-[88px] bg-[#E8E8E8] border border-[#BBBFCA] px-2 py-1 text-[10px] uppercase font-semibold text-[#495464] focus:outline-none cursor-pointer"
                           >
                             <option value="UNPAID">UNPAID</option>
                             <option value="PAID">PAID</option>
