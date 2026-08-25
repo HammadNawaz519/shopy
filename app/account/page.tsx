@@ -182,7 +182,7 @@ export default function AccountPage() {
                           {ord.status}
                         </span>
                         <span className="bg-[#BBBFCA]/40 text-[#495464] text-[9px] uppercase tracking-widest font-semibold px-2 py-0.5">
-                          {ord.paymentMethod === "online" ? "Online Bank" : "COD"}
+                          {ord.paymentMethod === "online" ? "ONLINE" : "COD"}
                         </span>
                         <span
                           className={`text-[9px] uppercase tracking-widest font-semibold px-2 py-0.5 ${
