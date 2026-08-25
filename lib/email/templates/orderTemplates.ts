@@ -46,11 +46,7 @@ export function renderOrderConfirmationEmail({
     ? "We've received your order and are currently verifying your payment. Your order will be prepared once your payment has been confirmed."
     : "Your order has been confirmed and is being prepared with utmost care in our atelier. Payment will be collected upon delivery.";
 
-  const paymentBadgeText = isPaid
-    ? "✓ PAID"
-    : isBankTransfer
-    ? "BANK TRANSFER · PENDING VERIFICATION"
-    : "CASH ON DELIVERY · UNPAID";
+  const paymentBadgeText = isBankTransfer ? "Bank Transfer" : "Cash on Delivery";
 
   const statusBadgeText = isBankTransfer && !isPaid
     ? "VERIFYING PAYMENT"
@@ -205,14 +201,6 @@ export function renderOrderConfirmationEmail({
         </td>
       </tr>
 
-      <!-- CTA BUTTON -->
-      <tr>
-        <td align="center" style="padding: 0 0 16px 0; text-align: center;">
-          <a href="${orderUrl}" style="background-color: #495464; color: #F4F4F2; text-decoration: none; padding: 13px 32px; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; font-weight: 600; display: inline-block; border-radius: 2px;">
-            View Your Order
-          </a>
-        </td>
-      </tr>
     </table>
   `;
 
@@ -247,9 +235,8 @@ DELIVERY DESTINATION:
 ${fullName}
 ${address.address}
 ${address.city}
+${address.province ? `${address.province}, ` : ""}${address.postalCode || ""}
 Phone: ${address.phone}
-
-View Order Online: ${orderUrl}
 
 ----------------------------------------
 SHOPY Concierge Support: shopy.support@gmail.com
@@ -480,14 +467,6 @@ export function renderOrderStatusUpdateEmail({
         </td>
       </tr>
 
-      <!-- CTA BUTTON -->
-      <tr>
-        <td align="center" style="padding: 0 0 16px 0; text-align: center;">
-          <a href="${orderUrl}" style="background-color: #495464; color: #F4F4F2; text-decoration: none; padding: 13px 32px; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; font-weight: 600; display: inline-block; border-radius: 2px;">
-            View Order Status
-          </a>
-        </td>
-      </tr>
     </table>
   `;
 
@@ -507,8 +486,6 @@ Total: ${formatCurrency(order.total)}
 
 ${statusMessage}
 ${notes ? `Note: ${notes}\n` : ""}
-View Order Online: ${orderUrl}
-
 ----------------------------------------
 SHOPY Concierge Support: shopy.support@gmail.com
 © 2026 SHOPY Atelier
@@ -579,13 +556,6 @@ export function renderPaymentReceivedEmail({
         </td>
       </tr>
 
-      <tr>
-        <td align="center" style="padding: 0 0 16px 0; text-align: center;">
-          <a href="${orderUrl}" style="background-color: #495464; color: #F4F4F2; text-decoration: none; padding: 13px 32px; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; font-weight: 600; display: inline-block; border-radius: 2px;">
-            View Order Details
-          </a>
-        </td>
-      </tr>
     </table>
   `;
 
@@ -603,8 +573,6 @@ Payment Status: PAID
 Total Paid: ${formatCurrency(order.total)}
 
 Your payment has been verified. Your order is proceeding with atelier preparation.
-
-View Order Online: ${orderUrl}
 
 ----------------------------------------
 SHOPY Concierge Support: shopy.support@gmail.com

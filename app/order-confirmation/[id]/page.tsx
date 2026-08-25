@@ -219,7 +219,7 @@ export default function OrderConfirmationPage({ params }: { params: { id: string
               <span>{order.shipping === 0 ? "Complimentary" : formatPrice(order.shipping)}</span>
             </div>
             <div className="flex justify-between text-base font-serif font-medium text-[#495464] pt-3 border-t border-[#BBBFCA]/30">
-              <span>Total Paid / Due</span>
+              <span>Grand Total</span>
               <span>{formatPrice(order.total)}</span>
             </div>
           </div>
@@ -240,20 +240,10 @@ export default function OrderConfirmationPage({ params }: { params: { id: string
               <p>Phone: {order.shippingAddress.phone}</p>
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 <span className="text-[11px] text-[#495464]">
-                  Payment Method: <strong>{isBankTransfer ? "Bank Transfer / Raast" : "Cash on Delivery"}</strong>
+                  Payment Method:
                 </span>
-                <span
-                  className={`text-[10px] uppercase font-semibold px-2.5 py-0.5 border ${
-                    isPaid
-                      ? "bg-emerald-50 text-emerald-800 border-emerald-300"
-                      : "bg-[#E8E8E8] text-[#495464] border-[#BBBFCA]"
-                  }`}
-                >
-                  {isPaid
-                    ? "✓ PAID"
-                    : isBankTransfer
-                    ? "PENDING VERIFICATION"
-                    : "CASH ON DELIVERY · UNPAID"}
+                <span className="text-[11px] font-semibold px-2.5 py-0.5 border bg-[#E8E8E8] text-[#495464] border-[#BBBFCA]">
+                  {isBankTransfer ? "Bank Transfer" : "Cash on Delivery"}
                 </span>
               </div>
             </div>
