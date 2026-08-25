@@ -87,32 +87,85 @@ export default function OrderConfirmationPage({ params }: { params: { id: string
         </div>
 
         {/* Order Details Card */}
-        <div className="mt-10 bg-[#E8E8E8]/50 border border-[#BBBFCA]/40 p-8 space-y-8">
+        <div className="mt-8 sm:mt-10 bg-[#E8E8E8]/50 border border-[#BBBFCA]/40 p-4 sm:p-8 space-y-6 sm:space-y-8">
           {/* Tracking Step Tracker */}
-          <div className="grid grid-cols-4 gap-2 text-center border-b border-[#BBBFCA]/30 pb-6">
-            <div className="space-y-1">
-              <span className={`inline-block w-2.5 h-2.5 rounded-full ${isVerifying ? "bg-amber-600 animate-pulse" : "bg-[#495464]"}`} />
-              <p className="text-[10px] uppercase tracking-widest font-semibold text-[#495464]">
-                {isBankTransfer ? (isPaid ? "Payment Verified" : "Verification") : "Confirmed"}
-              </p>
-            </div>
-            <div className={`space-y-1 ${order.status === "PREPARING" || order.status === "PROCESSING" || order.status === "SHIPPED" || order.status === "DELIVERED" ? "" : "opacity-40"}`}>
-              <span className={`inline-block w-2.5 h-2.5 rounded-full ${order.status === "PREPARING" || order.status === "PROCESSING" ? "bg-[#495464]" : "bg-[#BBBFCA]"}`} />
-              <p className="text-[10px] uppercase tracking-widest font-medium text-[#495464]">
-                Atelier Prep
-              </p>
-            </div>
-            <div className={`space-y-1 ${order.status === "SHIPPED" || order.status === "OUT_FOR_DELIVERY" || order.status === "DELIVERED" ? "" : "opacity-40"}`}>
-              <span className={`inline-block w-2.5 h-2.5 rounded-full ${order.status === "SHIPPED" || order.status === "OUT_FOR_DELIVERY" ? "bg-[#495464]" : "bg-[#BBBFCA]"}`} />
-              <p className="text-[10px] uppercase tracking-widest font-medium text-[#495464]">
-                In Transit
-              </p>
-            </div>
-            <div className={`space-y-1 ${order.status === "DELIVERED" ? "" : "opacity-40"}`}>
-              <span className={`inline-block w-2.5 h-2.5 rounded-full ${order.status === "DELIVERED" ? "bg-emerald-700" : "bg-[#BBBFCA]"}`} />
-              <p className="text-[10px] uppercase tracking-widest font-medium text-[#495464]">
-                Delivered
-              </p>
+          <div className="border-b border-[#BBBFCA]/30 pb-6">
+            <div className="grid grid-cols-4 gap-1 sm:gap-2 text-center">
+              <div className="flex flex-col items-center space-y-1.5 px-0.5">
+                <span
+                  className={`inline-block w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full flex-shrink-0 ${
+                    isVerifying ? "bg-amber-600 animate-pulse" : "bg-[#495464]"
+                  }`}
+                />
+                <p className="text-[9px] sm:text-[10px] uppercase tracking-normal sm:tracking-wider font-semibold text-[#495464] leading-tight text-center">
+                  {isBankTransfer ? (isPaid ? "Verified" : "Verifying") : "Confirmed"}
+                </p>
+              </div>
+
+              <div
+                className={`flex flex-col items-center space-y-1.5 px-0.5 ${
+                  order.status === "PREPARING" ||
+                  order.status === "PROCESSING" ||
+                  order.status === "SHIPPED" ||
+                  order.status === "OUT_FOR_DELIVERY" ||
+                  order.status === "DELIVERED"
+                    ? ""
+                    : "opacity-40"
+                }`}
+              >
+                <span
+                  className={`inline-block w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full flex-shrink-0 ${
+                    order.status === "PREPARING" ||
+                    order.status === "PROCESSING" ||
+                    order.status === "SHIPPED" ||
+                    order.status === "OUT_FOR_DELIVERY" ||
+                    order.status === "DELIVERED"
+                      ? "bg-[#495464]"
+                      : "bg-[#BBBFCA]"
+                  }`}
+                />
+                <p className="text-[9px] sm:text-[10px] uppercase tracking-normal sm:tracking-wider font-medium text-[#495464] leading-tight text-center">
+                  Preparing
+                </p>
+              </div>
+
+              <div
+                className={`flex flex-col items-center space-y-1.5 px-0.5 ${
+                  order.status === "SHIPPED" ||
+                  order.status === "OUT_FOR_DELIVERY" ||
+                  order.status === "DELIVERED"
+                    ? ""
+                    : "opacity-40"
+                }`}
+              >
+                <span
+                  className={`inline-block w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full flex-shrink-0 ${
+                    order.status === "SHIPPED" ||
+                    order.status === "OUT_FOR_DELIVERY" ||
+                    order.status === "DELIVERED"
+                      ? "bg-[#495464]"
+                      : "bg-[#BBBFCA]"
+                  }`}
+                />
+                <p className="text-[9px] sm:text-[10px] uppercase tracking-normal sm:tracking-wider font-medium text-[#495464] leading-tight text-center">
+                  In Transit
+                </p>
+              </div>
+
+              <div
+                className={`flex flex-col items-center space-y-1.5 px-0.5 ${
+                  order.status === "DELIVERED" ? "" : "opacity-40"
+                }`}
+              >
+                <span
+                  className={`inline-block w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full flex-shrink-0 ${
+                    order.status === "DELIVERED" ? "bg-emerald-700" : "bg-[#BBBFCA]"
+                  }`}
+                />
+                <p className="text-[9px] sm:text-[10px] uppercase tracking-normal sm:tracking-wider font-medium text-[#495464] leading-tight text-center">
+                  Delivered
+                </p>
+              </div>
             </div>
           </div>
 
