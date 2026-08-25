@@ -11,7 +11,7 @@ export default function AdminSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState({
     storeName: "SHOPY Atelier",
-    supportEmail: "concierge@shopy.com",
+    supportEmail: "shopy.support@gmail.com",
     currency: "PKR",
     currencySymbol: "Rs.",
     freeShippingThreshold: 15000,

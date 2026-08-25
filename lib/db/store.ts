@@ -1342,7 +1342,7 @@ class SupabaseDataStore {
         return {
           id: r.id,
           storeName: r.store_name || "SHOPY Atelier",
-          supportEmail: r.support_email || "concierge@shopy.com",
+          supportEmail: r.support_email || "shopy.support@gmail.com",
           currency: r.currency || "PKR",
           currencySymbol: r.currency_symbol || "Rs.",
           freeShippingThreshold: Number(r.free_shipping_threshold ?? 15000),
@@ -1359,7 +1359,7 @@ class SupabaseDataStore {
     return {
       id: "settings_default",
       storeName: "SHOPY Atelier",
-      supportEmail: "concierge@shopy.com",
+      supportEmail: "shopy.support@gmail.com",
       currency: "PKR",
       currencySymbol: "Rs.",
       freeShippingThreshold: 15000,

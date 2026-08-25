@@ -154,7 +154,7 @@ export default function OrderInvoicePrint({ order }: OrderInvoicePrintProps) {
           </p>
           <div className="pt-1 text-[11px] text-[#495464] space-y-0.5">
             <p>
-              <strong>Email:</strong> concierge@shopy.com
+              <strong>Email:</strong> shopy.support@gmail.com
             </p>
             <p>
               <strong>Website:</strong> www.shopy.com
@@ -258,7 +258,7 @@ export default function OrderInvoicePrint({ order }: OrderInvoicePrintProps) {
             </p>
             <p>
               We want you to love your pieces. If you need a size exchange or wish to initiate a return,
-              please reach out to us at <strong>concierge@shopy.com</strong> within 14 days of receiving your order with your original tags attached.
+              please reach out to us at <strong>shopy.support@gmail.com</strong> within 14 days of receiving your order with your original tags attached.
             </p>
           </div>
         </div>
