@@ -78,8 +78,9 @@ CREATE TABLE IF NOT EXISTS orders (
   shipping NUMERIC(12, 2) NOT NULL DEFAULT 0,
   total NUMERIC(12, 2) NOT NULL,
   status VARCHAR(30) NOT NULL DEFAULT 'CONFIRMED' CHECK (status IN ('PENDING', 'CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED')),
-  payment_status VARCHAR(30) NOT NULL DEFAULT 'PENDING' CHECK (payment_status IN ('PENDING', 'PAID', 'FAILED', 'REFUNDED')),
-  payment_method VARCHAR(20) NOT NULL DEFAULT 'cod' CHECK (payment_method IN ('cod', 'card')),
+  payment_status VARCHAR(30) NOT NULL DEFAULT 'PENDING' CHECK (payment_status IN ('PENDING', 'PAID', 'UNPAID', 'FAILED', 'REFUNDED')),
+  payment_method VARCHAR(20) NOT NULL DEFAULT 'cod' CHECK (payment_method IN ('cod', 'online', 'card')),
+  payment_details JSONB,
   shipping_address JSONB NOT NULL,
   notes TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -131,7 +132,7 @@ CREATE TABLE IF NOT EXISTS reviews (
 CREATE TABLE IF NOT EXISTS store_settings (
   id VARCHAR(50) PRIMARY KEY,
   store_name VARCHAR(150) NOT NULL DEFAULT 'SHOPY Atelier',
-  support_email VARCHAR(255) NOT NULL DEFAULT 'concierge@shopy.com',
+  support_email VARCHAR(255) NOT NULL DEFAULT 'shopy.support@gmail.com',
   currency VARCHAR(10) NOT NULL DEFAULT 'PKR',
   currency_symbol VARCHAR(10) NOT NULL DEFAULT 'Rs.',
   free_shipping_threshold NUMERIC(12, 2) DEFAULT 15000,
@@ -139,6 +140,14 @@ CREATE TABLE IF NOT EXISTS store_settings (
   tax_percentage NUMERIC(5, 2) DEFAULT 0,
   order_notifications BOOLEAN DEFAULT true,
   inventory_alert_threshold INTEGER DEFAULT 5,
+  -- Bank & Online Payment Configuration
+  bank_account_holder VARCHAR(255) DEFAULT 'SHOPY Retail Private Limited',
+  bank_account_title VARCHAR(255) DEFAULT 'SHOPY Main Operations',
+  bank_name VARCHAR(255) DEFAULT 'Meezan Bank Limited',
+  bank_account_number VARCHAR(100) DEFAULT '01020304050607',
+  bank_iban VARCHAR(100) DEFAULT 'PK12MEZN0001020304050607',
+  bank_payment_contact VARCHAR(100) DEFAULT '+92 300 1234567',
+  bank_payment_instructions TEXT DEFAULT 'Please transfer the exact total order amount to the bank account above and share screenshot on WhatsApp with your Order ID for instant payment verification.',
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 

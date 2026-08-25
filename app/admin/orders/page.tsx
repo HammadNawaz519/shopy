@@ -273,19 +273,30 @@ function OrdersContent() {
                         </select>
                       </td>
                       <td className="p-4">
-                        <span
-                          className={`inline-block px-2 py-0.5 text-[9px] uppercase font-semibold tracking-wider ${
-                            ord.paymentStatus === "PAID"
-                              ? "bg-emerald-100 text-emerald-800"
-                              : ord.paymentStatus === "REFUNDED"
-                              ? "bg-purple-100 text-purple-800"
-                              : ord.paymentStatus === "FAILED"
-                              ? "bg-red-100 text-red-800"
-                              : "bg-amber-100 text-amber-800"
-                          }`}
-                        >
-                          {ord.paymentStatus || "PENDING"} ({ord.paymentMethod?.toUpperCase()})
-                        </span>
+                        <div className="flex flex-col gap-1 items-start">
+                          <span
+                            className={`inline-block px-2 py-0.5 text-[9px] uppercase font-semibold tracking-wider ${
+                              ord.paymentMethod === "online"
+                                ? "bg-indigo-100 text-indigo-900 border border-indigo-200"
+                                : "bg-[#E8E8E8] text-[#495464] border border-[#BBBFCA]"
+                            }`}
+                          >
+                            {ord.paymentMethod === "online" ? "Online Bank" : "COD"}
+                          </span>
+                          <span
+                            className={`inline-block px-2 py-0.5 text-[9px] uppercase font-semibold tracking-wider ${
+                              ord.paymentStatus === "PAID"
+                                ? "bg-emerald-100 text-emerald-800"
+                                : ord.paymentStatus === "REFUNDED"
+                                ? "bg-purple-100 text-purple-800"
+                                : ord.paymentStatus === "FAILED"
+                                ? "bg-red-100 text-red-800"
+                                : "bg-amber-100 text-amber-800"
+                            }`}
+                          >
+                            {ord.paymentStatus || "PENDING"}
+                          </span>
+                        </div>
                       </td>
                       <td className="p-4 text-right">
                         <div className="inline-flex items-center justify-end gap-1.5 flex-nowrap">
@@ -369,9 +380,21 @@ function OrdersContent() {
                 </div>
 
                 <div>
-                  <label className="block text-[10px] uppercase tracking-widest font-semibold text-[#495464] mb-1">
-                    Payment Status
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-[10px] uppercase tracking-widest font-semibold text-[#495464]">
+                      Payment Status
+                    </label>
+                    {selectedOrder.paymentStatus !== "PAID" && (
+                      <button
+                        type="button"
+                        disabled={updating}
+                        onClick={() => handleUpdatePaymentStatus(selectedOrder.id, "PAID")}
+                        className="text-[10px] uppercase font-bold text-emerald-800 hover:underline"
+                      >
+                        Mark as Paid
+                      </button>
+                    )}
+                  </div>
                   <select
                     value={selectedOrder.paymentStatus || "PENDING"}
                     disabled={updating}
@@ -380,10 +403,50 @@ function OrdersContent() {
                   >
                     <option value="PENDING">PENDING</option>
                     <option value="PAID">PAID</option>
+                    <option value="UNPAID">UNPAID</option>
                     <option value="FAILED">FAILED</option>
                     <option value="REFUNDED">REFUNDED</option>
                   </select>
                 </div>
+              </div>
+
+              {/* Payment Details Card (COD vs Online) */}
+              <div className="bg-[#E8E8E8]/50 border border-[#BBBFCA]/40 p-4 space-y-3 text-xs">
+                <div className="flex items-center justify-between border-b border-[#BBBFCA]/30 pb-2">
+                  <span className="text-[10px] uppercase tracking-widest font-semibold text-[#495464]/80">
+                    Payment Method
+                  </span>
+                  <span className="font-semibold text-[#495464] uppercase text-[11px]">
+                    {selectedOrder.paymentMethod === "online" ? "Online / Bank Transfer" : "Cash on Delivery (COD)"}
+                  </span>
+                </div>
+
+                {selectedOrder.paymentMethod === "online" && selectedOrder.paymentDetails && (
+                  <div className="space-y-2 bg-[#F4F4F2] border border-[#BBBFCA]/50 p-3 text-[11px] text-[#495464]">
+                    <div className="flex justify-between">
+                      <span className="font-medium text-[#495464]/70">Bank Name:</span>
+                      <span className="font-semibold">{selectedOrder.paymentDetails.bankName || "Meezan Bank Limited"}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="font-medium text-[#495464]/70">Account Title:</span>
+                      <span>{selectedOrder.paymentDetails.accountTitle || selectedOrder.paymentDetails.accountHolderName}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="font-medium text-[#495464]/70">Account Number:</span>
+                      <span className="font-mono font-bold">{selectedOrder.paymentDetails.accountNumber}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="font-medium text-[#495464]/70">IBAN:</span>
+                      <span className="font-mono font-bold">{selectedOrder.paymentDetails.iban}</span>
+                    </div>
+                    {selectedOrder.paymentDetails.paymentContact && (
+                      <div className="flex justify-between">
+                        <span className="font-medium text-[#495464]/70">Verification Contact:</span>
+                        <span className="font-mono font-semibold">{selectedOrder.paymentDetails.paymentContact}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Items List */}

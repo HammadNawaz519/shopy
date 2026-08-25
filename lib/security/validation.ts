@@ -61,6 +61,6 @@ export const CheckoutSchema = z.object({
     postalCode: z.string().min(3).max(20),
     province: z.string().min(2).max(50),
   }),
-  paymentMethod: z.enum(["cod", "card"]),
+  paymentMethod: z.enum(["cod", "online", "card"]),
   promoCode: z.string().optional(),
 });

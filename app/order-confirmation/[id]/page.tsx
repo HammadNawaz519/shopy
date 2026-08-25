@@ -156,22 +156,66 @@ export default function OrderConfirmationPage({ params }: { params: { id: string
             </div>
           </div>
 
-          {/* Shipping Destination */}
-          <div className="border-t border-[#BBBFCA]/30 pt-4 text-xs tracking-wider text-[#495464]/80">
-            <span className="font-semibold block uppercase text-[10px] tracking-widest text-[#495464] mb-1">
-              Dispatch Destination:
-            </span>
-            <p>
-              {order.shippingAddress.firstName} {order.shippingAddress.lastName}
-            </p>
-            <p>{order.shippingAddress.address}</p>
-            <p>
-              {order.shippingAddress.city}, {order.shippingAddress.province} {order.shippingAddress.postalCode}
-            </p>
-            <p>Phone: {order.shippingAddress.phone}</p>
-            <p className="mt-2 text-[11px] text-[#495464]/60">
-              Payment Method: {order.paymentMethod === "cod" ? "Cash on Delivery" : "Card Payment"}
-            </p>
+          {/* Shipping Destination & Payment Info */}
+          <div className="border-t border-[#BBBFCA]/30 pt-4 text-xs tracking-wider text-[#495464]/80 space-y-4">
+            <div>
+              <span className="font-semibold block uppercase text-[10px] tracking-widest text-[#495464] mb-1">
+                Dispatch Destination:
+              </span>
+              <p>
+                {order.shippingAddress.firstName} {order.shippingAddress.lastName}
+              </p>
+              <p>{order.shippingAddress.address}</p>
+              <p>
+                {order.shippingAddress.city}, {order.shippingAddress.province} {order.shippingAddress.postalCode}
+              </p>
+              <p>Phone: {order.shippingAddress.phone}</p>
+              <div className="mt-2 flex items-center gap-2">
+                <span className="text-[11px] text-[#495464]">
+                  Payment Method: <strong>{order.paymentMethod === "online" ? "Online / Bank Transfer" : "Cash on Delivery"}</strong>
+                </span>
+                <span className="text-[10px] uppercase font-semibold px-2 py-0.5 bg-amber-100 text-amber-800">
+                  {order.paymentStatus || "PENDING"}
+                </span>
+              </div>
+            </div>
+
+            {/* Online Bank Transfer Details */}
+            {order.paymentMethod === "online" && order.paymentDetails && (
+              <div className="bg-[#E8E8E8]/70 border border-[#BBBFCA]/50 p-4 space-y-2 text-xs">
+                <span className="font-semibold block uppercase text-[10px] tracking-widest text-[#495464]">
+                  Bank Transfer Reference Details:
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-[#495464]">
+                  <div>
+                    <span className="text-[#495464]/70">Bank:</span>{" "}
+                    <strong>{order.paymentDetails.bankName || "Meezan Bank Limited"}</strong>
+                  </div>
+                  <div>
+                    <span className="text-[#495464]/70">Account Title:</span>{" "}
+                    <span>{order.paymentDetails.accountTitle || order.paymentDetails.accountHolderName}</span>
+                  </div>
+                  <div>
+                    <span className="text-[#495464]/70">Account #:</span>{" "}
+                    <span className="font-mono font-bold">{order.paymentDetails.accountNumber}</span>
+                  </div>
+                  <div>
+                    <span className="text-[#495464]/70">IBAN:</span>{" "}
+                    <span className="font-mono font-bold">{order.paymentDetails.iban}</span>
+                  </div>
+                </div>
+                {order.paymentDetails.instructions && (
+                  <p className="text-[10px] text-[#495464]/80 pt-2 border-t border-[#BBBFCA]/30">
+                    {order.paymentDetails.instructions}
+                  </p>
+                )}
+                {order.paymentDetails.paymentContact && (
+                  <p className="text-[10px] text-[#495464] font-medium">
+                    Send screenshot on WhatsApp: <strong>{order.paymentDetails.paymentContact}</strong>
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         </div>
 

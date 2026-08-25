@@ -177,13 +177,25 @@ export default function AccountPage() {
                           Placed on {new Date(ord.createdAt).toLocaleDateString()}
                         </p>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <span className="bg-[#495464] text-[#F4F4F2] text-[10px] uppercase tracking-widest font-semibold px-2.5 py-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="bg-[#495464] text-[#F4F4F2] text-[9px] uppercase tracking-widest font-semibold px-2 py-0.5">
                           {ord.status}
+                        </span>
+                        <span className="bg-[#BBBFCA]/40 text-[#495464] text-[9px] uppercase tracking-widest font-semibold px-2 py-0.5">
+                          {ord.paymentMethod === "online" ? "Online Bank" : "COD"}
+                        </span>
+                        <span
+                          className={`text-[9px] uppercase tracking-widest font-semibold px-2 py-0.5 ${
+                            ord.paymentStatus === "PAID"
+                              ? "bg-emerald-100 text-emerald-800"
+                              : "bg-amber-100 text-amber-800"
+                          }`}
+                        >
+                          {ord.paymentStatus || "PENDING"}
                         </span>
                         <Link
                           href={`/order-confirmation/${ord.id}`}
-                          className="text-xs uppercase tracking-widest text-[#495464] hover:underline"
+                          className="text-xs uppercase tracking-widest text-[#495464] hover:underline ml-2"
                         >
                           View Details &rarr;
                         </Link>

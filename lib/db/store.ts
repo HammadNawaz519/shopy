@@ -3,7 +3,18 @@ import { query, transaction } from "./client";
 export const ADMIN_EMAIL = "hammadnawaz276@gmail.com";
 
 export type OrderStatus = "PENDING" | "CONFIRMED" | "PROCESSING" | "SHIPPED" | "DELIVERED" | "CANCELLED";
-export type PaymentStatus = "PENDING" | "PAID" | "FAILED" | "REFUNDED";
+export type PaymentStatus = "PENDING" | "PAID" | "UNPAID" | "FAILED" | "REFUNDED";
+export type PaymentMethod = "cod" | "online" | "card";
+
+export interface OrderPaymentDetails {
+  accountHolderName?: string;
+  accountTitle?: string;
+  bankName?: string;
+  accountNumber?: string;
+  iban?: string;
+  paymentContact?: string;
+  instructions?: string;
+}
 
 export interface ProductColor {
   name: string;
@@ -74,8 +85,9 @@ export interface OrderRecord {
   shipping: number;
   total: number;
   status: "PENDING" | "CONFIRMED" | "PROCESSING" | "SHIPPED" | "DELIVERED" | "CANCELLED";
-  paymentStatus: "PENDING" | "PAID" | "FAILED" | "REFUNDED";
-  paymentMethod: "cod" | "card";
+  paymentStatus: PaymentStatus;
+  paymentMethod: PaymentMethod;
+  paymentDetails?: OrderPaymentDetails;
   shippingAddress: {
     firstName: string;
     lastName: string;
@@ -126,6 +138,14 @@ export interface StoreSettings {
   taxPercentage: number;
   orderNotifications: boolean;
   inventoryAlertThreshold: number;
+  // Bank & Online Payment Configuration
+  bankAccountHolder?: string;
+  bankAccountTitle?: string;
+  bankName?: string;
+  bankAccountNumber?: string;
+  bankIban?: string;
+  bankPaymentContact?: string;
+  bankPaymentInstructions?: string;
   socialInstagram?: string;
   socialFacebook?: string;
   socialLinkedIn?: string;
@@ -223,6 +243,14 @@ function mapOrderRow(row: any): OrderRecord {
       ? JSON.parse(row.shipping_address)
       : row.shipping_address || {};
 
+  let paymentDetails: OrderPaymentDetails | undefined = undefined;
+  if (row.payment_details) {
+    paymentDetails =
+      typeof row.payment_details === "string"
+        ? JSON.parse(row.payment_details)
+        : row.payment_details;
+  }
+
   return {
     id: row.id,
     orderNumber: row.order_number,
@@ -235,6 +263,7 @@ function mapOrderRow(row: any): OrderRecord {
     status: row.status,
     paymentStatus: row.payment_status || "PENDING",
     paymentMethod: row.payment_method || "cod",
+    paymentDetails,
     shippingAddress,
     notes: row.notes,
     createdAt: row.created_at ? new Date(row.created_at).toISOString() : new Date().toISOString(),
@@ -254,6 +283,50 @@ function mapUserRow(row: any): UserRecord {
     resetTokenExpiry: row.reset_token_expiry ? Number(row.reset_token_expiry) : undefined,
     createdAt: row.created_at ? new Date(row.created_at).toISOString() : new Date().toISOString(),
   };
+}
+
+let schemaEnsured = false;
+
+export async function ensurePaymentSchema(): Promise<void> {
+  if (schemaEnsured) return;
+  try {
+    // 1. Add bank payment columns to store_settings
+    await query(`
+      ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS bank_account_holder VARCHAR(255) DEFAULT 'SHOPY Retail Private Limited';
+      ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS bank_account_title VARCHAR(255) DEFAULT 'SHOPY Main Operations';
+      ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS bank_name VARCHAR(255) DEFAULT 'Meezan Bank Limited';
+      ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS bank_account_number VARCHAR(100) DEFAULT '01020304050607';
+      ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS bank_iban VARCHAR(100) DEFAULT 'PK12MEZN0001020304050607';
+      ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS bank_payment_contact VARCHAR(100) DEFAULT '+92 300 1234567';
+      ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS bank_payment_instructions TEXT DEFAULT 'Please transfer the exact total order amount to the bank account above and share screenshot on WhatsApp with your Order ID for instant payment verification.';
+    `);
+
+    // 2. Add payment_details JSONB snapshot to orders
+    await query(`
+      ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_details JSONB;
+    `);
+
+    // 3. Relax constraints to safely support 'online' and 'UNPAID'
+    await query(`
+      DO $$
+      BEGIN
+        ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_payment_method_check;
+        ALTER TABLE orders ADD CONSTRAINT orders_payment_method_check CHECK (payment_method IN ('cod', 'online', 'card'));
+      EXCEPTION WHEN OTHERS THEN NULL;
+      END $$;
+
+      DO $$
+      BEGIN
+        ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_payment_status_check;
+        ALTER TABLE orders ADD CONSTRAINT orders_payment_status_check CHECK (payment_status IN ('PENDING', 'PAID', 'UNPAID', 'FAILED', 'REFUNDED'));
+      EXCEPTION WHEN OTHERS THEN NULL;
+      END $$;
+    `);
+
+    schemaEnsured = true;
+  } catch (err) {
+    console.error("[SCHEMA MIGRATION ERROR]", err);
+  }
 }
 
 class SupabaseDataStore {
@@ -985,7 +1058,7 @@ class SupabaseDataStore {
   }
 
   /**
-   * Creates an order with relational line items and atomically deducts inventory.
+   * Creates an order with relational line items, snapshots payment details if online, and atomically deducts inventory.
    */
   async createOrder(orderData: {
     userId?: string;
@@ -1002,10 +1075,27 @@ class SupabaseDataStore {
     discount?: number;
     shipping?: number;
     total: number;
-    paymentMethod?: "cod" | "card";
+    paymentMethod?: PaymentMethod;
     shippingAddress: any;
     notes?: string;
   }): Promise<OrderRecord> {
+    await ensurePaymentSchema();
+
+    // Snapshot bank details at creation time if paymentMethod is 'online'
+    let paymentDetails: OrderPaymentDetails | undefined = undefined;
+    if (orderData.paymentMethod === "online") {
+      const settings = await this.getStoreSettings();
+      paymentDetails = {
+        accountHolderName: settings.bankAccountHolder || "SHOPY Retail Private Limited",
+        accountTitle: settings.bankAccountTitle || "SHOPY Main Operations",
+        bankName: settings.bankName || "Meezan Bank Limited",
+        accountNumber: settings.bankAccountNumber || "01020304050607",
+        iban: settings.bankIban || "PK12MEZN0001020304050607",
+        paymentContact: settings.bankPaymentContact || "+92 300 1234567",
+        instructions: settings.bankPaymentInstructions || "Please transfer the exact total order amount to the bank account above and share screenshot on WhatsApp with your Order ID for instant payment verification.",
+      };
+    }
+
     return transaction(async (client) => {
       const orderId = `ord_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
       const orderNumber = `SHP-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -1014,8 +1104,8 @@ class SupabaseDataStore {
       await client.query(
         `INSERT INTO orders (
           id, order_number, user_id, subtotal, discount, shipping, total,
-          status, payment_status, payment_method, shipping_address, notes
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12);`,
+          status, payment_status, payment_method, payment_details, shipping_address, notes
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13);`,
         [
           orderId,
           orderNumber,
@@ -1027,6 +1117,7 @@ class SupabaseDataStore {
           "CONFIRMED",
           "PENDING",
           orderData.paymentMethod || "cod",
+          paymentDetails ? JSON.stringify(paymentDetails) : null,
           JSON.stringify(orderData.shippingAddress),
           orderData.notes || null,
         ]
@@ -1091,6 +1182,7 @@ class SupabaseDataStore {
         status: "CONFIRMED",
         paymentStatus: "PENDING",
         paymentMethod: orderData.paymentMethod || "cod",
+        paymentDetails,
         shippingAddress: orderData.shippingAddress,
         notes: orderData.notes,
         createdAt: new Date().toISOString(),
@@ -1335,6 +1427,7 @@ class SupabaseDataStore {
   // STORE SETTINGS
   // --------------------------------------------------------------------------
   async getStoreSettings(): Promise<StoreSettings> {
+    await ensurePaymentSchema();
     try {
       const res = await query(`SELECT * FROM store_settings LIMIT 1;`);
       if (res.rows.length > 0) {
@@ -1350,6 +1443,13 @@ class SupabaseDataStore {
           taxPercentage: Number(r.tax_percentage ?? 0),
           orderNotifications: Boolean(r.order_notifications ?? true),
           inventoryAlertThreshold: Number(r.inventory_alert_threshold ?? 5),
+          bankAccountHolder: r.bank_account_holder || "SHOPY Retail Private Limited",
+          bankAccountTitle: r.bank_account_title || "SHOPY Main Operations",
+          bankName: r.bank_name || "Meezan Bank Limited",
+          bankAccountNumber: r.bank_account_number || "01020304050607",
+          bankIban: r.bank_iban || "PK12MEZN0001020304050607",
+          bankPaymentContact: r.bank_payment_contact || "+92 300 1234567",
+          bankPaymentInstructions: r.bank_payment_instructions || "Please transfer the exact total order amount to the bank account above and share screenshot on WhatsApp with your Order ID for instant payment verification.",
         };
       }
     } catch (err) {
@@ -1367,10 +1467,18 @@ class SupabaseDataStore {
       taxPercentage: 0,
       orderNotifications: true,
       inventoryAlertThreshold: 5,
+      bankAccountHolder: "SHOPY Retail Private Limited",
+      bankAccountTitle: "SHOPY Main Operations",
+      bankName: "Meezan Bank Limited",
+      bankAccountNumber: "01020304050607",
+      bankIban: "PK12MEZN0001020304050607",
+      bankPaymentContact: "+92 300 1234567",
+      bankPaymentInstructions: "Please transfer the exact total order amount to the bank account above and share screenshot on WhatsApp with your Order ID for instant payment verification.",
     };
   }
 
   async updateStoreSettings(updates: Partial<StoreSettings>): Promise<StoreSettings> {
+    await ensurePaymentSchema();
     const current = await this.getStoreSettings();
     const merged: StoreSettings = {
       id: "settings_default",
@@ -1383,14 +1491,24 @@ class SupabaseDataStore {
       taxPercentage: updates.taxPercentage !== undefined ? Number(updates.taxPercentage) : current.taxPercentage,
       orderNotifications: updates.orderNotifications !== undefined ? Boolean(updates.orderNotifications) : current.orderNotifications,
       inventoryAlertThreshold: updates.inventoryAlertThreshold !== undefined ? Number(updates.inventoryAlertThreshold) : current.inventoryAlertThreshold,
+      bankAccountHolder: updates.bankAccountHolder !== undefined ? updates.bankAccountHolder : current.bankAccountHolder,
+      bankAccountTitle: updates.bankAccountTitle !== undefined ? updates.bankAccountTitle : current.bankAccountTitle,
+      bankName: updates.bankName !== undefined ? updates.bankName : current.bankName,
+      bankAccountNumber: updates.bankAccountNumber !== undefined ? updates.bankAccountNumber : current.bankAccountNumber,
+      bankIban: updates.bankIban !== undefined ? updates.bankIban : current.bankIban,
+      bankPaymentContact: updates.bankPaymentContact !== undefined ? updates.bankPaymentContact : current.bankPaymentContact,
+      bankPaymentInstructions: updates.bankPaymentInstructions !== undefined ? updates.bankPaymentInstructions : current.bankPaymentInstructions,
     };
 
     const res = await query(
       `INSERT INTO store_settings (
         id, store_name, support_email, currency, currency_symbol,
         free_shipping_threshold, flat_shipping_rate, tax_percentage,
-        order_notifications, inventory_alert_threshold, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
+        order_notifications, inventory_alert_threshold,
+        bank_account_holder, bank_account_title, bank_name,
+        bank_account_number, bank_iban, bank_payment_contact, bank_payment_instructions,
+        updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, NOW())
       ON CONFLICT (id) DO UPDATE SET
         store_name = EXCLUDED.store_name,
         support_email = EXCLUDED.support_email,
@@ -1401,6 +1519,13 @@ class SupabaseDataStore {
         tax_percentage = EXCLUDED.tax_percentage,
         order_notifications = EXCLUDED.order_notifications,
         inventory_alert_threshold = EXCLUDED.inventory_alert_threshold,
+        bank_account_holder = EXCLUDED.bank_account_holder,
+        bank_account_title = EXCLUDED.bank_account_title,
+        bank_name = EXCLUDED.bank_name,
+        bank_account_number = EXCLUDED.bank_account_number,
+        bank_iban = EXCLUDED.bank_iban,
+        bank_payment_contact = EXCLUDED.bank_payment_contact,
+        bank_payment_instructions = EXCLUDED.bank_payment_instructions,
         updated_at = NOW()
       RETURNING *;`,
       [
@@ -1414,6 +1539,13 @@ class SupabaseDataStore {
         merged.taxPercentage,
         merged.orderNotifications,
         merged.inventoryAlertThreshold,
+        merged.bankAccountHolder || null,
+        merged.bankAccountTitle || null,
+        merged.bankName || null,
+        merged.bankAccountNumber || null,
+        merged.bankIban || null,
+        merged.bankPaymentContact || null,
+        merged.bankPaymentInstructions || null,
       ]
     );
 
@@ -1430,6 +1562,13 @@ class SupabaseDataStore {
         taxPercentage: Number(r.tax_percentage),
         orderNotifications: Boolean(r.order_notifications),
         inventoryAlertThreshold: Number(r.inventory_alert_threshold),
+        bankAccountHolder: r.bank_account_holder || undefined,
+        bankAccountTitle: r.bank_account_title || undefined,
+        bankName: r.bank_name || undefined,
+        bankAccountNumber: r.bank_account_number || undefined,
+        bankIban: r.bank_iban || undefined,
+        bankPaymentContact: r.bank_payment_contact || undefined,
+        bankPaymentInstructions: r.bank_payment_instructions || undefined,
       };
     }
 
@@ -2098,13 +2237,14 @@ class SupabaseDataStore {
 export const db = new SupabaseDataStore();
 
 // React Server Component request-scoped deduplication
-import { cache } from "react";
+import * as React from "react";
+const serverCache = typeof (React as any).cache === "function" ? (React as any).cache : (<T extends (...args: any[]) => any>(fn: T) => fn);
 
-export const getCachedProductById = cache(async (idOrSlug: string) => {
+export const getCachedProductById = serverCache(async (idOrSlug: string) => {
   return db.getProductById(idOrSlug);
 });
 
-export const getCachedCategoryBySlug = cache(async (slug: string) => {
+export const getCachedCategoryBySlug = serverCache(async (slug: string) => {
   return db.getCategoryBySlug(slug);
 });
 

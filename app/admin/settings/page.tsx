@@ -18,6 +18,13 @@ export default function AdminSettingsPage() {
     flatShippingRate: 500,
     inventoryAlertThreshold: 5,
     orderNotifications: true,
+    bankAccountHolder: "SHOPY Retail Private Limited",
+    bankAccountTitle: "SHOPY Main Operations",
+    bankName: "Meezan Bank Limited",
+    bankAccountNumber: "01020304050607",
+    bankIban: "PK12MEZN0001020304050607",
+    bankPaymentContact: "+92 300 1234567",
+    bankPaymentInstructions: "Please transfer the exact total order amount to the bank account above and share screenshot on WhatsApp with your Order ID for instant payment verification.",
   });
 
   useEffect(() => {
@@ -49,7 +56,7 @@ export default function AdminSettingsPage() {
       const data = await res.json();
       if (res.ok && data.success) {
         if (data.settings) setSettings(data.settings);
-        showToast("Store operations settings updated.", "success");
+        showToast("Store operations & payment settings updated.", "success");
       } else {
         showToast(data.error || "Failed to update settings.", "error");
       }
@@ -78,110 +85,223 @@ export default function AdminSettingsPage() {
     <div className="flex-1 flex flex-col">
       <AdminHeader
         title="Store Settings"
-        subtitle="Operational Defaults, Fulfillment Rules & Notifications"
+        subtitle="Operational Defaults, Payment Details & Fulfillment Rules"
       />
 
       <main className="flex-1 p-6 lg:p-10 max-w-[1000px] w-full mx-auto space-y-8">
         <form onSubmit={handleSubmit} className="bg-[#F4F4F2] border border-[#BBBFCA]/40 p-6 lg:p-8 shadow-xs space-y-8">
-          <div className="border-b border-[#BBBFCA]/30 pb-4">
-            <h2 className="font-serif text-xl font-medium text-[#495464]">Store Configuration</h2>
-            <p className="text-xs text-[#495464]/60 uppercase tracking-widest mt-0.5">
-              These settings govern server-side shipping, thresholds, and currency formatting.
-            </p>
+          {/* Section 1: Store Operations */}
+          <div>
+            <div className="border-b border-[#BBBFCA]/30 pb-4 mb-6">
+              <h2 className="font-serif text-xl font-medium text-[#495464]">Store Configuration</h2>
+              <p className="text-xs text-[#495464]/60 uppercase tracking-widest mt-0.5">
+                These settings govern server-side shipping, thresholds, and currency formatting.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-xs">
+              <div>
+                <label className="block text-[10px] uppercase font-semibold text-[#495464] mb-1">
+                  Storefront Name
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={settings.storeName}
+                  onChange={(e) => setSettings({ ...settings, storeName: e.target.value })}
+                  className="w-full bg-[#E8E8E8] border border-[#BBBFCA] px-3 py-2.5"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] uppercase font-semibold text-[#495464] mb-1">
+                  Concierge / Support Email
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={settings.supportEmail}
+                  onChange={(e) => setSettings({ ...settings, supportEmail: e.target.value })}
+                  className="w-full bg-[#E8E8E8] border border-[#BBBFCA] px-3 py-2.5"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] uppercase font-semibold text-[#495464] mb-1">
+                  Currency Code
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={settings.currency}
+                  onChange={(e) => setSettings({ ...settings, currency: e.target.value })}
+                  className="w-full bg-[#E8E8E8] border border-[#BBBFCA] px-3 py-2.5 uppercase"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] uppercase font-semibold text-[#495464] mb-1">
+                  Currency Symbol
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={settings.currencySymbol}
+                  onChange={(e) => setSettings({ ...settings, currencySymbol: e.target.value })}
+                  className="w-full bg-[#E8E8E8] border border-[#BBBFCA] px-3 py-2.5"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] uppercase font-semibold text-[#495464] mb-1">
+                  Complimentary Shipping Threshold (PKR)
+                </label>
+                <input
+                  type="number"
+                  required
+                  value={settings.freeShippingThreshold}
+                  onChange={(e) => setSettings({ ...settings, freeShippingThreshold: Number(e.target.value) })}
+                  className="w-full bg-[#E8E8E8] border border-[#BBBFCA] px-3 py-2.5"
+                />
+                <p className="text-[10px] text-[#495464]/60 mt-1">Orders above this receive free delivery.</p>
+              </div>
+
+              <div>
+                <label className="block text-[10px] uppercase font-semibold text-[#495464] mb-1">
+                  Standard Shipping Fee (PKR)
+                </label>
+                <input
+                  type="number"
+                  required
+                  value={settings.flatShippingRate}
+                  onChange={(e) => setSettings({ ...settings, flatShippingRate: Number(e.target.value) })}
+                  className="w-full bg-[#E8E8E8] border border-[#BBBFCA] px-3 py-2.5"
+                />
+                <p className="text-[10px] text-[#495464]/60 mt-1">Flat rate for orders below threshold.</p>
+              </div>
+
+              <div>
+                <label className="block text-[10px] uppercase font-semibold text-[#495464] mb-1">
+                  Low-Stock Threshold Alert (Units)
+                </label>
+                <input
+                  type="number"
+                  required
+                  value={settings.inventoryAlertThreshold}
+                  onChange={(e) => setSettings({ ...settings, inventoryAlertThreshold: Number(e.target.value) })}
+                  className="w-full bg-[#E8E8E8] border border-[#BBBFCA] px-3 py-2.5"
+                />
+              </div>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-xs">
-            <div>
-              <label className="block text-[10px] uppercase font-semibold text-[#495464] mb-1">
-                Storefront Name
-              </label>
-              <input
-                type="text"
-                required
-                value={settings.storeName}
-                onChange={(e) => setSettings({ ...settings, storeName: e.target.value })}
-                className="w-full bg-[#E8E8E8] border border-[#BBBFCA] px-3 py-2.5"
-              />
+          {/* Section 2: Online Banking & Bank Transfer Details */}
+          <div className="pt-6 border-t border-[#BBBFCA]/40">
+            <div className="border-b border-[#BBBFCA]/30 pb-4 mb-6">
+              <h2 className="font-serif text-xl font-medium text-[#495464]">Online / Bank Transfer Payment Details</h2>
+              <p className="text-xs text-[#495464]/60 uppercase tracking-widest mt-0.5">
+                These details will be dynamically presented to customers choosing &ldquo;Online Payment&rdquo; at checkout.
+              </p>
             </div>
 
-            <div>
-              <label className="block text-[10px] uppercase font-semibold text-[#495464] mb-1">
-                Concierge / Support Email
-              </label>
-              <input
-                type="email"
-                required
-                value={settings.supportEmail}
-                onChange={(e) => setSettings({ ...settings, supportEmail: e.target.value })}
-                className="w-full bg-[#E8E8E8] border border-[#BBBFCA] px-3 py-2.5"
-              />
-            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-xs">
+              <div>
+                <label className="block text-[10px] uppercase font-semibold text-[#495464] mb-1">
+                  Account Holder Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. SHOPY Retail Private Limited"
+                  value={settings.bankAccountHolder || ""}
+                  onChange={(e) => setSettings({ ...settings, bankAccountHolder: e.target.value })}
+                  className="w-full bg-[#E8E8E8] border border-[#BBBFCA] px-3 py-2.5 font-medium text-[#495464]"
+                />
+              </div>
 
-            <div>
-              <label className="block text-[10px] uppercase font-semibold text-[#495464] mb-1">
-                Currency Code
-              </label>
-              <input
-                type="text"
-                required
-                value={settings.currency}
-                onChange={(e) => setSettings({ ...settings, currency: e.target.value })}
-                className="w-full bg-[#E8E8E8] border border-[#BBBFCA] px-3 py-2.5 uppercase"
-              />
-            </div>
+              <div>
+                <label className="block text-[10px] uppercase font-semibold text-[#495464] mb-1">
+                  Account Title *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. SHOPY Main Operations"
+                  value={settings.bankAccountTitle || ""}
+                  onChange={(e) => setSettings({ ...settings, bankAccountTitle: e.target.value })}
+                  className="w-full bg-[#E8E8E8] border border-[#BBBFCA] px-3 py-2.5 font-medium text-[#495464]"
+                />
+              </div>
 
-            <div>
-              <label className="block text-[10px] uppercase font-semibold text-[#495464] mb-1">
-                Currency Symbol
-              </label>
-              <input
-                type="text"
-                required
-                value={settings.currencySymbol}
-                onChange={(e) => setSettings({ ...settings, currencySymbol: e.target.value })}
-                className="w-full bg-[#E8E8E8] border border-[#BBBFCA] px-3 py-2.5"
-              />
-            </div>
+              <div>
+                <label className="block text-[10px] uppercase font-semibold text-[#495464] mb-1">
+                  Bank Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Meezan Bank Limited / HBL / Standard Chartered"
+                  value={settings.bankName || ""}
+                  onChange={(e) => setSettings({ ...settings, bankName: e.target.value })}
+                  className="w-full bg-[#E8E8E8] border border-[#BBBFCA] px-3 py-2.5 font-medium text-[#495464]"
+                />
+              </div>
 
-            <div>
-              <label className="block text-[10px] uppercase font-semibold text-[#495464] mb-1">
-                Complimentary Shipping Threshold (PKR)
-              </label>
-              <input
-                type="number"
-                required
-                value={settings.freeShippingThreshold}
-                onChange={(e) => setSettings({ ...settings, freeShippingThreshold: Number(e.target.value) })}
-                className="w-full bg-[#E8E8E8] border border-[#BBBFCA] px-3 py-2.5"
-              />
-              <p className="text-[10px] text-[#495464]/60 mt-1">Orders above this receive free delivery.</p>
-            </div>
+              <div>
+                <label className="block text-[10px] uppercase font-semibold text-[#495464] mb-1">
+                  Account Number *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. 01020304050607"
+                  value={settings.bankAccountNumber || ""}
+                  onChange={(e) => setSettings({ ...settings, bankAccountNumber: e.target.value })}
+                  className="w-full bg-[#E8E8E8] border border-[#BBBFCA] px-3 py-2.5 font-mono text-[#495464]"
+                />
+              </div>
 
-            <div>
-              <label className="block text-[10px] uppercase font-semibold text-[#495464] mb-1">
-                Standard Shipping Fee (PKR)
-              </label>
-              <input
-                type="number"
-                required
-                value={settings.flatShippingRate}
-                onChange={(e) => setSettings({ ...settings, flatShippingRate: Number(e.target.value) })}
-                className="w-full bg-[#E8E8E8] border border-[#BBBFCA] px-3 py-2.5"
-              />
-              <p className="text-[10px] text-[#495464]/60 mt-1">Flat rate for orders below threshold.</p>
-            </div>
+              <div>
+                <label className="block text-[10px] uppercase font-semibold text-[#495464] mb-1">
+                  IBAN Number *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. PK12MEZN0001020304050607"
+                  value={settings.bankIban || ""}
+                  onChange={(e) => setSettings({ ...settings, bankIban: e.target.value.toUpperCase() })}
+                  className="w-full bg-[#E8E8E8] border border-[#BBBFCA] px-3 py-2.5 font-mono uppercase text-[#495464]"
+                />
+              </div>
 
-            <div>
-              <label className="block text-[10px] uppercase font-semibold text-[#495464] mb-1">
-                Low-Stock Threshold Alert (Units)
-              </label>
-              <input
-                type="number"
-                required
-                value={settings.inventoryAlertThreshold}
-                onChange={(e) => setSettings({ ...settings, inventoryAlertThreshold: Number(e.target.value) })}
-                className="w-full bg-[#E8E8E8] border border-[#BBBFCA] px-3 py-2.5"
-              />
+              <div>
+                <label className="block text-[10px] uppercase font-semibold text-[#495464] mb-1">
+                  Payment Verification Contact (WhatsApp / Phone) *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. +92 300 1234567"
+                  value={settings.bankPaymentContact || ""}
+                  onChange={(e) => setSettings({ ...settings, bankPaymentContact: e.target.value })}
+                  className="w-full bg-[#E8E8E8] border border-[#BBBFCA] px-3 py-2.5 text-[#495464]"
+                />
+                <p className="text-[10px] text-[#495464]/60 mt-1">Number where clients send payment transfer screenshots.</p>
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="block text-[10px] uppercase font-semibold text-[#495464] mb-1">
+                  Payment Instructions &amp; Transfer Notice
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder="Instructions displayed to customer when placing an online payment order..."
+                  value={settings.bankPaymentInstructions || ""}
+                  onChange={(e) => setSettings({ ...settings, bankPaymentInstructions: e.target.value })}
+                  className="w-full bg-[#E8E8E8] border border-[#BBBFCA] p-3 text-xs text-[#495464]"
+                />
+              </div>
             </div>
           </div>
 

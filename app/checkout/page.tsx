@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
 import { formatPrice } from "@/lib/utils";
-import { ShieldCheck, Lock, ArrowRight, Loader2, CheckCircle2 } from "lucide-react";
+import { ShieldCheck, Lock, ArrowRight, Loader2, CheckCircle2, Building2, Banknote, Copy, Check, Info } from "lucide-react";
 import { useToast } from "@/context/ToastContext";
 
 export default function CheckoutPage() {
@@ -17,6 +17,17 @@ export default function CheckoutPage() {
   const { showToast } = useToast();
 
   const [loading, setLoading] = useState(false);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [bankSettings, setBankSettings] = useState<any>({
+    accountHolderName: "SHOPY Retail Private Limited",
+    accountTitle: "SHOPY Main Operations",
+    bankName: "Meezan Bank Limited",
+    accountNumber: "01020304050607",
+    iban: "PK12MEZN0001020304050607",
+    paymentContact: "+92 300 1234567",
+    instructions: "Please transfer the exact total order amount to the bank account above and share screenshot on WhatsApp with your Order ID for instant payment verification.",
+  });
+
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -26,18 +37,35 @@ export default function CheckoutPage() {
     city: "Lahore",
     postalCode: "",
     province: "Punjab",
-    paymentMethod: "cod" as "cod" | "card",
-  });
-
-  const [cardData, setCardData] = useState({
-    cardNumber: "",
-    cardExp: "",
-    cardCvc: "",
+    paymentMethod: "cod" as "cod" | "online",
   });
 
   useEffect(() => {
     document.title = "Checkout | SHOPY";
   }, []);
+
+  useEffect(() => {
+    async function fetchPaymentConfig() {
+      try {
+        const res = await fetch("/api/settings/payment");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.online?.bankDetails) {
+            setBankSettings(data.online.bankDetails);
+          }
+        }
+      } catch {}
+    }
+    fetchPaymentConfig();
+  }, []);
+
+  const handleCopy = (text: string, label: string) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    setCopiedField(label);
+    showToast(`${label} copied to clipboard`, "info");
+    setTimeout(() => setCopiedField(null), 2000);
+  };
 
   useEffect(() => {
     if (user && !formData.email) {
@@ -280,13 +308,13 @@ export default function CheckoutPage() {
                 <Lock className="w-4 h-4 text-[#495464]/70" />
               </div>
 
-              <div className="space-y-3">
-                {/* Cash on Delivery */}
+              <div className="space-y-4">
+                {/* 1. Cash on Delivery */}
                 <label
-                  className={`flex items-start gap-4 p-4 border cursor-pointer transition-all ${
+                  className={`flex items-start gap-4 p-5 border cursor-pointer transition-all ${
                     formData.paymentMethod === "cod"
-                      ? "border-[#495464] bg-[#F4F4F2]"
-                      : "border-[#BBBFCA]/50 bg-[#E8E8E8]/50 hover:border-[#495464]"
+                      ? "border-[#495464] bg-[#F4F4F2] shadow-xs"
+                      : "border-[#BBBFCA]/50 bg-[#E8E8E8]/40 hover:border-[#495464]"
                   }`}
                 >
                   <input
@@ -295,85 +323,157 @@ export default function CheckoutPage() {
                     value="cod"
                     checked={formData.paymentMethod === "cod"}
                     onChange={() => setFormData({ ...formData, paymentMethod: "cod" })}
-                    className="mt-1"
+                    className="mt-1 accent-[#495464]"
                   />
-                  <div>
-                    <span className="text-xs uppercase tracking-widest font-semibold text-[#495464] block">
-                      Cash on Delivery (COD)
-                    </span>
-                    <span className="text-[11px] text-[#495464]/70 tracking-wider block mt-0.5">
-                      Pay upon delivery to our courier. Nationwide available across Pakistan.
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <Banknote className="w-4 h-4 text-[#495464]" />
+                      <span className="text-xs uppercase tracking-widest font-semibold text-[#495464]">
+                        Cash on Delivery
+                      </span>
+                    </div>
+                    <span className="text-[11px] text-[#495464]/70 tracking-wider block mt-1">
+                      Pay when your order arrives.
                     </span>
                   </div>
                 </label>
 
-                {/* Card Payment (Mock Demo) */}
+                {/* 2. Online Payment / Bank Transfer */}
                 <label
-                  className={`flex items-start gap-4 p-4 border cursor-pointer transition-all ${
-                    formData.paymentMethod === "card"
-                      ? "border-[#495464] bg-[#F4F4F2]"
-                      : "border-[#BBBFCA]/50 bg-[#E8E8E8]/50 hover:border-[#495464]"
+                  className={`flex items-start gap-4 p-5 border cursor-pointer transition-all ${
+                    formData.paymentMethod === "online"
+                      ? "border-[#495464] bg-[#F4F4F2] shadow-xs"
+                      : "border-[#BBBFCA]/50 bg-[#E8E8E8]/40 hover:border-[#495464]"
                   }`}
                 >
                   <input
                     type="radio"
                     name="paymentMethod"
-                    value="card"
-                    checked={formData.paymentMethod === "card"}
-                    onChange={() => setFormData({ ...formData, paymentMethod: "card" })}
-                    className="mt-1"
+                    value="online"
+                    checked={formData.paymentMethod === "online"}
+                    onChange={() => setFormData({ ...formData, paymentMethod: "online" })}
+                    className="mt-1 accent-[#495464]"
                   />
-                  <div>
-                    <span className="text-xs uppercase tracking-widest font-semibold text-[#495464] block">
-                      Debit / Credit Card (Encrypted)
-                    </span>
-                    <span className="text-[11px] text-[#495464]/70 tracking-wider block mt-0.5">
-                      Visa, Mastercard, PayPak. Direct 256-bit TLS encrypted processing.
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <Building2 className="w-4 h-4 text-[#495464]" />
+                      <span className="text-xs uppercase tracking-widest font-semibold text-[#495464]">
+                        Online Payment
+                      </span>
+                    </div>
+                    <span className="text-[11px] text-[#495464]/70 tracking-wider block mt-1">
+                      Pay through bank transfer.
                     </span>
                   </div>
                 </label>
               </div>
 
-              {formData.paymentMethod === "card" && (
-                <div className="p-4 bg-[#F4F4F2] border border-[#BBBFCA]/60 space-y-4 animate-fadeIn">
-                  <div>
-                    <label className="block text-[10px] uppercase tracking-widest text-[#495464] mb-1 font-medium">
-                      Card Number
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="4242 •••• •••• 4242"
-                      value={cardData.cardNumber}
-                      onChange={(e) => setCardData({ ...cardData, cardNumber: e.target.value })}
-                      className="w-full bg-[#E8E8E8] border border-[#BBBFCA] px-3 py-2 text-xs text-[#495464] focus:outline-none"
-                    />
+              {/* Dynamic Online Bank Transfer Details Box */}
+              {formData.paymentMethod === "online" && (
+                <div className="p-6 bg-[#F4F4F2] border border-[#495464]/40 space-y-5 animate-fadeIn">
+                  <div className="flex items-center justify-between border-b border-[#BBBFCA]/40 pb-3">
+                    <div>
+                      <span className="text-[10px] uppercase tracking-widest font-bold text-[#495464]/70 block">
+                        Direct Atelier Bank Account
+                      </span>
+                      <h4 className="font-serif text-base font-semibold text-[#495464]">
+                        {bankSettings.bankName || "Meezan Bank Limited"}
+                      </h4>
+                    </div>
+                    <span className="bg-[#495464] text-[#F4F4F2] text-[9px] uppercase tracking-widest px-2.5 py-1 font-medium">
+                      Official Account
+                    </span>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-[10px] uppercase tracking-widest text-[#495464] mb-1 font-medium">
-                        Expiry (MM/YY)
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="12/28"
-                        value={cardData.cardExp}
-                        onChange={(e) => setCardData({ ...cardData, cardExp: e.target.value })}
-                        className="w-full bg-[#E8E8E8] border border-[#BBBFCA] px-3 py-2 text-xs text-[#495464] focus:outline-none"
-                      />
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                    <div className="bg-[#E8E8E8]/70 border border-[#BBBFCA]/40 p-3">
+                      <span className="text-[10px] uppercase tracking-widest font-semibold text-[#495464]/70 block mb-0.5">
+                        Account Title
+                      </span>
+                      <p className="font-medium text-[#495464]">{bankSettings.accountTitle || bankSettings.accountHolderName || "SHOPY Main Operations"}</p>
                     </div>
-                    <div>
-                      <label className="block text-[10px] uppercase tracking-widest text-[#495464] mb-1 font-medium">
-                        CVC / CVV
-                      </label>
-                      <input
-                        type="password"
-                        maxLength={4}
-                        placeholder="•••"
-                        value={cardData.cardCvc}
-                        onChange={(e) => setCardData({ ...cardData, cardCvc: e.target.value })}
-                        className="w-full bg-[#E8E8E8] border border-[#BBBFCA] px-3 py-2 text-xs text-[#495464] focus:outline-none"
-                      />
+
+                    <div className="bg-[#E8E8E8]/70 border border-[#BBBFCA]/40 p-3">
+                      <span className="text-[10px] uppercase tracking-widest font-semibold text-[#495464]/70 block mb-0.5">
+                        Account Holder
+                      </span>
+                      <p className="font-medium text-[#495464]">{bankSettings.accountHolderName || "SHOPY Retail Private Limited"}</p>
                     </div>
+
+                    <div className="bg-[#E8E8E8]/70 border border-[#BBBFCA]/40 p-3 flex items-center justify-between">
+                      <div>
+                        <span className="text-[10px] uppercase tracking-widest font-semibold text-[#495464]/70 block mb-0.5">
+                          Account Number
+                        </span>
+                        <p className="font-mono font-bold text-xs text-[#495464]">{bankSettings.accountNumber || "01020304050607"}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleCopy(bankSettings.accountNumber, "Account Number")}
+                        className="p-1.5 bg-[#F4F4F2] border border-[#BBBFCA] hover:bg-white text-[#495464] transition-colors"
+                        title="Copy Account Number"
+                      >
+                        {copiedField === "Account Number" ? (
+                          <Check className="w-3.5 h-3.5 text-emerald-700" />
+                        ) : (
+                          <Copy className="w-3.5 h-3.5" />
+                        )}
+                      </button>
+                    </div>
+
+                    <div className="bg-[#E8E8E8]/70 border border-[#BBBFCA]/40 p-3 flex items-center justify-between">
+                      <div>
+                        <span className="text-[10px] uppercase tracking-widest font-semibold text-[#495464]/70 block mb-0.5">
+                          IBAN Number
+                        </span>
+                        <p className="font-mono font-bold text-xs text-[#495464]">{bankSettings.bankIban || bankSettings.iban || "PK12MEZN0001020304050607"}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleCopy(bankSettings.bankIban || bankSettings.iban, "IBAN")}
+                        className="p-1.5 bg-[#F4F4F2] border border-[#BBBFCA] hover:bg-white text-[#495464] transition-colors"
+                        title="Copy IBAN"
+                      >
+                        {copiedField === "IBAN" ? (
+                          <Check className="w-3.5 h-3.5 text-emerald-700" />
+                        ) : (
+                          <Copy className="w-3.5 h-3.5" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  {bankSettings.paymentContact && (
+                    <div className="flex items-center justify-between bg-[#E8E8E8]/50 border border-[#BBBFCA]/40 px-3.5 py-2.5 text-xs text-[#495464]">
+                      <span className="text-[11px] font-medium">WhatsApp Payment Support:</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-semibold">{bankSettings.paymentContact}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleCopy(bankSettings.paymentContact, "Payment Contact")}
+                          className="p-1 bg-[#F4F4F2] border border-[#BBBFCA] hover:bg-white text-[#495464]"
+                          title="Copy Contact"
+                        >
+                          <Copy className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {bankSettings.instructions && (
+                    <div className="bg-[#E8E8E8]/30 border-l-2 border-[#495464] p-3 text-[11px] text-[#495464]/90 leading-relaxed">
+                      <p className="font-semibold uppercase tracking-wider text-[10px] text-[#495464] mb-1">
+                        Instructions:
+                      </p>
+                      <p>{bankSettings.instructions}</p>
+                    </div>
+                  )}
+
+                  <div className="flex items-start gap-2 text-[10px] text-[#495464]/70 bg-amber-50/70 border border-amber-200/60 p-3">
+                    <Info className="w-4 h-4 text-amber-700 flex-shrink-0 mt-0.5" />
+                    <span>
+                      Your order will be reserved upon placement. Fulfillment starts once our finance team confirms receipt of your transfer.
+                    </span>
                   </div>
                 </div>
               )}
