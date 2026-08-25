@@ -52,6 +52,11 @@ export async function POST(req: Request) {
       shippingAddress,
     });
 
+    // Clear synchronized cloud cart for authenticated client
+    if (userId) {
+      db.clearUserCart(userId).catch(() => {});
+    }
+
     // Dispatch background order confirmation & admin notification emails (non-blocking)
     try {
       sendOrderConfirmationEmail(order).catch((err) =>

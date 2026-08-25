@@ -3,6 +3,8 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { Product } from "@/lib/data/products";
 
+import { useAuth } from "@/context/AuthContext";
+
 export interface CartItem {
   productId: string;
   name: string;
@@ -43,14 +45,17 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 const CART_STORAGE_KEY = "shopy_cart_v1";
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
+  const { user, loading: authLoading } = useAuth();
   const [items, setItems] = useState<CartItem[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [promoCode, setPromoCode] = useState("");
   const [serverCalculation, setServerCalculation] = useState<ServerCartCalculation | null>(null);
   const [isLoadingServer, setIsLoadingServer] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
+  const isSyncingWithServer = React.useRef(false);
+  const initialUserSyncRef = React.useRef<string | null>(null);
 
-  // Hydrate from localStorage
+  // 1. Hydrate from localStorage on initial boot
   useEffect(() => {
     try {
       const saved = localStorage.getItem(CART_STORAGE_KEY);
@@ -64,12 +69,69 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Save to localStorage
+  // 2. Synchronize with PostgreSQL database when user is authenticated (Multi-Device Sync)
   useEffect(() => {
-    if (isHydrated) {
-      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
+    if (!isHydrated || authLoading) return;
+
+    if (user) {
+      if (initialUserSyncRef.current !== user.id) {
+        initialUserSyncRef.current = user.id;
+
+        const syncWithServerCart = async () => {
+          isSyncingWithServer.current = true;
+          try {
+            const res = await fetch("/api/cart", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ items, merge: true }),
+            });
+            if (res.ok) {
+              const data = await res.json();
+              if (data.items && Array.isArray(data.items)) {
+                setItems(data.items);
+                try {
+                  localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(data.items));
+                } catch {}
+              }
+            }
+          } catch (err) {
+            console.error("[CART SYNC ERROR]", err);
+          } finally {
+            setTimeout(() => {
+              isSyncingWithServer.current = false;
+            }, 300);
+          }
+        };
+
+        syncWithServerCart();
+      }
+    } else {
+      initialUserSyncRef.current = null;
     }
-  }, [items, isHydrated]);
+  }, [user, authLoading, isHydrated]);
+
+  // 3. Save to localStorage and debounce persist to Database for logged in user
+  useEffect(() => {
+    if (!isHydrated) return;
+
+    try {
+      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
+    } catch {}
+
+    if (user && !isSyncingWithServer.current && initialUserSyncRef.current === user.id) {
+      const timer = setTimeout(async () => {
+        try {
+          await fetch("/api/cart", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ items, merge: false }),
+          });
+        } catch {}
+      }, 600);
+
+      return () => clearTimeout(timer);
+    }
+  }, [items, isHydrated, user]);
 
   const validateWithServer = useCallback(
     async (promo?: string): Promise<ServerCartCalculation | null> => {
@@ -179,7 +241,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setItems([]);
     setServerCalculation(null);
     setPromoCode("");
-    localStorage.removeItem(CART_STORAGE_KEY);
+    try {
+      localStorage.removeItem(CART_STORAGE_KEY);
+    } catch {}
+    if (user) {
+      fetch("/api/cart", { method: "DELETE" }).catch(() => {});
+    }
   };
 
   const totalCount = items.reduce((acc, i) => acc + i.quantity, 0);

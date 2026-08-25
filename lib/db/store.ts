@@ -319,6 +319,13 @@ export async function ensurePaymentSchema(): Promise<void> {
         ALTER TABLE orders ADD CONSTRAINT orders_payment_status_check CHECK (payment_status IN ('PENDING', 'PAID', 'UNPAID', 'FAILED', 'REFUNDED'));
       EXCEPTION WHEN OTHERS THEN NULL;
       END $$;
+
+      -- 4. Persistent Cloud User Cart for multi-device synchronization
+      CREATE TABLE IF NOT EXISTS user_carts (
+        user_id VARCHAR(255) PRIMARY KEY,
+        items JSONB NOT NULL DEFAULT '[]'::jsonb,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
     `);
 
     schemaEnsured = true;
@@ -1565,6 +1572,47 @@ class SupabaseDataStore {
     }
 
     return merged;
+  }
+
+  // --------------------------------------------------------------------------
+  // USER CART SYNCHRONIZATION (CROSS-DEVICE PERSISTENCE)
+  // --------------------------------------------------------------------------
+  async getUserCart(userId: string): Promise<any[]> {
+    await ensurePaymentSchema();
+    try {
+      const res = await query(`SELECT items FROM user_carts WHERE user_id = $1;`, [userId]);
+      if (res.rows.length > 0 && Array.isArray(res.rows[0].items)) {
+        return res.rows[0].items;
+      }
+    } catch (err) {
+      console.error("[GET USER CART ERROR]", err);
+    }
+    return [];
+  }
+
+  async saveUserCart(userId: string, items: any[]): Promise<void> {
+    await ensurePaymentSchema();
+    try {
+      await query(
+        `INSERT INTO user_carts (user_id, items, updated_at)
+         VALUES ($1, $2::jsonb, NOW())
+         ON CONFLICT (user_id) DO UPDATE SET
+           items = EXCLUDED.items,
+           updated_at = NOW();`,
+        [userId, JSON.stringify(items)]
+      );
+    } catch (err) {
+      console.error("[SAVE USER CART ERROR]", err);
+    }
+  }
+
+  async clearUserCart(userId: string): Promise<void> {
+    await ensurePaymentSchema();
+    try {
+      await query(`DELETE FROM user_carts WHERE user_id = $1;`, [userId]);
+    } catch (err) {
+      console.error("[CLEAR USER CART ERROR]", err);
+    }
   }
 
   // --------------------------------------------------------------------------
