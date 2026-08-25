@@ -269,71 +269,71 @@ function OrdersContent() {
               <table className="w-full text-left text-xs tracking-wider">
                 <thead className="bg-[#E8E8E8]/70 border-b border-[#BBBFCA]/40 text-[#495464] uppercase text-[10px]">
                   <tr>
-                    <th className="p-4 font-semibold">Order ID</th>
-                    <th className="p-4 font-semibold">Date</th>
-                    <th className="p-4 font-semibold">Customer</th>
-                    <th className="p-4 font-semibold">Items</th>
-                    <th className="p-4 font-semibold">Total</th>
-                    <th className="p-4 font-semibold">Payment</th>
-                    <th className="p-4 font-semibold">Order Status</th>
-                    <th className="p-4 font-semibold text-right">Action</th>
+                    <th className="px-3 py-3 font-semibold whitespace-nowrap">Order ID</th>
+                    <th className="px-3 py-3 font-semibold whitespace-nowrap">Date</th>
+                    <th className="px-3 py-3 font-semibold">Customer</th>
+                    <th className="px-2.5 py-3 font-semibold whitespace-nowrap">Items</th>
+                    <th className="px-3 py-3 font-semibold whitespace-nowrap">Total</th>
+                    <th className="px-2.5 py-3 font-semibold whitespace-nowrap text-center">Payment</th>
+                    <th className="px-2.5 py-3 font-semibold whitespace-nowrap text-center">Order Status</th>
+                    <th className="px-3 py-3 font-semibold text-right whitespace-nowrap">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#BBBFCA]/20">
                   {orders.map((ord) => (
                     <tr key={ord.id} className="hover:bg-[#E8E8E8]/40 transition-colors">
-                      <td className="p-4 font-serif font-semibold text-[#495464]">
+                      <td className="px-3 py-3 font-serif font-semibold text-[#495464] whitespace-nowrap">
                         {ord.orderNumber}
                       </td>
-                      <td className="p-4 text-[#495464]/70">
+                      <td className="px-3 py-3 text-[#495464]/70 whitespace-nowrap">
                         {new Date(ord.createdAt).toLocaleDateString()}
                       </td>
-                      <td className="p-4">
-                        <span className="font-medium block text-[#495464]">
+                      <td className="px-3 py-3">
+                        <span className="font-medium block text-[#495464] whitespace-nowrap">
                           {ord.shippingAddress.firstName} {ord.shippingAddress.lastName}
                         </span>
-                        <span className="text-[10px] text-[#495464]/60">{ord.shippingAddress.city}</span>
+                        <span className="text-[10px] text-[#495464]/60 block">{ord.shippingAddress.city}</span>
                       </td>
-                      <td className="p-4 text-[#495464]/80">
-                        {ord.items.length} {ord.items.length === 1 ? "piece" : "pieces"}
+                      <td className="px-2.5 py-3 text-[#495464]/80 whitespace-nowrap">
+                        {ord.items.length} {ord.items.length === 1 ? "pc" : "pcs"}
                       </td>
-                      <td className="p-4 font-serif font-semibold text-[#495464]">
+                      <td className="px-3 py-3 font-serif font-semibold text-[#495464] whitespace-nowrap">
                         {formatPrice(ord.total)}
                       </td>
-                      <td className="p-4">
+                      <td className="px-2.5 py-3 text-center">
                         {getPaymentBadge(ord)}
                       </td>
-                      <td className="p-4">
+                      <td className="px-2.5 py-3 text-center">
                         <select
                           value={ord.status}
                           disabled={updating}
                           onChange={(e) => handleUpdateStatus(ord.id, e.target.value)}
-                          className="bg-[#E8E8E8] border border-[#BBBFCA] px-2.5 py-1 text-[10px] uppercase font-semibold text-[#495464] focus:outline-none cursor-pointer"
+                          className="bg-[#E8E8E8] border border-[#BBBFCA] px-2 py-1 text-[10px] uppercase font-semibold text-[#495464] focus:outline-none cursor-pointer w-[105px] h-[28px] text-center"
                         >
-                          <option value="VERIFYING_PAYMENT">VERIFYING PAYMENT</option>
+                          <option value="VERIFYING_PAYMENT">VERIFYING</option>
                           <option value="CONFIRMED">CONFIRMED</option>
                           <option value="PREPARING">PREPARING</option>
                           <option value="SHIPPED">SHIPPED</option>
-                          <option value="OUT_FOR_DELIVERY">OUT FOR DELIVERY</option>
+                          <option value="OUT_FOR_DELIVERY">DELIVERY</option>
                           <option value="DELIVERED">DELIVERED</option>
                           <option value="CANCELLED">CANCELLED</option>
-                          <option value="RETURN_REQUESTED">RETURN REQUESTED</option>
+                          <option value="RETURN_REQUESTED">RETURN REQ</option>
                           <option value="RETURNED">RETURNED</option>
                           <option value="REFUNDED">REFUNDED</option>
                         </select>
                       </td>
-                      <td className="p-4 text-right">
+                      <td className="px-3 py-3 text-right whitespace-nowrap">
                         <div className="inline-flex items-center justify-end gap-1.5 flex-nowrap">
                           <button
                             onClick={() => setSelectedOrder(ord)}
-                            className="inline-flex items-center justify-center gap-1 bg-[#495464] text-[#F4F4F2] px-2.5 sm:px-3 py-1.5 text-[11px] sm:text-xs uppercase tracking-normal sm:tracking-wider font-medium hover:bg-[#363E4B] transition-colors whitespace-nowrap"
+                            className="inline-flex items-center justify-center gap-1 bg-[#495464] text-[#F4F4F2] px-2 sm:px-2.5 py-1 text-[11px] uppercase tracking-normal font-medium hover:bg-[#363E4B] transition-colors whitespace-nowrap h-[28px]"
                           >
                             <Eye className="w-3 h-3 flex-shrink-0" />
                             <span>View</span>
                           </button>
                           <button
                             onClick={() => setPrintingOrder(ord)}
-                            className="inline-flex items-center justify-center gap-1 bg-[#495464] text-[#F4F4F2] px-2.5 sm:px-3 py-1.5 text-[11px] sm:text-xs uppercase tracking-normal sm:tracking-wider font-medium hover:bg-[#363E4B] transition-colors whitespace-nowrap"
+                            className="inline-flex items-center justify-center gap-1 bg-[#495464] text-[#F4F4F2] px-2 sm:px-2.5 py-1 text-[11px] uppercase tracking-normal font-medium hover:bg-[#363E4B] transition-colors whitespace-nowrap h-[28px]"
                           >
                             <Printer className="w-3 h-3 flex-shrink-0" />
                             <span>Print</span>
