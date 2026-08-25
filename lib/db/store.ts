@@ -2,17 +2,64 @@ import { query, transaction } from "./client";
 
 export const ADMIN_EMAIL = "hammadnawaz276@gmail.com";
 
-export type OrderStatus = "PENDING" | "CONFIRMED" | "PROCESSING" | "SHIPPED" | "DELIVERED" | "CANCELLED";
-export type PaymentStatus = "PENDING" | "PAID" | "UNPAID" | "FAILED" | "REFUNDED";
-export type PaymentMethod = "cod" | "online" | "card";
+export type OrderStatus =
+  | "VERIFYING_PAYMENT"
+  | "CONFIRMED"
+  | "PREPARING"
+  | "SHIPPED"
+  | "OUT_FOR_DELIVERY"
+  | "DELIVERED"
+  | "CANCELLED"
+  | "RETURN_REQUESTED"
+  | "RETURNED"
+  | "REFUNDED"
+  // Legacy backward compatibility
+  | "PENDING"
+  | "PROCESSING"
+  | "AWAITING_PAYMENT_VERIFICATION";
+
+export type PaymentStatus =
+  | "UNPAID"
+  | "PENDING_VERIFICATION"
+  | "PAID"
+  | "FAILED"
+  | "REFUNDED"
+  // Legacy backward compatibility
+  | "PENDING";
+
+export type PaymentMethod = "cod" | "bank_transfer" | "online" | "card";
+
+export interface OrderStatusHistoryEntry {
+  status: OrderStatus;
+  previousStatus?: OrderStatus;
+  changedBy: string;
+  changedAt: string;
+  note?: string;
+}
+
+export interface PaymentStatusHistoryEntry {
+  status: PaymentStatus;
+  previousStatus?: PaymentStatus;
+  changedBy: string;
+  changedAt: string;
+  note?: string;
+}
 
 export interface OrderPaymentDetails {
   accountHolderName?: string;
   bankName?: string;
+  accountTitle?: string;
   accountNumber?: string;
   iban?: string;
+  raastId?: string;
   paymentContact?: string;
   instructions?: string;
+  proofUrl?: string;
+  transactionRef?: string;
+  transferDate?: string;
+  amount?: number;
+  verifiedAt?: string;
+  verifiedBy?: string;
 }
 
 export interface ProductColor {
@@ -83,10 +130,12 @@ export interface OrderRecord {
   discount: number;
   shipping: number;
   total: number;
-  status: "PENDING" | "CONFIRMED" | "PROCESSING" | "SHIPPED" | "DELIVERED" | "CANCELLED";
+  status: OrderStatus;
   paymentStatus: PaymentStatus;
   paymentMethod: PaymentMethod;
   paymentDetails?: OrderPaymentDetails;
+  orderHistory?: OrderStatusHistoryEntry[];
+  paymentHistory?: PaymentStatusHistoryEntry[];
   shippingAddress: {
     firstName: string;
     lastName: string;
@@ -137,11 +186,16 @@ export interface StoreSettings {
   taxPercentage: number;
   orderNotifications: boolean;
   inventoryAlertThreshold: number;
-  // Bank & Online Payment Configuration
+  // Payment Methods Enable/Disable
+  codEnabled?: boolean;
+  bankTransferEnabled?: boolean;
+  // Bank & Raast Transfer Configuration
   bankAccountHolder?: string;
   bankName?: string;
+  bankAccountTitle?: string;
   bankAccountNumber?: string;
   bankIban?: string;
+  bankRaastId?: string;
   bankPaymentContact?: string;
   bankPaymentInstructions?: string;
   socialInstagram?: string;
@@ -249,6 +303,22 @@ function mapOrderRow(row: any): OrderRecord {
         : row.payment_details;
   }
 
+  let orderHistory: OrderStatusHistoryEntry[] | undefined = undefined;
+  if (row.order_history) {
+    orderHistory =
+      typeof row.order_history === "string"
+        ? JSON.parse(row.order_history)
+        : row.order_history;
+  }
+
+  let paymentHistory: PaymentStatusHistoryEntry[] | undefined = undefined;
+  if (row.payment_history) {
+    paymentHistory =
+      typeof row.payment_history === "string"
+        ? JSON.parse(row.payment_history)
+        : row.payment_history;
+  }
+
   return {
     id: row.id,
     orderNumber: row.order_number,
@@ -262,6 +332,8 @@ function mapOrderRow(row: any): OrderRecord {
     paymentStatus: row.payment_status || "PENDING",
     paymentMethod: row.payment_method || "cod",
     paymentDetails,
+    orderHistory: Array.isArray(orderHistory) ? orderHistory : [],
+    paymentHistory: Array.isArray(paymentHistory) ? paymentHistory : [],
     shippingAddress,
     notes: row.notes,
     createdAt: row.created_at ? new Date(row.created_at).toISOString() : new Date().toISOString(),
@@ -288,35 +360,46 @@ let schemaEnsured = false;
 export async function ensurePaymentSchema(): Promise<void> {
   if (schemaEnsured) return;
   try {
-    // 1. Add bank payment columns to store_settings
+    // 1. Add bank payment and toggle columns to store_settings
     await query(`
+      ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS cod_enabled BOOLEAN DEFAULT true;
+      ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS bank_transfer_enabled BOOLEAN DEFAULT true;
       ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS bank_account_holder VARCHAR(255) DEFAULT 'SHOPY Retail Private Limited';
       ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS bank_account_title VARCHAR(255) DEFAULT 'SHOPY Main Operations';
       ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS bank_name VARCHAR(255) DEFAULT 'Meezan Bank Limited';
       ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS bank_account_number VARCHAR(100) DEFAULT '01020304050607';
       ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS bank_iban VARCHAR(100) DEFAULT 'PK12MEZN0001020304050607';
+      ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS bank_raast_id VARCHAR(100) DEFAULT '03001234567';
       ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS bank_payment_contact VARCHAR(100) DEFAULT '+92 300 1234567';
       ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS bank_payment_instructions TEXT DEFAULT 'Please transfer the exact total order amount to the bank account above and share screenshot on WhatsApp with your Order ID for instant payment verification.';
     `);
 
-    // 2. Add payment_details JSONB snapshot to orders
+    // 2. Add payment_details, order_history, and payment_history JSONB snapshots to orders
     await query(`
       ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_details JSONB;
+      ALTER TABLE orders ADD COLUMN IF NOT EXISTS order_history JSONB DEFAULT '[]'::jsonb;
+      ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_history JSONB DEFAULT '[]'::jsonb;
     `);
 
-    // 3. Relax constraints to safely support 'online' and 'UNPAID'
+    // 3. Relax constraints to safely support modern and legacy payment methods and statuses
     await query(`
       DO $$
       BEGIN
         ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_payment_method_check;
-        ALTER TABLE orders ADD CONSTRAINT orders_payment_method_check CHECK (payment_method IN ('cod', 'online', 'card'));
+        ALTER TABLE orders ADD CONSTRAINT orders_payment_method_check CHECK (payment_method IN ('cod', 'bank_transfer', 'online', 'card'));
       EXCEPTION WHEN OTHERS THEN NULL;
       END $$;
 
       DO $$
       BEGIN
         ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_payment_status_check;
-        ALTER TABLE orders ADD CONSTRAINT orders_payment_status_check CHECK (payment_status IN ('PENDING', 'PAID', 'UNPAID', 'FAILED', 'REFUNDED'));
+        ALTER TABLE orders ADD CONSTRAINT orders_payment_status_check CHECK (payment_status IN ('UNPAID', 'PENDING_VERIFICATION', 'PAID', 'FAILED', 'REFUNDED', 'PENDING'));
+      EXCEPTION WHEN OTHERS THEN NULL;
+      END $$;
+
+      DO $$
+      BEGIN
+        ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_status_check;
       EXCEPTION WHEN OTHERS THEN NULL;
       END $$;
 
@@ -1086,19 +1169,50 @@ class SupabaseDataStore {
   }): Promise<OrderRecord> {
     await ensurePaymentSchema();
 
-    // Snapshot bank details at creation time if paymentMethod is 'online'
+    const isBankTransfer =
+      orderData.paymentMethod === "bank_transfer" ||
+      orderData.paymentMethod === "online";
+    const paymentMethod: PaymentMethod = isBankTransfer ? "bank_transfer" : "cod";
+    const initialStatus: OrderStatus = isBankTransfer ? "VERIFYING_PAYMENT" : "CONFIRMED";
+    const initialPaymentStatus: PaymentStatus = isBankTransfer ? "PENDING_VERIFICATION" : "UNPAID";
+
     let paymentDetails: OrderPaymentDetails | undefined = undefined;
-    if (orderData.paymentMethod === "online") {
+    if (isBankTransfer) {
       const settings = await this.getStoreSettings();
       paymentDetails = {
         accountHolderName: settings.bankAccountHolder || "SHOPY Retail Private Limited",
         bankName: settings.bankName || "Meezan Bank Limited",
+        accountTitle: settings.bankAccountTitle || "SHOPY Main Operations",
         accountNumber: settings.bankAccountNumber || "01020304050607",
         iban: settings.bankIban || "PK12MEZN0001020304050607",
+        raastId: settings.bankRaastId || "03001234567",
         paymentContact: settings.bankPaymentContact || "+92 300 1234567",
         instructions: settings.bankPaymentInstructions || "Please transfer the exact total order amount to the bank account above and share screenshot on WhatsApp with your Order ID for instant payment verification.",
       };
     }
+
+    const nowIso = new Date().toISOString();
+    const initialOrderHistory: OrderStatusHistoryEntry[] = [
+      {
+        status: initialStatus,
+        changedBy: "System",
+        changedAt: nowIso,
+        note: isBankTransfer
+          ? "Order placed awaiting payment verification"
+          : "Order confirmed via Cash on Delivery",
+      },
+    ];
+
+    const initialPaymentHistory: PaymentStatusHistoryEntry[] = [
+      {
+        status: initialPaymentStatus,
+        changedBy: "System",
+        changedAt: nowIso,
+        note: isBankTransfer
+          ? "Bank Transfer / Raast payment pending verification"
+          : "Payment due upon delivery",
+      },
+    ];
 
     return transaction(async (client) => {
       const orderId = `ord_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
@@ -1108,8 +1222,8 @@ class SupabaseDataStore {
       await client.query(
         `INSERT INTO orders (
           id, order_number, user_id, subtotal, discount, shipping, total,
-          status, payment_status, payment_method, payment_details, shipping_address, notes
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13);`,
+          status, payment_status, payment_method, payment_details, order_history, payment_history, shipping_address, notes
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15);`,
         [
           orderId,
           orderNumber,
@@ -1118,10 +1232,12 @@ class SupabaseDataStore {
           orderData.discount || 0,
           orderData.shipping || 0,
           orderData.total,
-          "CONFIRMED",
-          "PENDING",
-          orderData.paymentMethod || "cod",
+          initialStatus,
+          initialPaymentStatus,
+          paymentMethod,
           paymentDetails ? JSON.stringify(paymentDetails) : null,
+          JSON.stringify(initialOrderHistory),
+          JSON.stringify(initialPaymentHistory),
           JSON.stringify(orderData.shippingAddress),
           orderData.notes || null,
         ]
@@ -1161,7 +1277,7 @@ class SupabaseDataStore {
           image: item.image,
         });
 
-        // Deduct inventory in products table
+        // Deduct inventory in products table (only once upon checkout creation)
         if (item.productId) {
           await client.query(
             `UPDATE products 
@@ -1183,14 +1299,16 @@ class SupabaseDataStore {
         discount: orderData.discount || 0,
         shipping: orderData.shipping || 0,
         total: orderData.total,
-        status: "CONFIRMED",
-        paymentStatus: "PENDING",
-        paymentMethod: orderData.paymentMethod || "cod",
+        status: initialStatus,
+        paymentStatus: initialPaymentStatus,
+        paymentMethod,
         paymentDetails,
+        orderHistory: initialOrderHistory,
+        paymentHistory: initialPaymentHistory,
         shippingAddress: orderData.shippingAddress,
         notes: orderData.notes,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        createdAt: nowIso,
+        updatedAt: nowIso,
       };
     });
   }
@@ -1198,16 +1316,88 @@ class SupabaseDataStore {
   async updateOrderStatus(
     id: string,
     status: OrderRecord["status"],
-    notes?: string
+    notes?: string,
+    changedBy: string = "Admin"
   ): Promise<OrderRecord | undefined> {
+    await ensurePaymentSchema();
+    const prev = await this.getOrderById(id);
+    if (!prev) return undefined;
+
+    // Normalizing incoming status
+    const normStatus = status as OrderStatus;
+    if (prev.status === normStatus) return prev;
+
+    // Intelligent automated payment status derivation
+    let targetPaymentStatus = prev.paymentStatus;
+    let paymentChanged = false;
+    let paymentNote = "";
+
+    const isBankTransfer = prev.paymentMethod === "bank_transfer" || prev.paymentMethod === "online";
+    const isCod = prev.paymentMethod === "cod";
+
+    // 1. Bank Transfer Verification Rule: Moving to PREPARING / CONFIRMED verifies payment
+    if (
+      (normStatus === "PREPARING" || normStatus === "CONFIRMED") &&
+      (prev.status === "VERIFYING_PAYMENT" || prev.status === "AWAITING_PAYMENT_VERIFICATION" || prev.paymentStatus === "PENDING_VERIFICATION") &&
+      isBankTransfer
+    ) {
+      targetPaymentStatus = "PAID";
+      paymentChanged = true;
+      paymentNote = "Bank transfer payment verified & confirmed";
+    }
+
+    // 2. COD Delivery Rule: Moving to DELIVERED automatically marks COD as PAID
+    if (normStatus === "DELIVERED" && isCod && prev.paymentStatus !== "PAID") {
+      targetPaymentStatus = "PAID";
+      paymentChanged = true;
+      paymentNote = "Cash on Delivery payment collected upon successful delivery";
+    }
+
+    // 3. Refunded Order Rule
+    if (normStatus === "REFUNDED" && prev.paymentStatus !== "REFUNDED") {
+      targetPaymentStatus = "REFUNDED";
+      paymentChanged = true;
+      paymentNote = "Payment marked as refunded alongside order refund";
+    }
+
+    const nowIso = new Date().toISOString();
+    const orderHistoryEntry: OrderStatusHistoryEntry = {
+      status: normStatus,
+      previousStatus: prev.status,
+      changedBy,
+      changedAt: nowIso,
+      note: notes || undefined,
+    };
+
+    const paymentHistoryEntry: PaymentStatusHistoryEntry | null = paymentChanged
+      ? {
+          status: targetPaymentStatus,
+          previousStatus: prev.paymentStatus,
+          changedBy,
+          changedAt: nowIso,
+          note: paymentNote || notes || undefined,
+        }
+      : null;
+
     const res = await query(
-      `UPDATE orders 
-       SET status = $1, 
-           notes = COALESCE($2, notes), 
-           updated_at = NOW() 
-       WHERE id = $3 OR order_number = $3
-       RETURNING id;`,
-      [status, notes || null, id]
+      `UPDATE orders SET
+        status = $1,
+        payment_status = $2,
+        order_history = COALESCE(order_history, '[]'::jsonb) || $3::jsonb,
+        payment_history = CASE WHEN $4::boolean THEN COALESCE(payment_history, '[]'::jsonb) || $5::jsonb ELSE COALESCE(payment_history, '[]'::jsonb) END,
+        notes = COALESCE($6, notes),
+        updated_at = NOW()
+      WHERE id = $7 OR order_number = $7
+      RETURNING id;`,
+      [
+        normStatus,
+        targetPaymentStatus,
+        JSON.stringify([orderHistoryEntry]),
+        paymentChanged,
+        paymentHistoryEntry ? JSON.stringify([paymentHistoryEntry]) : "[]",
+        notes || null,
+        id,
+      ]
     );
 
     if (res.rows.length === 0) return undefined;
@@ -1216,15 +1406,91 @@ class SupabaseDataStore {
 
   async updateOrderPaymentStatus(
     id: string,
-    paymentStatus: OrderRecord["paymentStatus"]
+    paymentStatus: OrderRecord["paymentStatus"],
+    notes?: string,
+    changedBy: string = "Admin"
   ): Promise<OrderRecord | undefined> {
+    await ensurePaymentSchema();
+    const prev = await this.getOrderById(id);
+    if (!prev) return undefined;
+
+    const normPaymentStatus = paymentStatus as PaymentStatus;
+    if (prev.paymentStatus === normPaymentStatus) return prev;
+
+    const nowIso = new Date().toISOString();
+    const paymentHistoryEntry: PaymentStatusHistoryEntry = {
+      status: normPaymentStatus,
+      previousStatus: prev.paymentStatus,
+      changedBy,
+      changedAt: nowIso,
+      note: notes || `Payment status updated to ${normPaymentStatus}`,
+    };
+
     const res = await query(
-      `UPDATE orders 
-       SET payment_status = $1, 
-           updated_at = NOW() 
-       WHERE id = $2 OR order_number = $2
-       RETURNING id;`,
-      [paymentStatus, id]
+      `UPDATE orders SET
+        payment_status = $1,
+        payment_history = COALESCE(payment_history, '[]'::jsonb) || $2::jsonb,
+        updated_at = NOW()
+      WHERE id = $3 OR order_number = $3
+      RETURNING id;`,
+      [
+        normPaymentStatus,
+        JSON.stringify([paymentHistoryEntry]),
+        id,
+      ]
+    );
+
+    if (res.rows.length === 0) return undefined;
+    return this.getOrderById(res.rows[0].id);
+  }
+
+  async submitPaymentProof(
+    id: string,
+    proof: {
+      transactionRef?: string;
+      proofUrl?: string;
+      transferDate?: string;
+      amount?: number;
+      notes?: string;
+    }
+  ): Promise<OrderRecord | undefined> {
+    await ensurePaymentSchema();
+    const prev = await this.getOrderById(id);
+    if (!prev) return undefined;
+
+    const currentDetails = prev.paymentDetails || {};
+    const updatedDetails: OrderPaymentDetails = {
+      ...currentDetails,
+      transactionRef: proof.transactionRef || currentDetails.transactionRef,
+      proofUrl: proof.proofUrl || currentDetails.proofUrl,
+      transferDate: proof.transferDate || currentDetails.transferDate,
+      amount: proof.amount !== undefined ? proof.amount : currentDetails.amount,
+    };
+
+    const nowIso = new Date().toISOString();
+    const paymentHistoryEntry: PaymentStatusHistoryEntry = {
+      status: "PENDING_VERIFICATION",
+      previousStatus: prev.paymentStatus,
+      changedBy: "Customer",
+      changedAt: nowIso,
+      note: proof.transactionRef
+        ? `Payment proof submitted (Ref: ${proof.transactionRef})`
+        : "Payment screenshot/proof uploaded",
+    };
+
+    const res = await query(
+      `UPDATE orders SET
+        payment_details = $1::jsonb,
+        payment_status = 'PENDING_VERIFICATION',
+        payment_history = COALESCE(payment_history, '[]'::jsonb) || $2::jsonb,
+        updated_at = NOW()
+      WHERE id = $3 OR order_number = $3
+      RETURNING id;`,
+      [
+        JSON.stringify(updatedDetails),
+        JSON.stringify([paymentHistoryEntry]),
+        id,
+      ]
     );
 
     if (res.rows.length === 0) return undefined;
@@ -1447,10 +1713,14 @@ class SupabaseDataStore {
           taxPercentage: Number(r.tax_percentage ?? 0),
           orderNotifications: Boolean(r.order_notifications ?? true),
           inventoryAlertThreshold: Number(r.inventory_alert_threshold ?? 5),
+          codEnabled: r.cod_enabled !== undefined ? Boolean(r.cod_enabled) : true,
+          bankTransferEnabled: r.bank_transfer_enabled !== undefined ? Boolean(r.bank_transfer_enabled) : true,
           bankAccountHolder: r.bank_account_holder || "SHOPY Retail Private Limited",
           bankName: r.bank_name || "Meezan Bank Limited",
+          bankAccountTitle: r.bank_account_title || "SHOPY Main Operations",
           bankAccountNumber: r.bank_account_number || "01020304050607",
           bankIban: r.bank_iban || "PK12MEZN0001020304050607",
+          bankRaastId: r.bank_raast_id || "03001234567",
           bankPaymentContact: r.bank_payment_contact || "+92 300 1234567",
           bankPaymentInstructions: r.bank_payment_instructions || "Please transfer the exact total order amount to the bank account above and share screenshot on WhatsApp with your Order ID for instant payment verification.",
         };
@@ -1470,10 +1740,14 @@ class SupabaseDataStore {
       taxPercentage: 0,
       orderNotifications: true,
       inventoryAlertThreshold: 5,
+      codEnabled: true,
+      bankTransferEnabled: true,
       bankAccountHolder: "SHOPY Retail Private Limited",
       bankName: "Meezan Bank Limited",
+      bankAccountTitle: "SHOPY Main Operations",
       bankAccountNumber: "01020304050607",
       bankIban: "PK12MEZN0001020304050607",
+      bankRaastId: "03001234567",
       bankPaymentContact: "+92 300 1234567",
       bankPaymentInstructions: "Please transfer the exact total order amount to the bank account above and share screenshot on WhatsApp with your Order ID for instant payment verification.",
     };
@@ -1494,10 +1768,14 @@ class SupabaseDataStore {
       taxPercentage: updates.taxPercentage !== undefined ? Number(updates.taxPercentage) : current.taxPercentage,
       orderNotifications: updates.orderNotifications !== undefined ? Boolean(updates.orderNotifications) : current.orderNotifications,
       inventoryAlertThreshold: updates.inventoryAlertThreshold !== undefined ? Number(updates.inventoryAlertThreshold) : current.inventoryAlertThreshold,
+      codEnabled: updates.codEnabled !== undefined ? Boolean(updates.codEnabled) : current.codEnabled,
+      bankTransferEnabled: updates.bankTransferEnabled !== undefined ? Boolean(updates.bankTransferEnabled) : current.bankTransferEnabled,
       bankAccountHolder: updates.bankAccountHolder !== undefined ? updates.bankAccountHolder : current.bankAccountHolder,
       bankName: updates.bankName !== undefined ? updates.bankName : current.bankName,
+      bankAccountTitle: updates.bankAccountTitle !== undefined ? updates.bankAccountTitle : current.bankAccountTitle,
       bankAccountNumber: updates.bankAccountNumber !== undefined ? updates.bankAccountNumber : current.bankAccountNumber,
       bankIban: updates.bankIban !== undefined ? updates.bankIban : current.bankIban,
+      bankRaastId: updates.bankRaastId !== undefined ? updates.bankRaastId : current.bankRaastId,
       bankPaymentContact: updates.bankPaymentContact !== undefined ? updates.bankPaymentContact : current.bankPaymentContact,
       bankPaymentInstructions: updates.bankPaymentInstructions !== undefined ? updates.bankPaymentInstructions : current.bankPaymentInstructions,
     };
@@ -1507,10 +1785,12 @@ class SupabaseDataStore {
         id, store_name, support_email, currency, currency_symbol,
         free_shipping_threshold, flat_shipping_rate, tax_percentage,
         order_notifications, inventory_alert_threshold,
-        bank_account_holder, bank_name,
-        bank_account_number, bank_iban, bank_payment_contact, bank_payment_instructions,
+        cod_enabled, bank_transfer_enabled,
+        bank_account_holder, bank_name, bank_account_title,
+        bank_account_number, bank_iban, bank_raast_id,
+        bank_payment_contact, bank_payment_instructions,
         updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, NOW())
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, NOW())
       ON CONFLICT (id) DO UPDATE SET
         store_name = EXCLUDED.store_name,
         support_email = EXCLUDED.support_email,
@@ -1521,10 +1801,14 @@ class SupabaseDataStore {
         tax_percentage = EXCLUDED.tax_percentage,
         order_notifications = EXCLUDED.order_notifications,
         inventory_alert_threshold = EXCLUDED.inventory_alert_threshold,
+        cod_enabled = EXCLUDED.cod_enabled,
+        bank_transfer_enabled = EXCLUDED.bank_transfer_enabled,
         bank_account_holder = EXCLUDED.bank_account_holder,
         bank_name = EXCLUDED.bank_name,
+        bank_account_title = EXCLUDED.bank_account_title,
         bank_account_number = EXCLUDED.bank_account_number,
         bank_iban = EXCLUDED.bank_iban,
+        bank_raast_id = EXCLUDED.bank_raast_id,
         bank_payment_contact = EXCLUDED.bank_payment_contact,
         bank_payment_instructions = EXCLUDED.bank_payment_instructions,
         updated_at = NOW()
@@ -1540,10 +1824,14 @@ class SupabaseDataStore {
         merged.taxPercentage,
         merged.orderNotifications,
         merged.inventoryAlertThreshold,
+        merged.codEnabled ?? true,
+        merged.bankTransferEnabled ?? true,
         merged.bankAccountHolder || null,
         merged.bankName || null,
+        merged.bankAccountTitle || null,
         merged.bankAccountNumber || null,
         merged.bankIban || null,
+        merged.bankRaastId || null,
         merged.bankPaymentContact || null,
         merged.bankPaymentInstructions || null,
       ]
@@ -1562,10 +1850,14 @@ class SupabaseDataStore {
         taxPercentage: Number(r.tax_percentage),
         orderNotifications: Boolean(r.order_notifications),
         inventoryAlertThreshold: Number(r.inventory_alert_threshold),
+        codEnabled: Boolean(r.cod_enabled ?? true),
+        bankTransferEnabled: Boolean(r.bank_transfer_enabled ?? true),
         bankAccountHolder: r.bank_account_holder || undefined,
         bankName: r.bank_name || undefined,
+        bankAccountTitle: r.bank_account_title || undefined,
         bankAccountNumber: r.bank_account_number || undefined,
         bankIban: r.bank_iban || undefined,
+        bankRaastId: r.bank_raast_id || undefined,
         bankPaymentContact: r.bank_payment_contact || undefined,
         bankPaymentInstructions: r.bank_payment_instructions || undefined,
       };

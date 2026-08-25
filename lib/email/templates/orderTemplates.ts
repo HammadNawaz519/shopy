@@ -209,16 +209,20 @@ export function renderOrderStatusUpdateEmail({
   const subject = `SHOPY — Order #${safeOrderNumber} Status: ${safeStatus}`;
 
   const statusDescriptions: Record<string, string> = {
+    VERIFYING_PAYMENT: "We have received your order and are verifying your payment details.",
+    AWAITING_PAYMENT_VERIFICATION: "We have received your order and are verifying your payment details.",
     PENDING: "Your order is pending confirmation.",
     CONFIRMED: "Your order has been verified and confirmed.",
-    PROCESSING: "Your order is currently being tailored and carefully packaged.",
+    PREPARING: "Your order is currently being prepared and tailored with care in our atelier.",
+    PROCESSING: "Your order is currently being prepared and tailored with care in our atelier.",
     SHIPPED: "Your order has departed our atelier and is in transit with our logistics partner.",
     OUT_FOR_DELIVERY: "Your order is out for delivery today and will arrive shortly.",
-    DELIVERED: "Your order has been successfully delivered. Enjoy your pieces.",
+    DELIVERED: "Your order has been successfully delivered. Thank you for shopping with SHOPY.",
     CANCELLED: "Your order has been cancelled.",
+    RETURN_REQUESTED: "Your return request has been received and is being reviewed by our team.",
     RETURNED: "Your order return has been received and processed by our atelier.",
     REFUNDED: "Your order payment has been successfully refunded.",
-    PAID: "Your payment has been successfully received and verified.",
+    PAID: "Your payment has been successfully verified and confirmed.",
   };
 
   const statusMessage = statusDescriptions[newStatus.toUpperCase()] || `Your order status has been updated to ${safeStatus}.`;

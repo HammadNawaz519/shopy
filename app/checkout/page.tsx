@@ -18,12 +18,17 @@ export default function CheckoutPage() {
 
   const [loading, setLoading] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [methodsEnabled, setMethodsEnabled] = useState({
+    cod: true,
+    bankTransfer: true,
+  });
   const [bankSettings, setBankSettings] = useState<any>({
     accountHolderName: "SHOPY Retail Private Limited",
     accountTitle: "SHOPY Main Operations",
     bankName: "Meezan Bank Limited",
     accountNumber: "01020304050607",
     iban: "PK12MEZN0001020304050607",
+    raastId: "03001234567",
     paymentContact: "+92 300 1234567",
     instructions: "Please transfer the exact total order amount to the bank account above and share screenshot on WhatsApp with your Order ID for instant payment verification.",
   });
@@ -37,7 +42,7 @@ export default function CheckoutPage() {
     city: "Lahore",
     postalCode: "",
     province: "Punjab",
-    paymentMethod: "cod" as "cod" | "online",
+    paymentMethod: "cod" as "cod" | "bank_transfer",
   });
 
   useEffect(() => {
@@ -50,8 +55,17 @@ export default function CheckoutPage() {
         const res = await fetch("/api/settings/payment", { cache: "no-store" });
         if (res.ok) {
           const data = await res.json();
-          if (data.online?.bankDetails) {
-            setBankSettings(data.online.bankDetails);
+          const codOk = data.cod?.enabled ?? true;
+          const bankOk = (data.bankTransfer?.enabled ?? data.online?.enabled) ?? true;
+          setMethodsEnabled({ cod: codOk, bankTransfer: bankOk });
+
+          if (!codOk && bankOk) {
+            setFormData((prev) => ({ ...prev, paymentMethod: "bank_transfer" }));
+          }
+
+          const details = data.bankTransfer?.bankDetails || data.online?.bankDetails;
+          if (details) {
+            setBankSettings(details);
           }
         }
       } catch {}
@@ -310,66 +324,70 @@ export default function CheckoutPage() {
 
               <div className="space-y-4">
                 {/* 1. Cash on Delivery */}
-                <label
-                  className={`flex items-start gap-4 p-5 border cursor-pointer transition-all ${
-                    formData.paymentMethod === "cod"
-                      ? "border-[#495464] bg-[#F4F4F2] shadow-xs"
-                      : "border-[#BBBFCA]/50 bg-[#E8E8E8]/40 hover:border-[#495464]"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="paymentMethod"
-                    value="cod"
-                    checked={formData.paymentMethod === "cod"}
-                    onChange={() => setFormData({ ...formData, paymentMethod: "cod" })}
-                    className="mt-1 accent-[#495464]"
-                  />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <Banknote className="w-4 h-4 text-[#495464]" />
-                      <span className="text-xs uppercase tracking-widest font-semibold text-[#495464]">
-                        Cash on Delivery
+                {methodsEnabled.cod && (
+                  <label
+                    className={`flex items-start gap-4 p-5 border cursor-pointer transition-all ${
+                      formData.paymentMethod === "cod"
+                        ? "border-[#495464] bg-[#F4F4F2] shadow-xs"
+                        : "border-[#BBBFCA]/50 bg-[#E8E8E8]/40 hover:border-[#495464]"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value="cod"
+                      checked={formData.paymentMethod === "cod"}
+                      onChange={() => setFormData({ ...formData, paymentMethod: "cod" })}
+                      className="mt-1 accent-[#495464]"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <Banknote className="w-4 h-4 text-[#495464]" />
+                        <span className="text-xs uppercase tracking-widest font-semibold text-[#495464]">
+                          Cash on Delivery
+                        </span>
+                      </div>
+                      <span className="text-[11px] text-[#495464]/70 tracking-wider block mt-1">
+                        Payment will be collected when your order is delivered.
                       </span>
                     </div>
-                    <span className="text-[11px] text-[#495464]/70 tracking-wider block mt-1">
-                      Pay when your order arrives.
-                    </span>
-                  </div>
-                </label>
+                  </label>
+                )}
 
-                {/* 2. Online Payment / Bank Transfer */}
-                <label
-                  className={`flex items-start gap-4 p-5 border cursor-pointer transition-all ${
-                    formData.paymentMethod === "online"
-                      ? "border-[#495464] bg-[#F4F4F2] shadow-xs"
-                      : "border-[#BBBFCA]/50 bg-[#E8E8E8]/40 hover:border-[#495464]"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="paymentMethod"
-                    value="online"
-                    checked={formData.paymentMethod === "online"}
-                    onChange={() => setFormData({ ...formData, paymentMethod: "online" })}
-                    className="mt-1 accent-[#495464]"
-                  />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <Building2 className="w-4 h-4 text-[#495464]" />
-                      <span className="text-xs uppercase tracking-widest font-semibold text-[#495464]">
-                        Online Payment
+                {/* 2. Bank Transfer / Raast */}
+                {methodsEnabled.bankTransfer && (
+                  <label
+                    className={`flex items-start gap-4 p-5 border cursor-pointer transition-all ${
+                      formData.paymentMethod === "bank_transfer"
+                        ? "border-[#495464] bg-[#F4F4F2] shadow-xs"
+                        : "border-[#BBBFCA]/50 bg-[#E8E8E8]/40 hover:border-[#495464]"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value="bank_transfer"
+                      checked={formData.paymentMethod === "bank_transfer"}
+                      onChange={() => setFormData({ ...formData, paymentMethod: "bank_transfer" })}
+                      className="mt-1 accent-[#495464]"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <Building2 className="w-4 h-4 text-[#495464]" />
+                        <span className="text-xs uppercase tracking-widest font-semibold text-[#495464]">
+                          Bank Transfer / Raast
+                        </span>
+                      </div>
+                      <span className="text-[11px] text-[#495464]/70 tracking-wider block mt-1">
+                        Direct bank transfer or instant Raast payment.
                       </span>
                     </div>
-                    <span className="text-[11px] text-[#495464]/70 tracking-wider block mt-1">
-                      Pay through bank transfer.
-                    </span>
-                  </div>
-                </label>
+                  </label>
+                )}
               </div>
 
               {/* Dynamic Online Bank Transfer Details Box */}
-              {formData.paymentMethod === "online" && (
+              {formData.paymentMethod === "bank_transfer" && (
                 <div className="p-6 bg-[#F4F4F2] border border-[#495464]/40 space-y-5 animate-fadeIn">
                   <div className="flex items-center justify-between border-b border-[#BBBFCA]/40 pb-3">
                     <div>
@@ -386,12 +404,21 @@ export default function CheckoutPage() {
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                    <div className="bg-[#E8E8E8]/70 border border-[#BBBFCA]/40 p-3 sm:col-span-2">
+                    <div className="bg-[#E8E8E8]/70 border border-[#BBBFCA]/40 p-3">
                       <span className="text-[10px] uppercase tracking-widest font-semibold text-[#495464]/70 block mb-0.5">
                         Account Holder
                       </span>
                       <p className="font-medium text-sm text-[#495464]">{bankSettings.accountHolderName || "SHOPY Retail Private Limited"}</p>
                     </div>
+
+                    {bankSettings.accountTitle && (
+                      <div className="bg-[#E8E8E8]/70 border border-[#BBBFCA]/40 p-3">
+                        <span className="text-[10px] uppercase tracking-widest font-semibold text-[#495464]/70 block mb-0.5">
+                          Account Title
+                        </span>
+                        <p className="font-medium text-sm text-[#495464]">{bankSettings.accountTitle}</p>
+                      </div>
+                    )}
 
                     <div className="bg-[#E8E8E8]/70 border border-[#BBBFCA]/40 p-3 flex items-center justify-between">
                       <div>
@@ -434,6 +461,29 @@ export default function CheckoutPage() {
                         )}
                       </button>
                     </div>
+
+                    {bankSettings.raastId && (
+                      <div className="bg-[#E8E8E8]/70 border border-[#BBBFCA]/40 p-3 flex items-center justify-between sm:col-span-2">
+                        <div>
+                          <span className="text-[10px] uppercase tracking-widest font-semibold text-[#495464]/70 block mb-0.5">
+                            Raast ID / Instant Mobile Transfer
+                          </span>
+                          <p className="font-mono font-bold text-xs text-[#495464]">{bankSettings.raastId}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleCopy(bankSettings.raastId, "Raast ID")}
+                          className="p-1.5 bg-[#F4F4F2] border border-[#BBBFCA] hover:bg-white text-[#495464] transition-colors"
+                          title="Copy Raast ID"
+                        >
+                          {copiedField === "Raast ID" ? (
+                            <Check className="w-3.5 h-3.5 text-emerald-700" />
+                          ) : (
+                            <Copy className="w-3.5 h-3.5" />
+                          )}
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   {bankSettings.paymentContact && (
@@ -465,7 +515,7 @@ export default function CheckoutPage() {
                   <div className="flex items-start gap-2 text-[10px] text-[#495464]/70 bg-amber-50/70 border border-amber-200/60 p-3">
                     <Info className="w-4 h-4 text-amber-700 flex-shrink-0 mt-0.5" />
                     <span>
-                      Your order will be reserved upon placement. Fulfillment starts once our finance team confirms receipt of your transfer.
+                      Your order will be reserved upon placement. Fulfillment starts once our team verifies your payment.
                     </span>
                   </div>
                 </div>

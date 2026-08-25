@@ -18,11 +18,14 @@ export default function AdminSettingsPage() {
     flatShippingRate: 500,
     inventoryAlertThreshold: 5,
     orderNotifications: true,
+    codEnabled: true,
+    bankTransferEnabled: true,
     bankAccountHolder: "SHOPY Retail Private Limited",
     bankAccountTitle: "SHOPY Main Operations",
     bankName: "Meezan Bank Limited",
     bankAccountNumber: "01020304050607",
     bankIban: "PK12MEZN0001020304050607",
+    bankRaastId: "03001234567",
     bankPaymentContact: "+92 300 1234567",
     bankPaymentInstructions: "Please transfer the exact total order amount to the bank account above and share screenshot on WhatsApp with your Order ID for instant payment verification.",
   });
@@ -102,7 +105,7 @@ export default function AdminSettingsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-xs">
               <div>
                 <label className="block text-[10px] uppercase font-semibold text-[#495464] mb-1">
-                  Storefront Name
+                  Store Front Name
                 </label>
                 <input
                   type="text"
@@ -115,7 +118,7 @@ export default function AdminSettingsPage() {
 
               <div>
                 <label className="block text-[10px] uppercase font-semibold text-[#495464] mb-1">
-                  Concierge / Support Email
+                  Support Email Address
                 </label>
                 <input
                   type="email"
@@ -128,13 +131,13 @@ export default function AdminSettingsPage() {
 
               <div>
                 <label className="block text-[10px] uppercase font-semibold text-[#495464] mb-1">
-                  Currency Code
+                  Base Currency Code
                 </label>
                 <input
                   type="text"
                   required
                   value={settings.currency}
-                  onChange={(e) => setSettings({ ...settings, currency: e.target.value })}
+                  onChange={(e) => setSettings({ ...settings, currency: e.target.value.toUpperCase() })}
                   className="w-full bg-[#E8E8E8] border border-[#BBBFCA] px-3 py-2.5 uppercase"
                 />
               </div>
@@ -195,12 +198,58 @@ export default function AdminSettingsPage() {
             </div>
           </div>
 
-          {/* Section 2: Online Banking & Bank Transfer Details */}
+          {/* Section 2: Active Payment Methods */}
           <div className="pt-6 border-t border-[#BBBFCA]/40">
             <div className="border-b border-[#BBBFCA]/30 pb-4 mb-6">
-              <h2 className="font-serif text-xl font-medium text-[#495464]">Online / Bank Transfer Payment Details</h2>
+              <h2 className="font-serif text-xl font-medium text-[#495464]">Payment Methods</h2>
               <p className="text-xs text-[#495464]/60 uppercase tracking-widest mt-0.5">
-                These details will be dynamically presented to customers choosing &ldquo;Online Payment&rdquo; at checkout.
+                Enable or disable customer-facing payment gateways at checkout.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-xs">
+              <label className="flex items-start gap-3 p-4 bg-[#E8E8E8] border border-[#BBBFCA] cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={settings.codEnabled ?? true}
+                  onChange={(e) => setSettings({ ...settings, codEnabled: e.target.checked })}
+                  className="mt-1 accent-[#495464]"
+                />
+                <div>
+                  <span className="font-semibold uppercase tracking-wider text-[#495464] block">
+                    Cash on Delivery (COD)
+                  </span>
+                  <span className="text-[10px] text-[#495464]/70 block mt-0.5">
+                    Allow customers to pay in cash upon physical parcel delivery.
+                  </span>
+                </div>
+              </label>
+
+              <label className="flex items-start gap-3 p-4 bg-[#E8E8E8] border border-[#BBBFCA] cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={settings.bankTransferEnabled ?? true}
+                  onChange={(e) => setSettings({ ...settings, bankTransferEnabled: e.target.checked })}
+                  className="mt-1 accent-[#495464]"
+                />
+                <div>
+                  <span className="font-semibold uppercase tracking-wider text-[#495464] block">
+                    Bank Transfer / Raast
+                  </span>
+                  <span className="text-[10px] text-[#495464]/70 block mt-0.5">
+                    Allow direct bank transfers and instant Raast payments.
+                  </span>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          {/* Section 3: Online Banking & Bank Transfer Details */}
+          <div className="pt-6 border-t border-[#BBBFCA]/40">
+            <div className="border-b border-[#BBBFCA]/30 pb-4 mb-6">
+              <h2 className="font-serif text-xl font-medium text-[#495464]">Bank Transfer / Raast Details</h2>
+              <p className="text-xs text-[#495464]/60 uppercase tracking-widest mt-0.5">
+                These details are shown to customers when selecting &ldquo;Bank Transfer / Raast&rdquo; at checkout.
               </p>
             </div>
 
@@ -215,6 +264,19 @@ export default function AdminSettingsPage() {
                   placeholder="e.g. SHOPY Retail Private Limited"
                   value={settings.bankAccountHolder || ""}
                   onChange={(e) => setSettings({ ...settings, bankAccountHolder: e.target.value })}
+                  className="w-full bg-[#E8E8E8] border border-[#BBBFCA] px-3 py-2.5 font-medium text-[#495464]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] uppercase font-semibold text-[#495464] mb-1">
+                  Account Title / Operations
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. SHOPY Main Operations"
+                  value={settings.bankAccountTitle || ""}
+                  onChange={(e) => setSettings({ ...settings, bankAccountTitle: e.target.value })}
                   className="w-full bg-[#E8E8E8] border border-[#BBBFCA] px-3 py-2.5 font-medium text-[#495464]"
                 />
               </div>
@@ -263,6 +325,20 @@ export default function AdminSettingsPage() {
 
               <div>
                 <label className="block text-[10px] uppercase font-semibold text-[#495464] mb-1">
+                  Raast ID / Mobile Number
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. 03001234567"
+                  value={settings.bankRaastId || ""}
+                  onChange={(e) => setSettings({ ...settings, bankRaastId: e.target.value })}
+                  className="w-full bg-[#E8E8E8] border border-[#BBBFCA] px-3 py-2.5 font-mono text-[#495464]"
+                />
+                <p className="text-[10px] text-[#495464]/60 mt-1">For instant Raast P2M/P2P transfers.</p>
+              </div>
+
+              <div>
+                <label className="block text-[10px] uppercase font-semibold text-[#495464] mb-1">
                   Payment Verification Contact (WhatsApp / Phone) *
                 </label>
                 <input
@@ -273,7 +349,7 @@ export default function AdminSettingsPage() {
                   onChange={(e) => setSettings({ ...settings, bankPaymentContact: e.target.value })}
                   className="w-full bg-[#E8E8E8] border border-[#BBBFCA] px-3 py-2.5 text-[#495464]"
                 />
-                <p className="text-[10px] text-[#495464]/60 mt-1">Number where clients send payment transfer screenshots.</p>
+                <p className="text-[10px] text-[#495464]/60 mt-1">Contact where clients send payment transfer screenshots.</p>
               </div>
 
               <div className="sm:col-span-2">
@@ -282,7 +358,7 @@ export default function AdminSettingsPage() {
                 </label>
                 <textarea
                   rows={3}
-                  placeholder="Instructions displayed to customer when placing an online payment order..."
+                  placeholder="Instructions displayed to customer when placing a Bank Transfer / Raast order..."
                   value={settings.bankPaymentInstructions || ""}
                   onChange={(e) => setSettings({ ...settings, bankPaymentInstructions: e.target.value })}
                   className="w-full bg-[#E8E8E8] border border-[#BBBFCA] p-3 text-xs text-[#495464]"

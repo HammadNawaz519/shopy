@@ -53,25 +53,50 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "Order not found." }, { status: 404 });
     }
 
+    const adminName = admin.name || admin.email || "Admin";
     let updatedOrder = previousOrder;
 
-    // Deduplication check: only send email if status genuinely changed
-    const customerNotifiableStatuses = [
-      "PENDING",
-      "CONFIRMED",
-      "PROCESSING",
-      "SHIPPED",
-      "OUT_FOR_DELIVERY",
-      "DELIVERED",
-      "CANCELLED",
-      "RETURNED",
-      "REFUNDED",
-    ];
-
+    // 1. If status is provided and changed
     if (status && status !== previousOrder.status) {
-      updatedOrder = (await db.updateOrderStatus(orderId, status as any, notes)) || updatedOrder;
+      // Guardrail: Bank transfer order in VERIFYING_PAYMENT cannot directly become SHIPPED or DELIVERED without first becoming PREPARING
+      const isBankTransfer = previousOrder.paymentMethod === "bank_transfer" || previousOrder.paymentMethod === "online";
+      if (
+        isBankTransfer &&
+        (previousOrder.status === "VERIFYING_PAYMENT" || previousOrder.status === "AWAITING_PAYMENT_VERIFICATION") &&
+        (status === "SHIPPED" || status === "OUT_FOR_DELIVERY" || status === "DELIVERED") &&
+        previousOrder.paymentStatus !== "PAID"
+      ) {
+        return NextResponse.json(
+          { error: "Payment must be verified (order set to PREPARING) before dispatching or delivering." },
+          { status: 400 }
+        );
+      }
 
-      // Dispatch order update email via shopy.orderupdate@gmail.com (non-blocking)
+      updatedOrder =
+        (await db.updateOrderStatus(orderId, status as OrderStatus, notes, adminName)) ||
+        updatedOrder;
+
+      // Check if payment was automatically verified/marked paid by this status transition
+      if (updatedOrder.paymentStatus === "PAID" && previousOrder.paymentStatus !== "PAID") {
+        try {
+          sendPaymentReceivedEmail(updatedOrder).catch((err) =>
+            console.error("[PAYMENT RECEIPT EMAIL ERROR]", err)
+          );
+        } catch {}
+      }
+
+      // Customer status update email
+      const customerNotifiableStatuses = [
+        "CONFIRMED",
+        "PREPARING",
+        "SHIPPED",
+        "OUT_FOR_DELIVERY",
+        "DELIVERED",
+        "CANCELLED",
+        "RETURNED",
+        "REFUNDED",
+      ];
+
       if (customerNotifiableStatuses.includes(String(status).toUpperCase())) {
         try {
           sendOrderStatusUpdateEmail(updatedOrder, status, previousOrder.status, notes).catch((err) =>
@@ -83,20 +108,28 @@ export async function PATCH(req: Request) {
       }
     }
 
-    if (paymentStatus && paymentStatus !== previousOrder.paymentStatus) {
-      updatedOrder = (await db.updateOrderPaymentStatus(orderId, paymentStatus as any)) || updatedOrder;
-      
+    // 2. If payment status is explicitly provided and changed
+    if (paymentStatus && paymentStatus !== updatedOrder.paymentStatus) {
+      const prevPayment = updatedOrder.paymentStatus;
+      updatedOrder =
+        (await db.updateOrderPaymentStatus(orderId, paymentStatus as PaymentStatus, notes, adminName)) ||
+        updatedOrder;
+
       // If payment transitioned to PAID, send Payment Received receipt
-      if (paymentStatus === "PAID") {
+      if (paymentStatus === "PAID" && prevPayment !== "PAID") {
         try {
           sendPaymentReceivedEmail(updatedOrder).catch((err) =>
             console.error("[PAYMENT EMAIL ERROR] Failed to send payment received update:", err)
           );
         } catch {}
       } else if (paymentStatus === "REFUNDED" && status !== "CANCELLED") {
-        // If payment transitioned to REFUNDED and status didn't trigger refund email, send refund notice
         try {
-          sendOrderStatusUpdateEmail(updatedOrder, "REFUNDED", previousOrder.status, notes || "Payment has been processed for refund.").catch((err) =>
+          sendOrderStatusUpdateEmail(
+            updatedOrder,
+            "REFUNDED",
+            previousOrder.status,
+            notes || "Payment has been processed for refund."
+          ).catch((err) =>
             console.error("[REFUND EMAIL ERROR] Failed to send refund update:", err)
           );
         } catch {}

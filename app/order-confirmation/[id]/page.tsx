@@ -58,45 +58,60 @@ export default function OrderConfirmationPage({ params }: { params: { id: string
     );
   }
 
+  const isBankTransfer = order.paymentMethod === "bank_transfer" || order.paymentMethod === "online";
+  const isPaid = order.paymentStatus === "PAID";
+  const isVerifying =
+    order.status === "VERIFYING_PAYMENT" ||
+    order.status === "AWAITING_PAYMENT_VERIFICATION" ||
+    (isBankTransfer && !isPaid);
+
   return (
     <div className="pt-20 pb-20 bg-[#F4F4F2] text-[#495464]">
       <div className="max-w-3xl mx-auto px-6">
-        {/* Success Header */}
+        {/* Header */}
         <div className="text-center py-8 border-b border-[#BBBFCA]/30 space-y-4">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#E8E8E8] text-[#495464] mb-2 border border-[#BBBFCA]/50 animate-fadeIn">
             <CheckCircle2 className="w-8 h-8 stroke-[1.5]" />
           </div>
           <span className="text-xs uppercase tracking-widest text-[#495464]/60 block font-medium">
-            CONFIRMED &amp; DISPATCH QUEUED
+            {isVerifying ? "PAYMENT VERIFICATION IN PROGRESS" : "CONFIRMED & ATELIER QUEUED"}
           </span>
           <h1 className="font-serif text-3xl sm:text-4xl lg:text-5xl font-medium tracking-tight text-[#495464]">
             Thank you for your order
           </h1>
           <p className="text-xs sm:text-sm text-[#495464]/80 tracking-wider max-w-md mx-auto">
-            Order <span className="font-semibold text-[#495464]">{order.orderNumber}</span> has been confirmed and is being prepared in our atelier.
+            {isVerifying
+              ? `We're verifying your payment for Order ${order.orderNumber}. Your order will be prepared once your payment has been confirmed.`
+              : `Order ${order.orderNumber} has been confirmed and is currently being prepared in our atelier.`}
           </p>
         </div>
 
         {/* Order Details Card */}
         <div className="mt-10 bg-[#E8E8E8]/50 border border-[#BBBFCA]/40 p-8 space-y-8">
           {/* Tracking Step Tracker */}
-          <div className="grid grid-cols-3 gap-2 text-center border-b border-[#BBBFCA]/30 pb-6">
+          <div className="grid grid-cols-4 gap-2 text-center border-b border-[#BBBFCA]/30 pb-6">
             <div className="space-y-1">
-              <span className="inline-block w-2.5 h-2.5 rounded-full bg-[#495464]" />
+              <span className={`inline-block w-2.5 h-2.5 rounded-full ${isVerifying ? "bg-amber-600 animate-pulse" : "bg-[#495464]"}`} />
               <p className="text-[10px] uppercase tracking-widest font-semibold text-[#495464]">
-                Confirmed
+                {isBankTransfer ? (isPaid ? "Payment Verified" : "Verification") : "Confirmed"}
               </p>
             </div>
-            <div className="space-y-1 opacity-50">
-              <span className="inline-block w-2.5 h-2.5 rounded-full bg-[#BBBFCA]" />
+            <div className={`space-y-1 ${order.status === "PREPARING" || order.status === "PROCESSING" || order.status === "SHIPPED" || order.status === "DELIVERED" ? "" : "opacity-40"}`}>
+              <span className={`inline-block w-2.5 h-2.5 rounded-full ${order.status === "PREPARING" || order.status === "PROCESSING" ? "bg-[#495464]" : "bg-[#BBBFCA]"}`} />
               <p className="text-[10px] uppercase tracking-widest font-medium text-[#495464]">
                 Atelier Prep
               </p>
             </div>
-            <div className="space-y-1 opacity-50">
-              <span className="inline-block w-2.5 h-2.5 rounded-full bg-[#BBBFCA]" />
+            <div className={`space-y-1 ${order.status === "SHIPPED" || order.status === "OUT_FOR_DELIVERY" || order.status === "DELIVERED" ? "" : "opacity-40"}`}>
+              <span className={`inline-block w-2.5 h-2.5 rounded-full ${order.status === "SHIPPED" || order.status === "OUT_FOR_DELIVERY" ? "bg-[#495464]" : "bg-[#BBBFCA]"}`} />
               <p className="text-[10px] uppercase tracking-widest font-medium text-[#495464]">
-                Dispatched
+                In Transit
+              </p>
+            </div>
+            <div className={`space-y-1 ${order.status === "DELIVERED" ? "" : "opacity-40"}`}>
+              <span className={`inline-block w-2.5 h-2.5 rounded-full ${order.status === "DELIVERED" ? "bg-emerald-700" : "bg-[#BBBFCA]"}`} />
+              <p className="text-[10px] uppercase tracking-widest font-medium text-[#495464]">
+                Delivered
               </p>
             </div>
           </div>
@@ -170,24 +185,28 @@ export default function OrderConfirmationPage({ params }: { params: { id: string
                 {order.shippingAddress.city}, {order.shippingAddress.province} {order.shippingAddress.postalCode}
               </p>
               <p>Phone: {order.shippingAddress.phone}</p>
-              <div className="mt-2 flex items-center gap-2">
+              <div className="mt-3 flex flex-wrap items-center gap-2">
                 <span className="text-[11px] text-[#495464]">
-                  Payment Method: <strong>{order.paymentMethod === "online" ? "Online / Bank Transfer" : "Cash on Delivery"}</strong>
+                  Payment Method: <strong>{isBankTransfer ? "Bank Transfer / Raast" : "Cash on Delivery"}</strong>
                 </span>
                 <span
-                  className={`text-[10px] uppercase font-semibold px-2 py-0.5 ${
-                    order.paymentStatus === "PAID"
-                      ? "bg-emerald-100 text-emerald-800"
-                      : "bg-amber-100 text-amber-800"
+                  className={`text-[10px] uppercase font-semibold px-2.5 py-0.5 border ${
+                    isPaid
+                      ? "bg-emerald-50 text-emerald-800 border-emerald-300"
+                      : "bg-[#E8E8E8] text-[#495464] border-[#BBBFCA]"
                   }`}
                 >
-                  {order.paymentStatus === "PAID" ? "PAID" : "UNPAID"}
+                  {isPaid
+                    ? "✓ PAID"
+                    : isBankTransfer
+                    ? "PENDING VERIFICATION"
+                    : "CASH ON DELIVERY · UNPAID"}
                 </span>
               </div>
             </div>
 
             {/* Online Bank Transfer Details */}
-            {order.paymentMethod === "online" && order.paymentDetails && (
+            {isBankTransfer && order.paymentDetails && (
               <div className="bg-[#E8E8E8]/70 border border-[#BBBFCA]/50 p-4 space-y-2 text-xs">
                 <span className="font-semibold block uppercase text-[10px] tracking-widest text-[#495464]">
                   Bank Transfer Reference Details:
@@ -201,6 +220,12 @@ export default function OrderConfirmationPage({ params }: { params: { id: string
                     <span className="text-[#495464]/70">Account Holder:</span>{" "}
                     <span>{order.paymentDetails.accountHolderName}</span>
                   </div>
+                  {order.paymentDetails.accountTitle && (
+                    <div>
+                      <span className="text-[#495464]/70">Account Title:</span>{" "}
+                      <span>{order.paymentDetails.accountTitle}</span>
+                    </div>
+                  )}
                   <div>
                     <span className="text-[#495464]/70">Account #:</span>{" "}
                     <span className="font-mono font-bold">{order.paymentDetails.accountNumber}</span>
@@ -209,6 +234,12 @@ export default function OrderConfirmationPage({ params }: { params: { id: string
                     <span className="text-[#495464]/70">IBAN:</span>{" "}
                     <span className="font-mono font-bold">{order.paymentDetails.iban}</span>
                   </div>
+                  {order.paymentDetails.raastId && (
+                    <div>
+                      <span className="text-[#495464]/70">Raast ID:</span>{" "}
+                      <span className="font-mono font-bold">{order.paymentDetails.raastId}</span>
+                    </div>
+                  )}
                 </div>
                 {order.paymentDetails.instructions && (
                   <p className="text-[10px] text-[#495464]/80 pt-2 border-t border-[#BBBFCA]/30">

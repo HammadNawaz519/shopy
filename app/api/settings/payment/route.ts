@@ -7,25 +7,41 @@ export const revalidate = 0;
 export async function GET() {
   try {
     const settings = await db.getStoreSettings();
+    const bankDetails = {
+      accountHolderName: settings.bankAccountHolder || "SHOPY Retail Private Limited",
+      accountTitle: settings.bankAccountTitle || "SHOPY Main Operations",
+      bankName: settings.bankName || "Meezan Bank Limited",
+      accountNumber: settings.bankAccountNumber || "01020304050607",
+      iban: settings.bankIban || "PK12MEZN0001020304050607",
+      raastId: settings.bankRaastId || "03001234567",
+      paymentContact: settings.bankPaymentContact || "+92 300 1234567",
+      instructions:
+        settings.bankPaymentInstructions ||
+        "Please transfer the exact total order amount to the bank account above and share screenshot on WhatsApp with your Order ID for instant payment verification.",
+    };
+
     return NextResponse.json(
       {
         cod: {
-          available: true,
+          enabled: settings.codEnabled ?? true,
+          available: settings.codEnabled ?? true,
           title: "Cash on Delivery",
           description: "Pay when your order arrives. Available nationwide across Pakistan.",
         },
+        bankTransfer: {
+          enabled: settings.bankTransferEnabled ?? true,
+          available: settings.bankTransferEnabled ?? true,
+          title: "Bank Transfer / Raast",
+          description: "Direct bank transfer or Raast instant payment.",
+          bankDetails,
+        },
+        // Backward compatibility
         online: {
-          available: true,
-          title: "Online / Bank Transfer",
-          description: "Pay securely via direct bank transfer or internet banking.",
-          bankDetails: {
-            accountHolderName: settings.bankAccountHolder || "SHOPY Retail Private Limited",
-            bankName: settings.bankName || "Meezan Bank Limited",
-            accountNumber: settings.bankAccountNumber || "01020304050607",
-            iban: settings.bankIban || "PK12MEZN0001020304050607",
-            paymentContact: settings.bankPaymentContact || "+92 300 1234567",
-            instructions: settings.bankPaymentInstructions || "Please transfer the exact total order amount to the bank account above and share screenshot on WhatsApp with your Order ID for instant payment verification.",
-          },
+          enabled: settings.bankTransferEnabled ?? true,
+          available: settings.bankTransferEnabled ?? true,
+          title: "Bank Transfer / Raast",
+          description: "Direct bank transfer or Raast instant payment.",
+          bankDetails,
         },
       },
       {

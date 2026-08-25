@@ -59,11 +59,11 @@ export default function OrderInvoicePrint({ order }: OrderInvoicePrintProps) {
   const paymentMethodLabel =
     order.paymentMethod === "cod"
       ? "Cash on Delivery (COD)"
-      : order.paymentMethod === "online"
-      ? "Online / Bank Transfer"
+      : order.paymentMethod === "bank_transfer" || order.paymentMethod === "online"
+      ? "Bank Transfer / Raast"
       : order.paymentMethod
       ? order.paymentMethod.toUpperCase()
-      : "Prepaid / Electronic";
+      : "Cash on Delivery (COD)";
 
   return (
     <div className="w-full bg-white text-[#111111] p-6 sm:p-10 font-sans text-xs leading-normal">

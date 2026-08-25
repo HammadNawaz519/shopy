@@ -109,12 +109,12 @@ function OrdersContent() {
       });
       const data = await res.json();
       if (res.ok && data.success) {
-        showToast(`Order status updated to ${newStatus}`, "success");
+        showToast(`Order status updated to ${formatStatusLabel(newStatus)}`, "success");
         setOrders((prev) =>
-          prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o))
+          prev.map((o) => (o.id === orderId ? data.order || { ...o, status: newStatus } : o))
         );
         if (selectedOrder?.id === orderId) {
-          setSelectedOrder({ ...selectedOrder, status: newStatus });
+          setSelectedOrder(data.order || { ...selectedOrder, status: newStatus });
         }
       } else {
         showToast(data.error || "Failed to update order status.", "error");
@@ -138,10 +138,10 @@ function OrdersContent() {
       if (res.ok && data.success) {
         showToast(`Payment status updated to ${newPaymentStatus}`, "success");
         setOrders((prev) =>
-          prev.map((o) => (o.id === orderId ? { ...o, paymentStatus: newPaymentStatus } : o))
+          prev.map((o) => (o.id === orderId ? data.order || { ...o, paymentStatus: newPaymentStatus } : o))
         );
         if (selectedOrder?.id === orderId) {
-          setSelectedOrder({ ...selectedOrder, paymentStatus: newPaymentStatus });
+          setSelectedOrder(data.order || { ...selectedOrder, paymentStatus: newPaymentStatus });
         }
       } else {
         showToast(data.error || "Failed to update payment status.", "error");
@@ -153,11 +153,67 @@ function OrdersContent() {
     }
   };
 
+  const formatStatusLabel = (st: string) => {
+    switch (String(st).toUpperCase()) {
+      case "VERIFYING_PAYMENT":
+      case "AWAITING_PAYMENT_VERIFICATION":
+        return "Verifying Payment";
+      case "CONFIRMED":
+        return "Confirmed";
+      case "PREPARING":
+      case "PROCESSING":
+        return "Preparing";
+      case "SHIPPED":
+        return "Shipped";
+      case "OUT_FOR_DELIVERY":
+        return "Out for Delivery";
+      case "DELIVERED":
+        return "Delivered";
+      case "CANCELLED":
+        return "Cancelled";
+      case "RETURN_REQUESTED":
+        return "Return Requested";
+      case "RETURNED":
+        return "Returned";
+      case "REFUNDED":
+        return "Refunded";
+      default:
+        return st;
+    }
+  };
+
+  const getPaymentBadge = (ord: any) => {
+    const isBank = ord.paymentMethod === "bank_transfer" || ord.paymentMethod === "online";
+    const methodText = isBank ? "BANK TRANSFER" : "COD";
+    const isPaid = ord.paymentStatus === "PAID";
+    const isPending = ord.paymentStatus === "PENDING_VERIFICATION" || ord.paymentStatus === "PENDING";
+    const isRefunded = ord.paymentStatus === "REFUNDED";
+
+    let statusText = isPaid ? "PAID" : isPending ? (isBank ? "PENDING" : "UNPAID") : ord.paymentStatus;
+    if (!isBank && !isPaid && !isRefunded) {
+      statusText = "UNPAID";
+    }
+
+    return (
+      <span
+        className={`inline-block text-center px-2.5 py-1 text-[10px] font-semibold tracking-wider border ${
+          isPaid
+            ? "bg-emerald-50 text-emerald-800 border-emerald-300"
+            : isRefunded
+            ? "bg-purple-50 text-purple-800 border-purple-300"
+            : "bg-[#E8E8E8] text-[#495464] border-[#BBBFCA]"
+        }`}
+      >
+        {methodText} · {statusText}
+      </span>
+    );
+  };
+
   const statusTabs = [
     { label: "All Orders", value: "ALL" },
-    { label: "Pending", value: "PENDING" },
+    { label: "Verifying Payment", value: "VERIFYING_PAYMENT" },
     { label: "Confirmed", value: "CONFIRMED" },
-    { label: "Processing", value: "PROCESSING" },
+    { label: "Preparing", value: "PREPARING" },
     { label: "Shipped", value: "SHIPPED" },
     { label: "Delivered", value: "DELIVERED" },
     { label: "Cancelled", value: "CANCELLED" },
@@ -231,8 +287,8 @@ function OrdersContent() {
                     <th className="p-4 font-semibold">Customer</th>
                     <th className="p-4 font-semibold">Items</th>
                     <th className="p-4 font-semibold">Total</th>
-                    <th className="p-4 font-semibold">Order Status</th>
                     <th className="p-4 font-semibold">Payment</th>
+                    <th className="p-4 font-semibold">Order Status</th>
                     <th className="p-4 font-semibold text-right">Action</th>
                   </tr>
                 </thead>
@@ -258,35 +314,26 @@ function OrdersContent() {
                         {formatPrice(ord.total)}
                       </td>
                       <td className="p-4">
+                        {getPaymentBadge(ord)}
+                      </td>
+                      <td className="p-4">
                         <select
                           value={ord.status}
                           disabled={updating}
                           onChange={(e) => handleUpdateStatus(ord.id, e.target.value)}
-                          className="bg-[#E8E8E8] border border-[#BBBFCA] px-2 py-1 text-[10px] uppercase font-semibold text-[#495464] focus:outline-none"
+                          className="bg-[#E8E8E8] border border-[#BBBFCA] px-2.5 py-1 text-[10px] uppercase font-semibold text-[#495464] focus:outline-none cursor-pointer"
                         >
-                          <option value="PENDING">PENDING</option>
+                          <option value="VERIFYING_PAYMENT">VERIFYING PAYMENT</option>
                           <option value="CONFIRMED">CONFIRMED</option>
-                          <option value="PROCESSING">PROCESSING</option>
+                          <option value="PREPARING">PREPARING</option>
                           <option value="SHIPPED">SHIPPED</option>
+                          <option value="OUT_FOR_DELIVERY">OUT FOR DELIVERY</option>
                           <option value="DELIVERED">DELIVERED</option>
                           <option value="CANCELLED">CANCELLED</option>
+                          <option value="RETURN_REQUESTED">RETURN REQUESTED</option>
+                          <option value="RETURNED">RETURNED</option>
+                          <option value="REFUNDED">REFUNDED</option>
                         </select>
-                      </td>
-                      <td className="p-4">
-                        <div className="flex flex-col gap-1.5 items-start">
-                          <span className="block w-[88px] text-center px-2 py-1 text-[10px] uppercase font-semibold tracking-wider bg-[#E8E8E8] text-[#495464] border border-[#BBBFCA]">
-                            {ord.paymentMethod === "online" ? "ONLINE" : "COD"}
-                          </span>
-                          <select
-                            value={ord.paymentStatus === "PAID" ? "PAID" : "UNPAID"}
-                            disabled={updating}
-                            onChange={(e) => handleUpdatePaymentStatus(ord.id, e.target.value)}
-                            className="w-[88px] bg-[#E8E8E8] border border-[#BBBFCA] px-2 py-1 text-[10px] uppercase font-semibold text-[#495464] focus:outline-none cursor-pointer"
-                          >
-                            <option value="UNPAID">UNPAID</option>
-                            <option value="PAID">PAID</option>
-                          </select>
-                        </div>
                       </td>
                       <td className="p-4 text-right">
                         <div className="inline-flex items-center justify-end gap-1.5 flex-nowrap">
@@ -349,10 +396,10 @@ function OrdersContent() {
               </div>
 
               {/* Status Controls */}
-              <div className="grid grid-cols-2 gap-4 bg-[#E8E8E8]/70 border border-[#BBBFCA]/40 p-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-[#E8E8E8]/70 border border-[#BBBFCA]/40 p-4">
                 <div>
                   <label className="block text-[10px] uppercase tracking-widest font-semibold text-[#495464] mb-1">
-                    Fulfillment Status
+                    Order Status
                   </label>
                   <select
                     value={selectedOrder.status}
@@ -360,81 +407,166 @@ function OrdersContent() {
                     onChange={(e) => handleUpdateStatus(selectedOrder.id, e.target.value)}
                     className="w-full bg-[#F4F4F2] border border-[#BBBFCA] px-3 py-2 text-xs text-[#495464] font-medium"
                   >
-                    <option value="PENDING">PENDING</option>
-                    <option value="CONFIRMED">CONFIRMED</option>
-                    <option value="PROCESSING">PROCESSING</option>
-                    <option value="SHIPPED">SHIPPED</option>
-                    <option value="DELIVERED">DELIVERED</option>
-                    <option value="CANCELLED">CANCELLED</option>
+                    <option value="VERIFYING_PAYMENT">Verifying Payment</option>
+                    <option value="CONFIRMED">Confirmed</option>
+                    <option value="PREPARING">Preparing</option>
+                    <option value="SHIPPED">Shipped</option>
+                    <option value="OUT_FOR_DELIVERY">Out for Delivery</option>
+                    <option value="DELIVERED">Delivered</option>
+                    <option value="CANCELLED">Cancelled</option>
+                    <option value="RETURN_REQUESTED">Return Requested</option>
+                    <option value="RETURNED">Returned</option>
+                    <option value="REFUNDED">Refunded</option>
                   </select>
                 </div>
 
                 <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="block text-[10px] uppercase tracking-widest font-semibold text-[#495464]">
-                      Payment Status
-                    </label>
-                    {selectedOrder.paymentStatus !== "PAID" && (
-                      <button
-                        type="button"
-                        disabled={updating}
-                        onClick={() => handleUpdatePaymentStatus(selectedOrder.id, "PAID")}
-                        className="text-[10px] uppercase font-bold text-emerald-800 hover:underline"
-                      >
-                        Mark as Paid
-                      </button>
-                    )}
-                  </div>
+                  <label className="block text-[10px] uppercase tracking-widest font-semibold text-[#495464] mb-1">
+                    Payment Status
+                  </label>
                   <select
-                    value={selectedOrder.paymentStatus === "PAID" ? "PAID" : "UNPAID"}
+                    value={selectedOrder.paymentStatus}
                     disabled={updating}
                     onChange={(e) => handleUpdatePaymentStatus(selectedOrder.id, e.target.value)}
                     className="w-full bg-[#F4F4F2] border border-[#BBBFCA] px-3 py-2 text-xs text-[#495464] font-medium"
                   >
                     <option value="UNPAID">UNPAID</option>
+                    <option value="PENDING_VERIFICATION">PENDING VERIFICATION</option>
                     <option value="PAID">PAID</option>
+                    <option value="FAILED">FAILED</option>
+                    <option value="REFUNDED">REFUNDED</option>
                   </select>
                 </div>
               </div>
 
-              {/* Payment Details Card (COD vs Online) */}
+              {/* Payment Details Card */}
               <div className="bg-[#E8E8E8]/50 border border-[#BBBFCA]/40 p-4 space-y-3 text-xs">
                 <div className="flex items-center justify-between border-b border-[#BBBFCA]/30 pb-2">
                   <span className="text-[10px] uppercase tracking-widest font-semibold text-[#495464]/80">
-                    Payment Method
+                    Payment Overview
                   </span>
-                  <span className="font-semibold text-[#495464] uppercase text-[11px]">
-                    {selectedOrder.paymentMethod === "online" ? "Online / Bank Transfer" : "Cash on Delivery (COD)"}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-[#495464] uppercase text-[11px]">
+                      {selectedOrder.paymentMethod === "bank_transfer" || selectedOrder.paymentMethod === "online"
+                        ? "Bank Transfer / Raast"
+                        : "Cash on Delivery (COD)"}
+                    </span>
+                    {getPaymentBadge(selectedOrder)}
+                  </div>
                 </div>
 
-                {selectedOrder.paymentMethod === "online" && selectedOrder.paymentDetails && (
-                  <div className="space-y-2 bg-[#F4F4F2] border border-[#BBBFCA]/50 p-3 text-[11px] text-[#495464]">
-                    <div className="flex justify-between">
-                      <span className="font-medium text-[#495464]/70">Bank Name:</span>
-                      <span className="font-semibold">{selectedOrder.paymentDetails.bankName || "Meezan Bank Limited"}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="font-medium text-[#495464]/70">Account Holder:</span>
-                      <span className="font-semibold">{selectedOrder.paymentDetails.accountHolderName}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="font-medium text-[#495464]/70">Account Number:</span>
-                      <span className="font-mono font-bold">{selectedOrder.paymentDetails.accountNumber}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="font-medium text-[#495464]/70">IBAN:</span>
-                      <span className="font-mono font-bold">{selectedOrder.paymentDetails.iban}</span>
-                    </div>
-                    {selectedOrder.paymentDetails.paymentContact && (
+                {(selectedOrder.paymentMethod === "bank_transfer" || selectedOrder.paymentMethod === "online") &&
+                  selectedOrder.paymentDetails && (
+                    <div className="space-y-2 bg-[#F4F4F2] border border-[#BBBFCA]/50 p-3 text-[11px] text-[#495464]">
                       <div className="flex justify-between">
-                        <span className="font-medium text-[#495464]/70">Verification Contact:</span>
-                        <span className="font-mono font-semibold">{selectedOrder.paymentDetails.paymentContact}</span>
+                        <span className="font-medium text-[#495464]/70">Bank Name:</span>
+                        <span className="font-semibold">{selectedOrder.paymentDetails.bankName || "Meezan Bank Limited"}</span>
                       </div>
-                    )}
-                  </div>
-                )}
+                      <div className="flex justify-between">
+                        <span className="font-medium text-[#495464]/70">Account Holder:</span>
+                        <span className="font-semibold">{selectedOrder.paymentDetails.accountHolderName}</span>
+                      </div>
+                      {selectedOrder.paymentDetails.accountTitle && (
+                        <div className="flex justify-between">
+                          <span className="font-medium text-[#495464]/70">Account Title:</span>
+                          <span className="font-semibold">{selectedOrder.paymentDetails.accountTitle}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between">
+                        <span className="font-medium text-[#495464]/70">Account Number:</span>
+                        <span className="font-mono font-bold">{selectedOrder.paymentDetails.accountNumber}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="font-medium text-[#495464]/70">IBAN:</span>
+                        <span className="font-mono font-bold">{selectedOrder.paymentDetails.iban}</span>
+                      </div>
+                      {selectedOrder.paymentDetails.raastId && (
+                        <div className="flex justify-between">
+                          <span className="font-medium text-[#495464]/70">Raast ID:</span>
+                          <span className="font-mono font-semibold">{selectedOrder.paymentDetails.raastId}</span>
+                        </div>
+                      )}
+                      {selectedOrder.paymentDetails.paymentContact && (
+                        <div className="flex justify-between">
+                          <span className="font-medium text-[#495464]/70">Verification Support:</span>
+                          <span className="font-mono font-semibold">{selectedOrder.paymentDetails.paymentContact}</span>
+                        </div>
+                      )}
+                      {selectedOrder.paymentDetails.transactionRef && (
+                        <div className="flex justify-between border-t border-[#BBBFCA]/30 pt-1.5 mt-1.5">
+                          <span className="font-medium text-emerald-800">Customer Submitted Ref:</span>
+                          <span className="font-mono font-bold text-emerald-800">
+                            {selectedOrder.paymentDetails.transactionRef}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
               </div>
+
+              {/* Order & Payment History Timelines */}
+              {((selectedOrder.orderHistory && selectedOrder.orderHistory.length > 0) ||
+                (selectedOrder.paymentHistory && selectedOrder.paymentHistory.length > 0)) && (
+                <div className="bg-[#E8E8E8]/50 border border-[#BBBFCA]/40 p-4 space-y-4 text-xs">
+                  <span className="text-[10px] uppercase tracking-widest font-semibold text-[#495464]/80 block">
+                    Audit Logs &amp; Status Timelines
+                  </span>
+
+                  {/* Order History */}
+                  {selectedOrder.orderHistory && selectedOrder.orderHistory.length > 0 && (
+                    <div className="space-y-2">
+                      <span className="text-[9px] uppercase tracking-wider font-bold text-[#495464]/60 block">
+                        Order Lifecycle Progression
+                      </span>
+                      <div className="space-y-1.5 pl-2 border-l-2 border-[#495464]/30">
+                        {selectedOrder.orderHistory.map((h: any, idx: number) => (
+                          <div key={idx} className="text-[11px] text-[#495464]">
+                            <div className="flex items-center justify-between">
+                              <span className="font-semibold">{formatStatusLabel(h.status)}</span>
+                              <span className="text-[10px] text-[#495464]/60">
+                                {new Date(h.changedAt).toLocaleString([], {
+                                  month: "short",
+                                  day: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </span>
+                            </div>
+                            {h.note && <p className="text-[10px] text-[#495464]/70">{h.note}</p>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Payment History */}
+                  {selectedOrder.paymentHistory && selectedOrder.paymentHistory.length > 0 && (
+                    <div className="space-y-2 pt-2 border-t border-[#BBBFCA]/20">
+                      <span className="text-[9px] uppercase tracking-wider font-bold text-[#495464]/60 block">
+                        Payment Status Log
+                      </span>
+                      <div className="space-y-1.5 pl-2 border-l-2 border-emerald-600/40">
+                        {selectedOrder.paymentHistory.map((h: any, idx: number) => (
+                          <div key={idx} className="text-[11px] text-[#495464]">
+                            <div className="flex items-center justify-between">
+                              <span className="font-semibold text-emerald-900">{h.status}</span>
+                              <span className="text-[10px] text-[#495464]/60">
+                                {new Date(h.changedAt).toLocaleString([], {
+                                  month: "short",
+                                  day: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </span>
+                            </div>
+                            {h.note && <p className="text-[10px] text-[#495464]/70">{h.note}</p>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Items List */}
               <div className="space-y-3">
