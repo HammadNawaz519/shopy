@@ -41,6 +41,7 @@ export default async function CollectionsOverviewPage() {
               <Link
                 key={category.id}
                 href={`/collections/${category.slug}`}
+                prefetch={false}
                 className="group flex flex-col bg-[#E8E8E8] overflow-hidden"
               >
                 <div className="relative aspect-[4/5] overflow-hidden">

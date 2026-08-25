@@ -61,3 +61,70 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #495464;
 }
+
+/* ==========================================================================
+   PRINT MEDIA RULES — Professional A4 Invoice Output
+   ========================================================================== */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm 12mm;
+  }
+
+  html, body {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    color: #111111 !important;
+    font-size: 11pt !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Hide all background admin navigation, headers, sidebars, buttons, drawers, and overlays */
+  header,
+  nav,
+  aside,
+  button,
+  select,
+  input,
+  form,
+  .print\\:hidden,
+  [role="navigation"],
+  [aria-label="Open menu"] {
+    display: none !important;
+  }
+
+  /* Ensure printable invoice takes full width and clean presentation */
+  #printable-order-invoice {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+    border: none !important;
+    page-break-inside: avoid;
+  }
+
+  table {
+    page-break-inside: auto;
+    width: 100% !important;
+  }
+
+  tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  tfoot {
+    display: table-footer-group;
+  }
+}

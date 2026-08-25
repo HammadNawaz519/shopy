@@ -2,8 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db/store";
 import { sanitizeSearchQuery } from "@/lib/security/sanitize";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+export const revalidate = 60; // 60s Edge CDN cache with on-demand admin revalidation
 
 export async function GET(req: Request) {
   try {
@@ -11,10 +10,6 @@ export async function GET(req: Request) {
     const category = searchParams.get("category") || undefined;
     const search = sanitizeSearchQuery(searchParams.get("search"));
     const featured = searchParams.get("featured") === "true";
-    const tag = searchParams.get("tag") || undefined;
-    const sort = searchParams.get("sort") || undefined;
-    const minPrice = searchParams.get("minPrice") ? Number(searchParams.get("minPrice")) : undefined;
-    const maxPrice = searchParams.get("maxPrice") ? Number(searchParams.get("maxPrice")) : undefined;
 
     const products = await db.getProducts({
       category,
@@ -27,11 +22,11 @@ export async function GET(req: Request) {
       {
         status: 200,
         headers: {
-          "Cache-Control": "public, s-maxage=30, stale-while-revalidate=120",
+          "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
         },
       }
     );
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { error: "Failed to retrieve products." },
       { status: 500 }

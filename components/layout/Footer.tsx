@@ -113,6 +113,7 @@ export default function Footer() {
                 <li key={link.name}>
                   <Link
                     href={link.href}
+                    prefetch={false}
                     className="text-xs text-[#495464]/80 hover:text-[#495464] tracking-wider transition-colors inline-block hover:translate-x-0.5 duration-200"
                   >
                     {link.name}
@@ -132,6 +133,7 @@ export default function Footer() {
                 <li key={link.name}>
                   <Link
                     href={link.href}
+                    prefetch={false}
                     className="text-xs text-[#495464]/80 hover:text-[#495464] tracking-wider transition-colors inline-block hover:translate-x-0.5 duration-200"
                   >
                     {link.name}
@@ -151,6 +153,7 @@ export default function Footer() {
                 <li key={link.name}>
                   <Link
                     href={link.href}
+                    prefetch={false}
                     className="text-xs text-[#495464]/80 hover:text-[#495464] tracking-wider transition-colors inline-block hover:translate-x-0.5 duration-200"
                   >
                     {link.name}

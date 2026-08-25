@@ -20,27 +20,27 @@ export default function EditorialSection() {
   const [quoteData, setQuoteData] = useState<EditorialQuote>(DEFAULT_QUOTE);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
-  const fetchQuote = async () => {
-    setIsLoading(true);
-    try {
-      const res = await fetch(`/api/editorial/quote?t=${Date.now()}`, {
-        cache: "no-store",
-      });
-      if (res.ok) {
-        const json = await res.json();
-        if (json?.data?.quote && json?.data?.headline) {
-          setQuoteData(json.data);
-        }
-      }
-    } catch (err) {
-      console.warn("Failed to fetch fresh AI quote:", err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   useEffect(() => {
+    let isMounted = true;
+    const fetchQuote = async () => {
+      try {
+        const res = await fetch(`/api/editorial/quote`, {
+          next: { revalidate: 3600 },
+        });
+        if (res.ok) {
+          const json = await res.json();
+          if (isMounted && json?.data?.quote && json?.data?.headline) {
+            setQuoteData(json.data);
+          }
+        }
+      } catch {
+        // Silently use DEFAULT_QUOTE
+      }
+    };
     fetchQuote();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   return (

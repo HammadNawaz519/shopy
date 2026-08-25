@@ -595,6 +595,37 @@ class SupabaseDataStore {
     }));
   }
 
+  async getCategoryBySlug(slug: string) {
+    try {
+      await this.ensureTablesExist();
+      const res = await query(
+        `SELECT c.*, COUNT(p.id)::int as product_count
+         FROM categories c
+         LEFT JOIN products p ON c.id = p.category_id OR LOWER(c.slug) = LOWER(p.category_slug)
+         WHERE LOWER(c.slug) = LOWER($1) OR c.id = $1
+         GROUP BY c.id
+         LIMIT 1;`,
+        [slug.trim()]
+      );
+      if (res.rows.length === 0) return undefined;
+      const row = res.rows[0];
+      return {
+        id: row.id,
+        slug: row.slug,
+        name: row.name,
+        tagline: row.tagline,
+        image: row.image,
+        description: row.description,
+        aspectRatio: row.aspect_ratio || "tall",
+        featured: Boolean(row.featured),
+        productCount: Number(row.product_count || 0),
+      };
+    } catch (err) {
+      console.error("[GET CATEGORY BY SLUG ERROR]", err);
+      return undefined;
+    }
+  }
+
   async addCategory(cat: { id?: string; name: string; slug: string; tagline?: string; image: string; description?: string; featured?: boolean }) {
     const id = cat.id || `cat_${Date.now()}`;
     const res = await query(
@@ -1762,6 +1793,318 @@ class SupabaseDataStore {
     }
     return merged;
   }
+
+  // --------------------------------------------------------------------------
+  // REAL STORAGE & DATABASE METRICS (PostgreSQL + Supabase Media Assets)
+  // --------------------------------------------------------------------------
+  async getStorageMetrics() {
+    try {
+      await this.ensureTablesExist();
+
+      // 1. Calculate actual PostgreSQL database size in bytes
+      let dbSizeBytes = 0;
+      try {
+        const dbRes = await query(`SELECT pg_database_size(current_database())::bigint as db_bytes;`);
+        dbSizeBytes = Number(dbRes.rows[0]?.db_bytes || 0);
+      } catch {}
+
+      // 2. Calculate media assets stored in PostgreSQL BYTEA table
+      let mediaSizeBytes = 0;
+      let mediaCount = 0;
+      try {
+        const mediaRes = await query(`
+          SELECT COALESCE(SUM(size_bytes), 0)::bigint as media_bytes, 
+                 COUNT(*)::bigint as media_count 
+          FROM media_assets;
+        `);
+        mediaSizeBytes = Number(mediaRes.rows[0]?.media_bytes || 0);
+        mediaCount = Number(mediaRes.rows[0]?.media_count || 0);
+      } catch {}
+
+      // 3. Count product gallery images
+      let productImagesCount = 0;
+      try {
+        const imgRes = await query(`SELECT COUNT(*)::bigint as img_count FROM product_images;`);
+        productImagesCount = Number(imgRes.rows[0]?.img_count || 0);
+      } catch {}
+
+      // 4. Products & Orders counts
+      let productsCount = 0;
+      let ordersCount = 0;
+      try {
+        const pRes = await query(`SELECT COUNT(*)::bigint as p_count FROM products;`);
+        productsCount = Number(pRes.rows[0]?.p_count || 0);
+        const oRes = await query(`SELECT COUNT(*)::bigint as o_count FROM orders;`);
+        ordersCount = Number(oRes.rows[0]?.o_count || 0);
+      } catch {}
+
+      const formatBytes = (bytes: number): string => {
+        if (bytes <= 0) return "0 B";
+        const k = 1024;
+        const dm = 1;
+        const sizes = ["B", "KB", "MB", "GB"];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
+      };
+
+      return {
+        dbSizeBytes,
+        dbSizeFormatted: formatBytes(dbSizeBytes),
+        mediaSizeBytes,
+        mediaSizeFormatted: formatBytes(mediaSizeBytes),
+        mediaCount,
+        productImagesCount,
+        productsCount,
+        ordersCount,
+        totalStorageFormatted: formatBytes(dbSizeBytes + mediaSizeBytes),
+        timestamp: new Date().toISOString(),
+      };
+    } catch (err) {
+      console.error("[STORAGE METRICS ERROR]", err);
+      return {
+        dbSizeBytes: 0,
+        dbSizeFormatted: "0 MB",
+        mediaSizeBytes: 0,
+        mediaSizeFormatted: "0 MB",
+        mediaCount: 0,
+        productImagesCount: 0,
+        productsCount: 0,
+        ordersCount: 0,
+        totalStorageFormatted: "0 MB",
+        timestamp: new Date().toISOString(),
+      };
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // HIGH-PERFORMANCE SQL AGGREGATIONS (ADMIN DASHBOARD & ANALYTICS)
+  // --------------------------------------------------------------------------
+  async getAdminMetricsSummary() {
+    await this.ensureTablesExist();
+    const settings = await this.getStoreSettings();
+    const threshold = settings.inventoryAlertThreshold || 5;
+
+    const [orderStats, productStats, customerStats, lowStockRes, recentOrdersRes, recentCustomersRes] = await Promise.all([
+      query(`
+        SELECT 
+          COUNT(*)::int as total_orders,
+          COALESCE(SUM(CASE WHEN status != 'CANCELLED' THEN total ELSE 0 END), 0)::numeric as total_revenue,
+          COUNT(CASE WHEN status IN ('PENDING', 'CONFIRMED') THEN 1 END)::int as pending_orders,
+          COUNT(CASE WHEN status = 'PROCESSING' THEN 1 END)::int as processing_orders,
+          COUNT(CASE WHEN status = 'SHIPPED' THEN 1 END)::int as shipped_orders,
+          COUNT(CASE WHEN status = 'DELIVERED' THEN 1 END)::int as delivered_orders,
+          COUNT(CASE WHEN status = 'CANCELLED' THEN 1 END)::int as cancelled_orders
+        FROM orders;
+      `),
+      query(`
+        SELECT 
+          COUNT(*)::int as total_products,
+          COUNT(CASE WHEN stock_count = 0 OR in_stock = false THEN 1 END)::int as out_of_stock_count,
+          COUNT(CASE WHEN stock_count > 0 AND stock_count <= $1 THEN 1 END)::int as low_stock_count
+        FROM products;
+      `, [threshold]),
+      query(`
+        SELECT COUNT(*)::int as total_customers FROM users WHERE role != 'admin';
+      `),
+      query(`
+        SELECT id, name, category_label, price, stock_count, in_stock, images
+        FROM products
+        WHERE stock_count > 0 AND stock_count <= $1
+        ORDER BY stock_count ASC
+        LIMIT 5;
+      `, [threshold]),
+      query(`
+        SELECT o.*, 
+               COALESCE(json_agg(i.*) FILTER (WHERE i.id IS NOT NULL), '[]'::json) as items
+        FROM orders o
+        LEFT JOIN order_items i ON o.id = i.order_id
+        GROUP BY o.id
+        ORDER BY o.created_at DESC
+        LIMIT 6;
+      `),
+      query(`
+        SELECT id, name, email, created_at FROM users WHERE role != 'admin' ORDER BY created_at DESC LIMIT 5;
+      `),
+    ]);
+
+    const os = orderStats.rows[0] || {};
+    const ps = productStats.rows[0] || {};
+    const cs = customerStats.rows[0] || {};
+
+    return {
+      metrics: {
+        totalRevenue: Number(os.total_revenue || 0),
+        totalOrders: Number(os.total_orders || 0),
+        pendingOrders: Number(os.pending_orders || 0),
+        processingOrders: Number(os.processing_orders || 0),
+        shippedOrders: Number(os.shipped_orders || 0),
+        deliveredOrders: Number(os.delivered_orders || 0),
+        cancelledOrders: Number(os.cancelled_orders || 0),
+        totalCustomers: Number(cs.total_customers || 0),
+        totalProducts: Number(ps.total_products || 0),
+        lowStockCount: Number(ps.low_stock_count || 0),
+        outOfStockCount: Number(ps.out_of_stock_count || 0),
+      },
+      pipeline: {
+        pending: Number(os.pending_orders || 0),
+        processing: Number(os.processing_orders || 0),
+        shipped: Number(os.shipped_orders || 0),
+        delivered: Number(os.delivered_orders || 0),
+        cancelled: Number(os.cancelled_orders || 0),
+      },
+      recentOrders: recentOrdersRes.rows.map(mapOrderRow),
+      recentCustomers: recentCustomersRes.rows.map((r) => ({
+        id: r.id,
+        name: r.name,
+        email: r.email,
+        createdAt: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
+      })),
+      lowStockProducts: lowStockRes.rows.map((p) => ({
+        id: p.id,
+        name: p.name,
+        category: p.category_label,
+        price: Number(p.price),
+        stockCount: Number(p.stock_count),
+        image: Array.isArray(p.images) ? p.images[0] : "",
+      })),
+    };
+  }
+
+  async getAdminAnalyticsSummary() {
+    await this.ensureTablesExist();
+    const [overviewRes, catBreakdownRes, statusRes, topProductsRes] = await Promise.all([
+      query(`
+        SELECT 
+          COALESCE(SUM(CASE WHEN status != 'CANCELLED' THEN total ELSE 0 END), 0)::numeric as total_revenue,
+          COUNT(*)::int as total_orders,
+          COUNT(CASE WHEN status != 'CANCELLED' THEN 1 END)::int as completed_orders
+        FROM orders;
+      `),
+      query(`
+        SELECT 
+          COALESCE(p.category_label, 'Tops') as category,
+          SUM(i.price * i.quantity)::numeric as revenue
+        FROM order_items i
+        JOIN orders o ON i.order_id = o.id
+        LEFT JOIN products p ON i.product_id = p.id
+        WHERE o.status != 'CANCELLED'
+        GROUP BY COALESCE(p.category_label, 'Tops')
+        ORDER BY revenue DESC;
+      `),
+      query(`
+        SELECT status, COUNT(*)::int as count
+        FROM orders
+        GROUP BY status;
+      `),
+      query(`
+        SELECT 
+          i.name,
+          COALESCE(i.product_id, i.name) as product_id,
+          MAX(i.image) as image,
+          SUM(i.quantity)::int as quantity,
+          SUM(i.price * i.quantity)::numeric as revenue
+        FROM order_items i
+        JOIN orders o ON i.order_id = o.id
+        WHERE o.status != 'CANCELLED'
+        GROUP BY i.name, COALESCE(i.product_id, i.name)
+        ORDER BY revenue DESC
+        LIMIT 5;
+      `),
+    ]);
+
+    const ov = overviewRes.rows[0] || {};
+    const totalRevenue = Number(ov.total_revenue || 0);
+    const completedOrders = Number(ov.completed_orders || 0);
+    const aov = completedOrders > 0 ? Math.round(totalRevenue / completedOrders) : 0;
+
+    const statusCounts: Record<string, number> = {
+      CONFIRMED: 0,
+      PROCESSING: 0,
+      SHIPPED: 0,
+      DELIVERED: 0,
+      CANCELLED: 0,
+    };
+    for (const row of statusRes.rows) {
+      if (row.status) {
+        statusCounts[row.status] = Number(row.count || 0);
+      }
+    }
+
+    const categoryBreakdown = catBreakdownRes.rows.map((r) => {
+      const revenue = Number(r.revenue || 0);
+      return {
+        category: r.category,
+        revenue,
+        percent: totalRevenue > 0 ? Math.round((revenue / totalRevenue) * 100) : 0,
+      };
+    });
+
+    const topProducts = topProductsRes.rows.map((r) => ({
+      name: r.name,
+      quantity: Number(r.quantity || 0),
+      revenue: Number(r.revenue || 0),
+      image: r.image || "",
+    }));
+
+    return {
+      analytics: {
+        totalRevenue,
+        totalOrders: Number(ov.total_orders || 0),
+        aov,
+        topProducts,
+        categoryBreakdown,
+        statusDistribution: statusCounts,
+      },
+    };
+  }
+
+  async getCustomersSummary(search?: string) {
+    await this.ensureTablesExist();
+    let sql = `
+      SELECT 
+        u.id, 
+        u.name, 
+        u.email, 
+        u.role, 
+        u.created_at,
+        COUNT(DISTINCT o.id)::int as order_count,
+        COALESCE(SUM(CASE WHEN o.status != 'CANCELLED' THEN o.total ELSE 0 END), 0)::numeric as total_spent,
+        MAX(o.created_at) as last_order_date
+      FROM users u
+      LEFT JOIN orders o ON u.id = o.user_id OR LOWER(u.email) = LOWER(o.shipping_address->>'email')
+      WHERE 1=1
+    `;
+    const params: any[] = [];
+    if (search && search.trim()) {
+      params.push(`%${search.trim().toLowerCase()}%`);
+      sql += ` AND (LOWER(u.name) LIKE $${params.length} OR LOWER(u.email) LIKE $${params.length})`;
+    }
+    sql += ` GROUP BY u.id ORDER BY u.created_at DESC;`;
+
+    const res = await query(sql, params);
+    return res.rows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      email: r.email,
+      role: r.role,
+      createdAt: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
+      orderCount: Number(r.order_count || 0),
+      totalSpent: Number(r.total_spent || 0),
+      lastOrderDate: r.last_order_date ? new Date(r.last_order_date).toISOString() : null,
+    }));
+  }
 }
 
 export const db = new SupabaseDataStore();
+
+// React Server Component request-scoped deduplication
+import { cache } from "react";
+
+export const getCachedProductById = cache(async (idOrSlug: string) => {
+  return db.getProductById(idOrSlug);
+});
+
+export const getCachedCategoryBySlug = cache(async (slug: string) => {
+  return db.getCategoryBySlug(slug);
+});
+

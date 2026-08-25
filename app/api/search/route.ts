@@ -25,7 +25,14 @@ export async function GET(req: Request) {
     }
 
     const results = await db.getProducts({ search: q });
-    return NextResponse.json({ results: results.slice(0, 10), query: q });
+    return NextResponse.json(
+      { results: results.slice(0, 10), query: q },
+      {
+        headers: {
+          "Cache-Control": "public, s-maxage=30, stale-while-revalidate=120",
+        },
+      }
+    );
   } catch {
     return NextResponse.json(
       { error: "Search failed." },

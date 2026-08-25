@@ -82,6 +82,7 @@ export default function AdminSidebar({ mobileOpen = false, onCloseMobile }: Admi
             <Link
               key={item.name}
               href={item.href}
+              prefetch={false}
               onClick={onCloseMobile}
               className={`flex items-center gap-3 px-3.5 py-2.5 text-xs font-medium tracking-wide transition-colors ${isActive
                   ? "bg-[#495464] text-[#F4F4F2] font-semibold border-l-2 border-[#F4F4F2]"
@@ -100,6 +101,7 @@ export default function AdminSidebar({ mobileOpen = false, onCloseMobile }: Admi
         <Link
           href="/"
           target="_blank"
+          prefetch={false}
           className="flex items-center justify-between px-3 py-2 text-[#BBBFCA] hover:text-[#F4F4F2] hover:bg-[#495464]/20 transition-colors"
         >
           <span className="flex items-center gap-2">

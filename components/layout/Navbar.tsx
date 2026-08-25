@@ -54,6 +54,18 @@ export default function Navbar() {
       return;
     }
 
+    try {
+      const stored = sessionStorage.getItem("shopy_nav");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          cachedNavItems = parsed;
+          setNavItems(parsed);
+          return;
+        }
+      }
+    } catch {}
+
     let isMounted = true;
     const fetchNav = async () => {
       try {
@@ -63,6 +75,9 @@ export default function Navbar() {
           if (isMounted && Array.isArray(data.navigation)) {
             const mapped = data.navigation.map((i: any) => ({ name: i.name, href: i.href }));
             cachedNavItems = mapped;
+            try {
+              sessionStorage.setItem("shopy_nav", JSON.stringify(mapped));
+            } catch {}
             setNavItems(mapped);
           }
         }
@@ -103,6 +118,7 @@ export default function Navbar() {
             </button>
             <Link
               href="/"
+              prefetch={false}
               className={`font-serif tracking-[0.3em] text-lg font-light ${
                 isTransparent ? "text-white" : "text-[#495464]"
               }`}
@@ -115,6 +131,7 @@ export default function Navbar() {
           <div className="hidden lg:flex items-center gap-8 xl:gap-10">
             <Link
               href="/"
+              prefetch={false}
               className={`font-serif tracking-[0.35em] text-xl lg:text-2xl font-light transition-colors whitespace-nowrap ${
                 isTransparent ? "text-white" : "text-[#495464]"
               }`}
@@ -130,6 +147,7 @@ export default function Navbar() {
                   <Link
                     key={link.name}
                     href={link.href}
+                    prefetch={false}
                     className={`text-[12px] font-normal tracking-wider lowercase whitespace-nowrap transition-all duration-300 relative py-1 ${
                       isActive
                         ? isTransparent

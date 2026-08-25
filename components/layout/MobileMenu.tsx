@@ -78,6 +78,7 @@ export default function MobileMenu({
               <Link
                 key={link.name}
                 href={link.href}
+                prefetch={false}
                 onClick={onClose}
                 className="group flex items-center justify-between text-xs tracking-[0.22em] uppercase font-light py-3 border-b border-[#BBBFCA]/15 hover:text-black transition-colors"
               >
@@ -92,6 +93,7 @@ export default function MobileMenu({
         <div className="pt-6 border-t border-[#BBBFCA]/30 space-y-4">
           <Link
             href={user ? "/account" : "/login"}
+            prefetch={false}
             onClick={onClose}
             className="flex items-center gap-2.5 text-xs tracking-[0.2em] uppercase font-light text-[#495464]"
           >

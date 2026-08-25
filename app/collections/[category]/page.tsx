@@ -6,8 +6,7 @@ import { CATEGORIES } from "@/lib/data/categories";
 import { PRODUCTS } from "@/lib/data/products";
 import ProductCard from "@/components/product/ProductCard";
 import { ArrowLeft } from "lucide-react";
-
-import { db } from "@/lib/db/store";
+import { db, getCachedCategoryBySlug } from "@/lib/db/store";
 
 interface CategoryPageProps {
   params: {
@@ -17,10 +16,7 @@ interface CategoryPageProps {
 
 export async function generateMetadata({ params }: CategoryPageProps) {
   try {
-    const dbCats = await db.getCategories();
-    const found = dbCats.find(
-      (c) => c.slug.toLowerCase() === params.category.toLowerCase()
-    );
+    const found = await getCachedCategoryBySlug(params.category);
     if (found) {
       return { title: found.name };
     }
@@ -34,10 +30,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
   let category: any = null;
 
   try {
-    const dbCats = await db.getCategories();
-    const found = dbCats.find(
-      (c) => c.slug.toLowerCase() === params.category.toLowerCase()
-    );
+    const found = await getCachedCategoryBySlug(params.category);
     if (found) {
       category = {
         id: found.id,
@@ -52,6 +45,15 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
   } catch {}
 
   if (!category) {
+    const staticFound = CATEGORIES.find(
+      (c) => c.slug.toLowerCase() === params.category.toLowerCase()
+    );
+    if (staticFound) {
+      category = staticFound;
+    }
+  }
+
+  if (!category) {
     notFound();
   }
 
@@ -60,7 +62,9 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
     const dbProducts = await db.getProducts({ category: category.slug });
     categoryProducts = dbProducts || [];
   } catch {
-    categoryProducts = [];
+    categoryProducts = PRODUCTS.filter(
+      (p) => p.category.toLowerCase() === category.slug.toLowerCase()
+    );
   }
 
   return (

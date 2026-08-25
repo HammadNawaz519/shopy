@@ -118,9 +118,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const openCart = () => {
     setIsOpen(true);
-    if (items.length > 0) {
-      validateWithServer();
-    }
   };
   const closeCart = () => setIsOpen(false);
 

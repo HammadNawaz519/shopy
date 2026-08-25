@@ -7,6 +7,7 @@ import {
   Search,
   Filter,
   Eye,
+  Printer,
   CheckCircle2,
   Clock,
   Package,
@@ -22,6 +23,7 @@ import {
   Mail,
 } from "lucide-react";
 import AdminHeader from "@/components/admin/AdminHeader";
+import OrderInvoicePrint from "@/components/admin/OrderInvoicePrint";
 import { formatPrice } from "@/lib/utils";
 import { useToast } from "@/context/ToastContext";
 
@@ -36,6 +38,7 @@ function OrdersContent() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState(initialStatus);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [printingOrder, setPrintingOrder] = useState<any>(null);
   const [updating, setUpdating] = useState(false);
 
   const fetchOrders = async () => {
@@ -260,13 +263,22 @@ function OrdersContent() {
                         </span>
                       </td>
                       <td className="p-4 text-right">
-                        <button
-                          onClick={() => setSelectedOrder(ord)}
-                          className="inline-flex items-center gap-1 bg-[#495464] text-[#F4F4F2] px-3 py-1 text-xs uppercase tracking-wider hover:bg-[#363E4B] transition-colors"
-                        >
-                          <Eye className="w-3 h-3" />
-                          <span>View</span>
-                        </button>
+                        <div className="inline-flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => setSelectedOrder(ord)}
+                            className="inline-flex items-center gap-1 bg-[#495464] text-[#F4F4F2] px-3 py-1 text-xs uppercase tracking-wider hover:bg-[#363E4B] transition-colors"
+                          >
+                            <Eye className="w-3 h-3" />
+                            <span>View</span>
+                          </button>
+                          <button
+                            onClick={() => setPrintingOrder(ord)}
+                            className="inline-flex items-center gap-1 bg-[#495464] text-[#F4F4F2] px-3 py-1 text-xs uppercase tracking-wider hover:bg-[#363E4B] transition-colors"
+                          >
+                            <Printer className="w-3 h-3" />
+                            <span>Print</span>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -293,12 +305,21 @@ function OrdersContent() {
                     {selectedOrder.orderNumber}
                   </h3>
                 </div>
-                <button
-                  onClick={() => setSelectedOrder(null)}
-                  className="p-1 text-[#495464] hover:opacity-70"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setPrintingOrder(selectedOrder)}
+                    className="inline-flex items-center gap-1 bg-[#495464] text-[#F4F4F2] px-3 py-1 text-xs uppercase tracking-wider hover:bg-[#363E4B] transition-colors"
+                  >
+                    <Printer className="w-3 h-3" />
+                    <span>Print</span>
+                  </button>
+                  <button
+                    onClick={() => setSelectedOrder(null)}
+                    className="p-1 text-[#495464] hover:opacity-70"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
 
               {/* Status Controls */}
@@ -424,6 +445,14 @@ function OrdersContent() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* Printable Order Invoice Document Modal */}
+        {printingOrder && (
+          <OrderInvoicePrint
+            order={printingOrder}
+            onClose={() => setPrintingOrder(null)}
+          />
         )}
       </main>
     </div>

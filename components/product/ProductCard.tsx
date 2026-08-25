@@ -18,15 +18,16 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
   const [isHovered, setIsHovered] = useState(false);
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [hasBeenHovered, setHasBeenHovered] = useState(false);
   const { addItem } = useCart();
   const { showToast } = useToast();
 
-  const hasSecondImage = product.images.length > 1;
+  const hasSecondImage = Array.isArray(product.images) && product.images.length > 1;
 
   const handleQuickAdd = (e: React.MouseEvent, size: string) => {
     e.preventDefault();
     e.stopPropagation();
-    addItem(product, size, product.colors[0]?.name || "Default", 1);
+    addItem(product, size, product.colors?.[0]?.name || "Default", 1);
     showToast(`Added ${product.name} (${size}) to bag`, "success");
     setShowQuickAdd(false);
   };
@@ -34,7 +35,12 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
   return (
     <div
       className="group flex flex-col select-none"
-      onMouseEnter={() => setIsHovered(true)}
+      onMouseEnter={() => {
+        setIsHovered(true);
+        if (!hasBeenHovered && hasSecondImage) {
+          setHasBeenHovered(true);
+        }
+      }}
       onMouseLeave={() => {
         setIsHovered(false);
         setShowQuickAdd(false);
@@ -42,7 +48,11 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
     >
       {/* Image Container with Elegant Tonal Placeholder */}
       <div className="relative aspect-[3/4] w-full bg-[#E8E8E8] overflow-hidden">
-        <Link href={`/product/${product.id}`} className="block w-full h-full">
+        <Link
+          href={`/product/${product.id}`}
+          prefetch={false}
+          className="block w-full h-full"
+        >
           {/* Primary Image with Crisp Retina Delivery & Fade-in */}
           <Image
             src={product.images?.[0] || "/editorial-craft.jpg"}
@@ -53,11 +63,11 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
             onLoad={() => setIsLoaded(true)}
             className={`object-cover object-center transition-all duration-700 ${
               isLoaded ? "opacity-100 scale-100" : "opacity-0 scale-[1.02]"
-            } ${hasSecondImage && isHovered ? "!opacity-0" : ""}`}
+            } ${hasSecondImage && isHovered && hasBeenHovered ? "!opacity-0" : ""}`}
           />
 
-          {/* Secondary Hover Image */}
-          {hasSecondImage && (
+          {/* Secondary Hover Image — Loaded On-Demand upon first hover */}
+          {hasSecondImage && hasBeenHovered && (
             <Image
               src={product.images[1]}
               alt={`${product.name} alternate view`}

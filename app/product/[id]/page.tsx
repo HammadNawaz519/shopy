@@ -1,6 +1,6 @@
 import React from "react";
 import { notFound } from "next/navigation";
-import { db } from "@/lib/db/store";
+import { db, getCachedProductById } from "@/lib/db/store";
 import { PRODUCTS } from "@/lib/data/products";
 import ProductDetailClientView from "@/components/product/ProductDetailClientView";
 
@@ -12,8 +12,7 @@ interface ProductDetailPageProps {
 
 export async function generateMetadata({ params }: ProductDetailPageProps) {
   try {
-    const dbProducts = await db.getProducts();
-    const product = dbProducts.find((p) => p.id === params.id || p.slug === params.id);
+    const product = await getCachedProductById(params.id);
     if (product) {
       return { title: product.name };
     }
@@ -31,8 +30,7 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
   let product: any = null;
 
   try {
-    const dbProducts = await db.getProducts();
-    product = dbProducts.find((p) => p.id === params.id || p.slug === params.id);
+    product = await getCachedProductById(params.id);
   } catch {}
 
   if (!product) {

@@ -53,6 +53,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    // Guest optimization: if no session cookie exists and no cached user in storage, avoid network request
+    if (!force && typeof document !== "undefined") {
+      const hasCookie = document.cookie.includes("shopy_session_id");
+      const hasCached = Boolean(localStorage.getItem(AUTH_STORAGE_KEY));
+      if (!hasCookie && !hasCached) {
+        lastVerifiedTimestamp = now;
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+    }
+
     if (mePromise) {
       try {
         const u = await mePromise;

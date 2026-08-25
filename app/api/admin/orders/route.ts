@@ -27,25 +27,10 @@ export async function GET(req: Request) {
   }
 
   const { searchParams } = new URL(req.url);
-  const status = searchParams.get("status");
-  const search = searchParams.get("search")?.toLowerCase().trim();
+  const status = searchParams.get("status") || undefined;
+  const search = searchParams.get("search")?.trim() || undefined;
 
-  let orders = await db.getAllOrders();
-
-  if (status && status !== "ALL") {
-    orders = orders.filter((o) => o.status === status);
-  }
-
-  if (search) {
-    orders = orders.filter(
-      (o) =>
-        o.orderNumber.toLowerCase().includes(search) ||
-        o.shippingAddress.email.toLowerCase().includes(search) ||
-        `${o.shippingAddress.firstName} ${o.shippingAddress.lastName}`.toLowerCase().includes(search) ||
-        o.shippingAddress.phone.includes(search)
-    );
-  }
-
+  const orders = await db.getAllOrders({ status, search });
   return NextResponse.json({ orders });
 }
 
