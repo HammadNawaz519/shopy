@@ -11,6 +11,7 @@ import {
   sendWelcomeEmail,
   sendOrderConfirmationEmail,
   sendOrderStatusUpdateEmail,
+  sendPaymentReceivedEmail,
   sendAdminNewOrderNotification,
   sendContactFormEmails,
 } from "./service";
@@ -37,6 +38,7 @@ export {
   // Orders (shopy.orderupdate@gmail.com)
   sendOrderConfirmationEmail,
   sendOrderStatusUpdateEmail,
+  sendPaymentReceivedEmail,
   sendAdminNewOrderNotification,
 
   // Support & Concierge (shopy.support@gmail.com)

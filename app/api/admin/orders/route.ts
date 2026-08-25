@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin, getCurrentUser } from "@/lib/security/session";
 import { db, OrderStatus, PaymentStatus } from "@/lib/db/store";
-import { sendOrderStatusUpdateEmail } from "@/lib/email/mailer";
+import { sendOrderStatusUpdateEmail, sendPaymentReceivedEmail } from "@/lib/email/mailer";
 
 export const dynamic = "force-dynamic";
 
@@ -56,24 +56,45 @@ export async function PATCH(req: Request) {
     let updatedOrder = previousOrder;
 
     // Deduplication check: only send email if status genuinely changed
+    const customerNotifiableStatuses = [
+      "PENDING",
+      "CONFIRMED",
+      "PROCESSING",
+      "SHIPPED",
+      "OUT_FOR_DELIVERY",
+      "DELIVERED",
+      "CANCELLED",
+      "RETURNED",
+      "REFUNDED",
+    ];
+
     if (status && status !== previousOrder.status) {
       updatedOrder = (await db.updateOrderStatus(orderId, status as any, notes)) || updatedOrder;
 
       // Dispatch order update email via shopy.orderupdate@gmail.com (non-blocking)
-      try {
-        sendOrderStatusUpdateEmail(updatedOrder, status, previousOrder.status, notes).catch((err) =>
-          console.error("[STATUS EMAIL ERROR] Failed to send status update:", err)
-        );
-      } catch {
-        // Prevent email issue from failing status update
+      if (customerNotifiableStatuses.includes(String(status).toUpperCase())) {
+        try {
+          sendOrderStatusUpdateEmail(updatedOrder, status, previousOrder.status, notes).catch((err) =>
+            console.error("[STATUS EMAIL ERROR] Failed to send status update:", err)
+          );
+        } catch {
+          // Prevent email issue from failing status update
+        }
       }
     }
 
     if (paymentStatus && paymentStatus !== previousOrder.paymentStatus) {
       updatedOrder = (await db.updateOrderPaymentStatus(orderId, paymentStatus as any)) || updatedOrder;
       
-      // If payment transitioned to REFUNDED and status didn't trigger refund email, send refund notice
-      if (paymentStatus === "REFUNDED" && status !== "CANCELLED") {
+      // If payment transitioned to PAID, send Payment Received receipt
+      if (paymentStatus === "PAID") {
+        try {
+          sendPaymentReceivedEmail(updatedOrder).catch((err) =>
+            console.error("[PAYMENT EMAIL ERROR] Failed to send payment received update:", err)
+          );
+        } catch {}
+      } else if (paymentStatus === "REFUNDED" && status !== "CANCELLED") {
+        // If payment transitioned to REFUNDED and status didn't trigger refund email, send refund notice
         try {
           sendOrderStatusUpdateEmail(updatedOrder, "REFUNDED", previousOrder.status, notes || "Payment has been processed for refund.").catch((err) =>
             console.error("[REFUND EMAIL ERROR] Failed to send refund update:", err)

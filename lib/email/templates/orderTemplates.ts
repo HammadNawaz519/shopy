@@ -216,7 +216,9 @@ export function renderOrderStatusUpdateEmail({
     OUT_FOR_DELIVERY: "Your order is out for delivery today and will arrive shortly.",
     DELIVERED: "Your order has been successfully delivered. Enjoy your pieces.",
     CANCELLED: "Your order has been cancelled.",
+    RETURNED: "Your order return has been received and processed by our atelier.",
     REFUNDED: "Your order payment has been successfully refunded.",
+    PAID: "Your payment has been successfully received and verified.",
   };
 
   const statusMessage = statusDescriptions[newStatus.toUpperCase()] || `Your order status has been updated to ${safeStatus}.`;
@@ -365,6 +367,79 @@ Payment: ${order.paymentMethod.toUpperCase()}
 
 Items:
 ${order.items.map((i) => `- ${i.name} x${i.quantity} (${formatCurrency(i.price * i.quantity)})`).join("\n")}
+
+----------------------------------------
+SHOPY Atelier
+  `.trim();
+
+  return { subject, text, html };
+}
+
+export function renderPaymentReceivedEmail({
+  order,
+  customerName,
+}: OrderConfirmationProps): { subject: string; text: string; html: string } {
+  const safeOrderNumber = escapeEmailHtml(order.orderNumber);
+  const fullName = customerName || `${order.shippingAddress.firstName} ${order.shippingAddress.lastName}`.trim();
+  const safeName = escapeEmailHtml(fullName || "Client");
+  const subject = `SHOPY — Payment Received for Order #${safeOrderNumber}`;
+
+  const bodyContent = `
+    <table border="0" cellpadding="0" cellspacing="0" width="100%">
+      <tr>
+        <td align="center" style="padding: 0 16px 20px 16px;">
+          <h1 style="font-family: 'Cormorant Garamond', 'Georgia', serif; font-size: 22px; font-weight: 400; letter-spacing: 0.2em; text-transform: uppercase; color: #495464; margin: 0 0 10px 0;">
+            PAYMENT CONFIRMED
+          </h1>
+          <p style="font-size: 13px; line-height: 1.6; letter-spacing: 0.04em; color: #495464; margin: 0; opacity: 0.85;">
+            Thank you, ${safeName}. Your payment of <strong>${formatCurrency(order.total)}</strong> for order #${safeOrderNumber} has been verified.
+          </p>
+        </td>
+      </tr>
+
+      <tr>
+        <td align="center" style="padding: 10px 0 24px 0;">
+          <table border="0" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
+            <tr>
+              <td align="center" style="background-color: #495464; color: #F4F4F2; padding: 10px 28px; font-size: 11px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; border-radius: 2px;">
+                PAID IN FULL
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+
+      <tr>
+        <td style="background-color: #FFFFFF; border: 1px solid #E8E8E8; padding: 16px 20px; text-align: left; border-radius: 2px;">
+          <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.15em; color: #BBBFCA; margin-bottom: 4px;">
+            Payment Summary
+          </div>
+          <div style="font-size: 13px; font-weight: 600; color: #495464;">
+            Order #${safeOrderNumber} &bull; Total Paid: ${formatCurrency(order.total)}
+          </div>
+          <div style="font-size: 12px; color: #495464; opacity: 0.8; margin-top: 4px;">
+            Payment Method: ${order.paymentMethod === "online" ? "Online / Bank Transfer" : "Cash on Delivery"}
+          </div>
+        </td>
+      </tr>
+    </table>
+  `;
+
+  const html = renderEmailLayout({
+    title: subject,
+    preheader: `Payment received for order #${order.orderNumber}. Amount: ${formatCurrency(order.total)}.`,
+    bodyContent,
+  });
+
+  const text = `
+SHOPY — PAYMENT RECEIVED
+----------------------------------------
+Order #${order.orderNumber}
+Payment Status: PAID
+Total: ${formatCurrency(order.total)}
+Payment Method: ${order.paymentMethod === "online" ? "Online / Bank Transfer" : "Cash on Delivery"}
+
+Your payment has been successfully confirmed. Your order is proceeding with fulfillment.
 
 ----------------------------------------
 SHOPY Atelier

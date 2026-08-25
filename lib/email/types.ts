@@ -24,7 +24,9 @@ export type EmailType =
   | "ORDER_OUT_FOR_DELIVERY"
   | "ORDER_DELIVERED"
   | "ORDER_CANCELLED"
+  | "ORDER_RETURNED"
   | "ORDER_REFUNDED"
+  | "PAYMENT_RECEIVED"
   | "ADMIN_NEW_ORDER"
   // 3. Customer Support Account Types
   | "CONTACT_FORM"
@@ -53,7 +55,9 @@ export const EMAIL_TYPE_ROUTING: Record<EmailType, EmailAccountType> = {
   ORDER_OUT_FOR_DELIVERY: "ORDER",
   ORDER_DELIVERED: "ORDER",
   ORDER_CANCELLED: "ORDER",
+  ORDER_RETURNED: "ORDER",
   ORDER_REFUNDED: "ORDER",
+  PAYMENT_RECEIVED: "ORDER",
   ADMIN_NEW_ORDER: "ORDER",
 
   // Support & Concierge

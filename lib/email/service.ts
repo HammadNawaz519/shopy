@@ -20,6 +20,7 @@ import {
   renderOrderConfirmationEmail,
   renderOrderStatusUpdateEmail,
   renderAdminNewOrderNotification,
+  renderPaymentReceivedEmail,
 } from "./templates/orderTemplates";
 import {
   renderContactFormAdminEmail,
@@ -184,6 +185,7 @@ export async function sendOrderStatusUpdateEmail(
   else if (normStatus === "OUT_FOR_DELIVERY") emailType = "ORDER_OUT_FOR_DELIVERY";
   else if (normStatus === "DELIVERED") emailType = "ORDER_DELIVERED";
   else if (normStatus === "CANCELLED") emailType = "ORDER_CANCELLED";
+  else if (normStatus === "RETURNED") emailType = "ORDER_RETURNED";
   else if (normStatus === "REFUNDED") emailType = "ORDER_REFUNDED";
 
   const { subject, text, html } = renderOrderStatusUpdateEmail({
@@ -196,6 +198,29 @@ export async function sendOrderStatusUpdateEmail(
 
   return sendEmailSafe({
     emailType,
+    to: destinationEmail,
+    subject,
+    text,
+    html,
+  });
+}
+
+/**
+ * Dispatches a payment confirmation email when an order payment is verified.
+ * SENDER: shopy.orderupdate@gmail.com
+ */
+export async function sendPaymentReceivedEmail(order: OrderRecord, customerName?: string) {
+  const destinationEmail = order.shippingAddress.email;
+  if (!destinationEmail) return { success: false, error: "No destination email available." };
+
+  const { subject, text, html } = renderPaymentReceivedEmail({
+    order,
+    customerEmail: destinationEmail,
+    customerName,
+  });
+
+  return sendEmailSafe({
+    emailType: "PAYMENT_RECEIVED",
     to: destinationEmail,
     subject,
     text,

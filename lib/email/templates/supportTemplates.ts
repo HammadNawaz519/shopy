@@ -22,13 +22,13 @@ export function renderContactFormAdminEmail({
   const safeMessage = escapeEmailHtml(message).replace(/\n/g, "<br />");
   const refText = inquiryId ? `[INQ-${inquiryId}]` : "";
 
-  const emailSubject = `[SHOPY Concierge] ${refText} New Inquiry: ${subject}`;
+  const emailSubject = `[SHOPY Support] ${refText} New Inquiry: ${subject}`;
   const preheader = `New customer message from ${name} (${email})`;
 
   const bodyContent = `
     <!-- HEADER -->
     <h1 style="font-family: 'Cormorant Garamond', 'Georgia', serif; font-size: 26px; font-weight: 300; letter-spacing: 0.15em; text-transform: uppercase; color: #495464; margin: 0 0 12px 0;">
-      New Concierge Inquiry
+      New Customer Inquiry
     </h1>
     <p style="font-size: 13px; line-height: 1.6; color: #495464; margin: 0 0 24px 0;">
       A customer has submitted a message via the SHOPY Atelier contact form.
@@ -112,8 +112,8 @@ export function renderContactFormAcknowledgmentEmail({
   const safeName = escapeEmailHtml(name);
   const safeSubject = escapeEmailHtml(subject);
 
-  const emailSubject = `We have received your message | SHOPY Concierge`;
-  const preheader = `Thank you for contacting SHOPY. Our concierge team will assist you shortly.`;
+  const emailSubject = `We have received your message | SHOPY Support`;
+  const preheader = `Thank you for contacting SHOPY. Our support team will assist you shortly.`;
 
   const bodyContent = `
     <!-- HEADER -->
@@ -124,7 +124,7 @@ export function renderContactFormAcknowledgmentEmail({
       Dear ${safeName || "Client"},
     </p>
     <p style="font-size: 13px; line-height: 1.7; color: #495464; margin: 0 0 24px 0;">
-      Thank you for contacting the SHOPY Atelier Concierge regarding <strong>&ldquo;${safeSubject}&rdquo;</strong>. We have received your dispatch and a concierge specialist will review your inquiry and respond within 24 hours.
+      Thank you for contacting SHOPY Support regarding <strong>&ldquo;${safeSubject}&rdquo;</strong>. We have received your dispatch and a support specialist will review your inquiry and respond within 24 hours.
     </p>
 
     <!-- ASSISTANCE CARD -->
@@ -132,11 +132,11 @@ export function renderContactFormAcknowledgmentEmail({
       <tr>
         <td>
           <p style="font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase; color: #495464; margin: 0 0 6px 0; font-weight: 600;">
-            Atelier Concierge Hours
+            SHOPY Support Hours
           </p>
           <p style="font-size: 12px; line-height: 1.6; color: #495464; margin: 0;">
             Monday &ndash; Saturday &bull; 09:00 &ndash; 20:00 PKT<br />
-            Private Atelier Dispatches &bull; <a href="mailto:shopy.support@gmail.com" style="color: #495464; text-decoration: underline;">shopy.support@gmail.com</a>
+            Support Email &bull; <a href="mailto:shopy.support@gmail.com" style="color: #495464; text-decoration: underline;">shopy.support@gmail.com</a>
           </p>
         </td>
       </tr>
@@ -148,13 +148,13 @@ export function renderContactFormAcknowledgmentEmail({
   `;
 
   const text = `
-SHOPY Atelier - Message Received
+SHOPY Support - Message Received
 
 Dear ${name || "Client"},
 
-Thank you for contacting SHOPY regarding "${subject}". We have received your message and our concierge team will respond within 24 hours.
+Thank you for contacting SHOPY regarding "${subject}". We have received your message and our support team will respond within 24 hours.
 
-SHOPY Concierge
+SHOPY Support
 shopy.support@gmail.com
   `.trim();
 
