@@ -16,7 +16,7 @@ export function renderVerificationOtpEmail({
 }: VerificationOtpProps): { subject: string; text: string; html: string } {
   const safeName = name ? escapeEmailHtml(name) : "Client";
   const formattedOtp = otpCode.split("").join(" ");
-  const subject = `SHOPY — Verification Code [${otpCode}]`;
+  const subject = "Verification Code";
 
   const bodyContent = `
     <table border="0" cellpadding="0" cellspacing="0" width="100%" style="text-align: center;">
@@ -47,14 +47,14 @@ export function renderVerificationOtpEmail({
         </td>
       </tr>
 
-      <!-- EXPIRATION & NOTICES -->
+      <!-- EXPIRATION NOTE -->
       <tr>
         <td align="center" style="padding: 0 24px 8px 24px;">
           <p style="font-size: 12px; line-height: 1.6; letter-spacing: 0.05em; color: #495464; margin: 0 0 6px 0; font-weight: 500;">
-            This code expires in ${expiresInMinutes} minutes.
+            This single-use code is valid for ${expiresInMinutes} minutes.
           </p>
           <p style="font-size: 11px; line-height: 1.6; letter-spacing: 0.03em; color: #495464; opacity: 0.65; margin: 0;">
-            If you didn't request this code, you can safely ignore this email.
+            If you did not initiate this request, please disregard this message.
           </p>
         </td>
       </tr>
@@ -63,12 +63,12 @@ export function renderVerificationOtpEmail({
 
   const html = renderEmailLayout({
     title: subject,
-    preheader: `Your SHOPY verification code is ${otpCode}. Expires in ${expiresInMinutes} minutes.`,
+    preheader: `Your verification code is ${otpCode}. Expires in ${expiresInMinutes} minutes.`,
     bodyContent,
   });
 
   const text = `
-SHOPY — VERIFY YOUR EMAIL
+SHOPY — VERIFICATION CODE
 ----------------------------------------
 Hello ${safeName},
 
@@ -77,7 +77,7 @@ Use the verification code below to continue:
       ${formattedOtp}
 
 This code expires in ${expiresInMinutes} minutes.
-If you didn't request this code, you can safely ignore this email.
+If you did not request this code, you can safely ignore this email.
 
 ----------------------------------------
 SHOPY
@@ -97,7 +97,7 @@ export function renderLoginOtpEmail({
 }: VerificationOtpProps): { subject: string; text: string; html: string } {
   const safeName = name ? escapeEmailHtml(name) : "Client";
   const formattedOtp = otpCode.split("").join(" ");
-  const subject = `SHOPY — Your Login Code [${otpCode}]`;
+  const subject = "Verification Code";
 
   const bodyContent = `
     <table border="0" cellpadding="0" cellspacing="0" width="100%" style="text-align: center;">
@@ -129,10 +129,10 @@ export function renderLoginOtpEmail({
       <tr>
         <td align="center" style="padding: 0 24px 8px 24px;">
           <p style="font-size: 12px; line-height: 1.6; letter-spacing: 0.05em; color: #495464; margin: 0 0 6px 0; font-weight: 500;">
-            This code expires in ${expiresInMinutes} minutes.
+            This single-use code is valid for ${expiresInMinutes} minutes.
           </p>
           <p style="font-size: 11px; line-height: 1.6; letter-spacing: 0.03em; color: #495464; opacity: 0.65; margin: 0;">
-            If you didn't attempt to sign in, please secure your account immediately.
+            Never share this security code with anyone.
           </p>
         </td>
       </tr>
@@ -141,12 +141,12 @@ export function renderLoginOtpEmail({
 
   const html = renderEmailLayout({
     title: subject,
-    preheader: `Your SHOPY login code is ${otpCode}.`,
+    preheader: `Your login code is ${otpCode}. Expires in ${expiresInMinutes} minutes.`,
     bodyContent,
   });
 
   const text = `
-SHOPY — YOUR LOGIN CODE
+SHOPY — LOGIN CODE
 ----------------------------------------
 Hello ${safeName},
 
@@ -183,9 +183,7 @@ export function renderPasswordResetEmail({
   expiresInMinutes = 10,
 }: PasswordResetProps): { subject: string; text: string; html: string } {
   const safeName = name ? escapeEmailHtml(name) : "Client";
-  const subject = otpCode
-    ? `SHOPY — Password Reset Code [${otpCode}]`
-    : `SHOPY — Password Recovery Request`;
+  const subject = otpCode ? "Verification Code" : "Password Recovery Request";
 
   const codeSection = otpCode
     ? `
