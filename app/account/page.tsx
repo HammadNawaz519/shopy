@@ -183,7 +183,7 @@ export default function AccountPage() {
                         </p>
                       </div>
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="bg-[#495464] text-[#F4F4F2] text-[9px] uppercase tracking-widest font-semibold px-2 py-0.5">
+                        <span className="bg-[#495464] text-[#F4F4F2] text-[9px] uppercase tracking-widest font-semibold px-2.5 py-1">
                           {ord.status === "VERIFYING_PAYMENT" || ord.status === "AWAITING_PAYMENT_VERIFICATION"
                             ? "Verifying Payment"
                             : ord.status === "PREPARING" || ord.status === "PROCESSING"
@@ -191,19 +191,6 @@ export default function AccountPage() {
                             : ord.status === "OUT_FOR_DELIVERY"
                             ? "Out for Delivery"
                             : ord.status}
-                        </span>
-                        <span
-                          className={`text-[9px] uppercase tracking-widest font-semibold px-2 py-0.5 border ${
-                            ord.paymentStatus === "PAID"
-                              ? "bg-emerald-50 text-emerald-800 border-emerald-300"
-                              : "bg-[#E8E8E8] text-[#495464] border-[#BBBFCA]"
-                          }`}
-                        >
-                          {ord.paymentStatus === "PAID"
-                            ? "✓ Paid"
-                            : ord.paymentMethod === "bank_transfer" || ord.paymentMethod === "online"
-                            ? "Pending Verification"
-                            : "COD · Unpaid"}
                         </span>
                         <Link
                           href={`/order-confirmation/${ord.id}`}
