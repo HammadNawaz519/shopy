@@ -53,7 +53,18 @@ export default function CheckoutPage() {
       const saved = localStorage.getItem(CHECKOUT_STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        setFormData((prev) => ({ ...prev, ...parsed }));
+        setFormData((prev) => ({
+          ...prev,
+          firstName: parsed.firstName || prev.firstName,
+          lastName: parsed.lastName || prev.lastName,
+          email: parsed.email || prev.email,
+          phone: parsed.phone || prev.phone,
+          address: parsed.address || prev.address,
+          city: parsed.city || prev.city,
+          postalCode: parsed.postalCode || prev.postalCode,
+          province: parsed.province || prev.province,
+          paymentMethod: parsed.paymentMethod || prev.paymentMethod,
+        }));
       }
     } catch {}
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -178,8 +189,10 @@ export default function CheckoutPage() {
 
       if (res.ok && data.success) {
         clearCart();
-        // Clear saved shipping draft on successful order
-        try { localStorage.removeItem(CHECKOUT_STORAGE_KEY); } catch {}
+        // Permanently persist the customer's shipping info for all future checkouts
+        try {
+          localStorage.setItem(CHECKOUT_STORAGE_KEY, JSON.stringify(formData));
+        } catch {}
         showToast("Order placed successfully!", "success");
         router.push(`/order-confirmation/${data.orderId}`);
       } else {
