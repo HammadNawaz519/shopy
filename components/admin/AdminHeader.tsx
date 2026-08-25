@@ -134,9 +134,6 @@ export default function AdminHeader({ title, subtitle, onOpenMobileMenu }: Admin
                   <span className="text-[10px] uppercase tracking-widest font-semibold text-[#495464]/80">
                     System Storage Metrics
                   </span>
-                  <span className="text-[9px] font-mono text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded-2xs font-semibold">
-                    Real-time
-                  </span>
                 </div>
 
                 <div className="space-y-1.5 text-[11px]">
