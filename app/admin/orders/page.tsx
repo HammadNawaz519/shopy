@@ -21,6 +21,7 @@ import {
   User,
   Phone,
   Mail,
+  FileSpreadsheet,
 } from "lucide-react";
 import AdminHeader from "@/components/admin/AdminHeader";
 import OrderInvoicePrint from "@/components/admin/OrderInvoicePrint";
@@ -697,6 +698,48 @@ function OrdersContent() {
                     No automated order update emails logged yet for this order.
                   </p>
                 )}
+              </div>
+
+              {/* Google Sheets Live Synchronization Status */}
+              <div className="bg-[#E8E8E8]/50 border border-[#BBBFCA]/30 p-4 space-y-2 text-xs">
+                <div className="flex items-center justify-between border-b border-[#BBBFCA]/30 pb-2">
+                  <h4 className="text-[11px] uppercase tracking-widest font-semibold text-[#495464] flex items-center gap-1.5">
+                    <FileSpreadsheet className="w-3.5 h-3.5 text-[#495464]/70" />
+                    <span>Google Sheets Sync</span>
+                  </h4>
+                  <span className="text-[10px] text-[#495464]/60">
+                    Live Operations Mirror
+                  </span>
+                </div>
+                <div className="bg-[#F4F4F2] border border-[#BBBFCA]/30 p-2.5 flex items-center justify-between gap-2">
+                  <div>
+                    <span className="font-semibold text-[#495464] text-[11px] block">
+                      Spreadsheet Status
+                    </span>
+                    <span className="text-[10px] text-[#495464]/70">
+                      {selectedOrder.sheetsSync?.syncedAt
+                        ? `Last synced: ${new Date(selectedOrder.sheetsSync.syncedAt).toLocaleString([], {
+                            month: "short",
+                            day: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}`
+                        : "Ready to synchronize on status events"}
+                    </span>
+                  </div>
+                  <div>
+                    {selectedOrder.sheetsSync?.status === "FAILED" ? (
+                      <span className="inline-flex items-center gap-1 text-[10px] text-rose-700 font-semibold bg-rose-50 border border-rose-200 px-2 py-0.5">
+                        <span>✕ Sync Failed</span>
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-[10px] text-emerald-700 font-semibold bg-emerald-50 border border-emerald-200 px-2 py-0.5">
+                        <CheckCircle2 className="w-3 h-3" />
+                        <span>✓ Synchronized</span>
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           </div>

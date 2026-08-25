@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdmin, getCurrentUser } from "@/lib/security/session";
 import { db, OrderStatus, PaymentStatus } from "@/lib/db/store";
 import { sendOrderStatusUpdateEmail, sendPaymentReceivedEmail } from "@/lib/email/mailer";
+import { syncOrderStatusUpdated } from "@/lib/sheets/service";
 
 export const dynamic = "force-dynamic";
 
@@ -55,19 +56,19 @@ export async function PATCH(req: Request) {
 
     const adminName = admin.name || admin.email || "Admin";
     let updatedOrder = previousOrder;
+    let orderChanged = false;
 
     // 1. If status is provided and changed
     if (status && status !== previousOrder.status) {
       updatedOrder =
         (await db.updateOrderStatus(orderId, status as OrderStatus, notes, adminName)) ||
         updatedOrder;
+      orderChanged = true;
 
       // Check if payment was automatically verified/marked paid by this status transition
       if (updatedOrder.paymentStatus === "PAID" && previousOrder.paymentStatus !== "PAID") {
         try {
-          sendPaymentReceivedEmail(updatedOrder).catch((err) =>
-            console.error("[PAYMENT RECEIPT EMAIL ERROR]", err)
-          );
+          await sendPaymentReceivedEmail(updatedOrder);
         } catch {}
       }
 
@@ -99,6 +100,7 @@ export async function PATCH(req: Request) {
       updatedOrder =
         (await db.updateOrderPaymentStatus(orderId, paymentStatus as PaymentStatus, notes, adminName)) ||
         updatedOrder;
+      orderChanged = true;
 
       // If payment transitioned to PAID and order status wasn't already updated to PREPARING/DELIVERED
       if (paymentStatus === "PAID" && prevPayment !== "PAID" && !status) {
@@ -118,6 +120,15 @@ export async function PATCH(req: Request) {
         } catch (refundEmailErr) {
           console.error("[REFUND EMAIL ERROR] Failed to send refund update:", refundEmailErr);
         }
+      }
+    }
+
+    // 3. Synchronize with Google Sheets safely (non-blocking failure isolation)
+    if (orderChanged) {
+      try {
+        await syncOrderStatusUpdated(updatedOrder, status ? `STATUS_${status}` : `PAYMENT_${paymentStatus}`);
+      } catch (sheetsErr) {
+        console.error("[GOOGLE SHEETS SYNC ERROR]", sheetsErr);
       }
     }
 

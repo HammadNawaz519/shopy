@@ -4,6 +4,7 @@ import { db } from "@/lib/db/store";
 import { getCurrentUser } from "@/lib/security/session";
 import { checkRateLimit, getClientIp } from "@/lib/security/rateLimit";
 import { sendOrderConfirmationEmail, sendAdminNewOrderNotification } from "@/lib/email/mailer";
+import { syncOrderCreated } from "@/lib/sheets/service";
 
 export async function POST(req: Request) {
   try {
@@ -57,14 +58,15 @@ export async function POST(req: Request) {
       db.clearUserCart(userId).catch(() => {});
     }
 
-    // Dispatch order confirmation & admin notification emails safely
+    // Dispatch order confirmation, admin notification emails, and Google Sheets synchronization safely
     try {
       await Promise.allSettled([
         sendOrderConfirmationEmail(order),
         sendAdminNewOrderNotification(order),
+        syncOrderCreated(order),
       ]);
-    } catch (emailErr) {
-      console.error("[ORDER EMAIL DISPATCH ERROR]", emailErr);
+    } catch (dispatchErr) {
+      console.error("[ORDER DISPATCH ERROR]", dispatchErr);
     }
 
     return NextResponse.json(

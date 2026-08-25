@@ -132,6 +132,12 @@ export interface OrderEmailLogEntry {
   sentAt: string;
 }
 
+export interface OrderSheetsSyncEntry {
+  status: "SYNCED" | "FAILED";
+  syncedAt: string;
+  error?: string;
+}
+
 export interface OrderRecord {
   id: string;
   orderNumber: string;
@@ -148,6 +154,7 @@ export interface OrderRecord {
   orderHistory?: OrderStatusHistoryEntry[];
   paymentHistory?: PaymentStatusHistoryEntry[];
   emailLogs?: OrderEmailLogEntry[];
+  sheetsSync?: OrderSheetsSyncEntry;
   shippingAddress: {
     firstName: string;
     lastName: string;
@@ -339,6 +346,14 @@ function mapOrderRow(row: any): OrderRecord {
         : row.email_logs;
   }
 
+  let sheetsSync: OrderSheetsSyncEntry | undefined = undefined;
+  if (row.sheets_sync) {
+    sheetsSync =
+      typeof row.sheets_sync === "string"
+        ? JSON.parse(row.sheets_sync)
+        : row.sheets_sync;
+  }
+
   return {
     id: row.id,
     orderNumber: row.order_number,
@@ -355,6 +370,7 @@ function mapOrderRow(row: any): OrderRecord {
     orderHistory: Array.isArray(orderHistory) ? orderHistory : [],
     paymentHistory: Array.isArray(paymentHistory) ? paymentHistory : [],
     emailLogs: Array.isArray(emailLogs) ? emailLogs : [],
+    sheetsSync,
     shippingAddress,
     notes: row.notes,
     createdAt: row.created_at ? new Date(row.created_at).toISOString() : new Date().toISOString(),
@@ -395,12 +411,13 @@ export async function ensurePaymentSchema(): Promise<void> {
       ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS bank_payment_instructions TEXT DEFAULT 'Please transfer the exact total order amount to the bank account above and share screenshot on WhatsApp with your Order ID for instant payment verification.';
     `);
 
-    // 2. Add payment_details, order_history, payment_history, and email_logs JSONB snapshots to orders
+    // 2. Add payment_details, order_history, payment_history, email_logs, and sheets_sync JSONB snapshots to orders
     await query(`
       ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_details JSONB;
       ALTER TABLE orders ADD COLUMN IF NOT EXISTS order_history JSONB DEFAULT '[]'::jsonb;
       ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_history JSONB DEFAULT '[]'::jsonb;
       ALTER TABLE orders ADD COLUMN IF NOT EXISTS email_logs JSONB DEFAULT '[]'::jsonb;
+      ALTER TABLE orders ADD COLUMN IF NOT EXISTS sheets_sync JSONB;
     `);
 
     // 3. Relax constraints to safely support modern and legacy payment methods and statuses
@@ -1537,6 +1554,24 @@ class SupabaseDataStore {
       );
     } catch (err) {
       console.error("[LOG ORDER EMAIL ERROR]", err);
+    }
+  }
+
+  /**
+   * Updates the Google Sheets synchronization status for the order.
+   */
+  async logOrderSheetsSync(orderId: string, syncEntry: OrderSheetsSyncEntry): Promise<void> {
+    await ensurePaymentSchema();
+    try {
+      await query(
+        `UPDATE orders SET
+          sheets_sync = $1::jsonb,
+          updated_at = NOW()
+        WHERE id = $2 OR order_number = $2;`,
+        [JSON.stringify(syncEntry), orderId]
+      );
+    } catch (err) {
+      console.error("[LOG ORDER SHEETS SYNC ERROR]", err);
     }
   }
 

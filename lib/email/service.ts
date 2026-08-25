@@ -27,6 +27,8 @@ import {
   renderContactFormAcknowledgmentEmail,
 } from "./templates/supportTemplates";
 import { db, type OrderRecord } from "@/lib/db/store";
+import { syncEmailEvent } from "@/lib/sheets/service";
+
 
 // ============================================================================
 // 1. AUTHENTICATION & OTP EMAILS (SENDER: shopy.otp@gmail.com)
@@ -167,7 +169,7 @@ export async function sendOrderConfirmationEmail(
     html,
   });
 
-  // Log dispatch event to order's persistent audit trail
+  // Log dispatch event to order's persistent audit trail & Google Sheets Email Activity
   db.logOrderEmail(order.id, {
     eventType: "ORDER_CONFIRMED",
     recipient: destinationEmail,
@@ -178,6 +180,14 @@ export async function sendOrderConfirmationEmail(
     error: result.error,
     sentAt: new Date().toISOString(),
   }).catch((err) => console.error("[ORDER EMAIL LOG ERROR]", err));
+
+  syncEmailEvent({
+    orderNumber: order.orderNumber,
+    eventType: "ORDER_CONFIRMED",
+    recipient: destinationEmail,
+    status: result.success ? "SENT" : "FAILED",
+    error: result.error,
+  }).catch(() => {});
 
   return result;
 }
@@ -226,7 +236,7 @@ export async function sendOrderStatusUpdateEmail(
     html,
   });
 
-  // Log dispatch event to order's persistent audit trail
+  // Log dispatch event to order's persistent audit trail & Google Sheets Email Activity
   db.logOrderEmail(order.id, {
     eventType: normStatus,
     recipient: destinationEmail,
@@ -237,6 +247,14 @@ export async function sendOrderStatusUpdateEmail(
     error: result.error,
     sentAt: new Date().toISOString(),
   }).catch((err) => console.error("[STATUS EMAIL LOG ERROR]", err));
+
+  syncEmailEvent({
+    orderNumber: order.orderNumber,
+    eventType: normStatus,
+    recipient: destinationEmail,
+    status: result.success ? "SENT" : "FAILED",
+    error: result.error,
+  }).catch(() => {});
 
   return result;
 }
@@ -267,7 +285,7 @@ export async function sendPaymentReceivedEmail(order: OrderRecord, customerName?
     html,
   });
 
-  // Log dispatch event to order's persistent audit trail
+  // Log dispatch event to order's persistent audit trail & Google Sheets Email Activity
   db.logOrderEmail(order.id, {
     eventType: "PAYMENT_RECEIVED",
     recipient: destinationEmail,
@@ -278,6 +296,14 @@ export async function sendPaymentReceivedEmail(order: OrderRecord, customerName?
     error: result.error,
     sentAt: new Date().toISOString(),
   }).catch((err) => console.error("[PAYMENT EMAIL LOG ERROR]", err));
+
+  syncEmailEvent({
+    orderNumber: order.orderNumber,
+    eventType: "PAYMENT_RECEIVED",
+    recipient: destinationEmail,
+    status: result.success ? "SENT" : "FAILED",
+    error: result.error,
+  }).catch(() => {});
 
   return result;
 }
