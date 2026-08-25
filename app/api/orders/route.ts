@@ -58,12 +58,15 @@ export async function POST(req: Request) {
       db.clearUserCart(userId).catch(() => {});
     }
 
+    // Re-fetch authoritative order from database with line items and exact state
+    const authoritativeOrder = (await db.getOrderById(order.id)) || order;
+
     // Dispatch order confirmation, admin notification emails, and Google Sheets synchronization safely
     try {
       await Promise.allSettled([
-        sendOrderConfirmationEmail(order),
-        sendAdminNewOrderNotification(order),
-        syncOrderCreated(order),
+        sendOrderConfirmationEmail(authoritativeOrder),
+        sendAdminNewOrderNotification(authoritativeOrder),
+        syncOrderCreated(authoritativeOrder),
       ]);
     } catch (dispatchErr) {
       console.error("[ORDER DISPATCH ERROR]", dispatchErr);

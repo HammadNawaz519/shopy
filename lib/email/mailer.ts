@@ -10,6 +10,7 @@ import {
   sendPasswordResetEmail,
   sendWelcomeEmail,
   sendOrderConfirmationEmail,
+  sendOrderCreatedEmail,
   sendOrderStatusUpdateEmail,
   sendPaymentReceivedEmail,
   sendAdminNewOrderNotification,
@@ -37,6 +38,7 @@ export {
 
   // Orders (shopy.orderupdate@gmail.com)
   sendOrderConfirmationEmail,
+  sendOrderCreatedEmail,
   sendOrderStatusUpdateEmail,
   sendPaymentReceivedEmail,
   sendAdminNewOrderNotification,

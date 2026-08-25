@@ -141,25 +141,83 @@ export async function sendWelcomeEmail(to: string, name?: string) {
 
 /**
  * Dispatches an order confirmation email to the purchasing customer upon checkout.
+ * Re-fetches the authoritative order record from the database, checks idempotency,
+ * routes through shopy.orderupdate@gmail.com with Reply-To shopy.support@gmail.com,
+ * and logs to both DB email audit trail and Google Sheets.
+ *
  * SENDER: shopy.orderupdate@gmail.com | REPLY-TO: shopy.support@gmail.com
  */
 export async function sendOrderConfirmationEmail(
-  order: OrderRecord,
+  orderInput: OrderRecord | string,
   customerEmail?: string,
   customerName?: string
-) {
-  const destinationEmail = customerEmail || order.shippingAddress.email;
-  if (!destinationEmail) return { success: false, error: "No destination email available." };
+): Promise<{ success: boolean; messageId?: string; error?: string; alreadySent?: boolean }> {
+  // 1. Authoritative DB Re-Fetch (Never rely purely on unverified client payloads)
+  const orderId = typeof orderInput === "string" ? orderInput : orderInput?.id || orderInput?.orderNumber;
+  if (!orderId) {
+    return { success: false, error: "Missing order reference for email dispatch." };
+  }
 
+  const authoritativeOrder = await db.getOrderById(orderId);
+  const order = authoritativeOrder || (typeof orderInput === "object" ? orderInput : undefined);
+
+  if (!order) {
+    console.error(`[ORDER EMAIL ERROR] Order not found in database: ${orderId}`);
+    return { success: false, error: `Authoritative order #${orderId} could not be retrieved from database.` };
+  }
+
+  // 2. Idempotency Check: Prevent duplicate confirmation emails on retries
+  const previousLogs = Array.isArray(order.emailLogs) ? order.emailLogs : [];
+  const alreadySent = previousLogs.some(
+    (log) => log.eventType === "ORDER_CONFIRMED" && log.status === "SENT"
+  );
+
+  if (alreadySent) {
+    console.log(`[ORDER EMAIL IDEMPOTENCY] Order #${order.orderNumber} confirmation email was already SENT. Skipping duplicate dispatch.`);
+    return {
+      success: true,
+      alreadySent: true,
+    };
+  }
+
+  // 3. Resolve Customer Destination Email Authoritatively
+  const destinationEmail = (customerEmail || order.shippingAddress?.email || "").trim();
   const systemConfig = getEmailSystemConfig();
   const supportReplyTo = systemConfig.support.fromAddress || "shopy.support@gmail.com";
 
+  if (!destinationEmail || !destinationEmail.includes("@")) {
+    console.warn(`[ORDER EMAIL WARNING] No valid recipient email found for Order #${order.orderNumber}.`);
+    
+    // Log failure gracefully without crashing the checkout transaction
+    await db.logOrderEmail(order.id, {
+      eventType: "ORDER_CONFIRMED",
+      recipient: destinationEmail || "UNSPECIFIED",
+      sender: systemConfig.order.user,
+      subject: `Order #${order.orderNumber} Confirmation`,
+      status: "FAILED",
+      error: "Missing or invalid destination customer email.",
+      sentAt: new Date().toISOString(),
+    }).catch(() => {});
+
+    await syncEmailEvent({
+      orderNumber: order.orderNumber,
+      eventType: "ORDER_CONFIRMED",
+      recipient: destinationEmail || "UNSPECIFIED",
+      status: "FAILED",
+      error: "Missing or invalid destination customer email.",
+    }).catch(() => {});
+
+    return { success: false, error: "No valid customer email address provided on order." };
+  }
+
+  // 4. Render Brand-Compliant Template
   const { subject, text, html } = renderOrderConfirmationEmail({
     order,
     customerEmail: destinationEmail,
     customerName,
   });
 
+  // 5. Send Safely via Dedicated Order Lifecycle Transporter (shopy.orderupdate@gmail.com)
   const result = await sendEmailSafe({
     emailType: "ORDER_CONFIRMED",
     to: destinationEmail,
@@ -169,8 +227,8 @@ export async function sendOrderConfirmationEmail(
     html,
   });
 
-  // Log dispatch event to order's persistent audit trail & Google Sheets Email Activity
-  db.logOrderEmail(order.id, {
+  // 6. Log Persistent Audit Trail to PostgreSQL and Google Sheets Sync
+  await db.logOrderEmail(order.id, {
     eventType: "ORDER_CONFIRMED",
     recipient: destinationEmail,
     sender: systemConfig.order.user,
@@ -179,9 +237,9 @@ export async function sendOrderConfirmationEmail(
     messageId: result.messageId,
     error: result.error,
     sentAt: new Date().toISOString(),
-  }).catch((err) => console.error("[ORDER EMAIL LOG ERROR]", err));
+  }).catch((err) => console.error("[ORDER EMAIL DB LOG ERROR]", err));
 
-  syncEmailEvent({
+  await syncEmailEvent({
     orderNumber: order.orderNumber,
     eventType: "ORDER_CONFIRMED",
     recipient: destinationEmail,
@@ -191,6 +249,11 @@ export async function sendOrderConfirmationEmail(
 
   return result;
 }
+
+/**
+ * Convenient alias for sendOrderConfirmationEmail taking an order ID or record.
+ */
+export const sendOrderCreatedEmail = sendOrderConfirmationEmail;
 
 /**
  * Dispatches an order status change update (PREPARING, SHIPPED, DELIVERED, CANCELLED, etc.) to the customer.

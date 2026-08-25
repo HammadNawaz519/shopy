@@ -28,29 +28,57 @@ export function renderOrderConfirmationEmail({
   const fullName = customerName || `${order.shippingAddress.firstName} ${order.shippingAddress.lastName}`.trim();
   const safeName = escapeEmailHtml(fullName || "Client");
   const appUrl = getAppUrl();
-  const orderUrl = `${appUrl}/order-confirmation/${order.id}`;
+  const orderUrl = `${appUrl}/order-confirmation/${order.orderNumber || order.id}`;
 
   const isBankTransfer = order.paymentMethod === "bank_transfer" || order.paymentMethod === "online";
   const isPaid = order.paymentStatus === "PAID";
 
-  // Dynamic Subject and Subtitle according to Payment Method
-  const subject = isBankTransfer && !isPaid
-    ? `SHOPY — Payment Verification Pending · #${safeOrderNumber}`
-    : `SHOPY — Order Confirmed · #${safeOrderNumber}`;
+  // Dynamic Subject, Headings, and Messages per Payment Method
+  let subject = `SHOPY — Order Confirmed · #${safeOrderNumber}`;
+  let heading = "ORDER CONFIRMED";
+  let message = "Thank you for shopping with SHOPY. Your order has been confirmed and placed in our atelier preparation queue.";
+  let paymentMethodLabel = "Cash on Delivery";
+  let paymentStatusLabel = "Unpaid";
+  let orderStatusLabel = "Confirmed";
 
-  const heading = isBankTransfer && !isPaid
-    ? "PAYMENT VERIFICATION PENDING"
-    : "ORDER CONFIRMED";
+  if (isBankTransfer) {
+    paymentMethodLabel = "Bank Transfer / Raast";
+    if (isPaid) {
+      paymentStatusLabel = "✓ Paid";
+      orderStatusLabel = "Confirmed";
+      message = "Thank you for shopping with SHOPY. Your bank transfer payment has been confirmed and your order is being prepared in our atelier.";
+    } else {
+      paymentStatusLabel = "Pending Verification";
+      orderStatusLabel = "Verifying Payment";
+      subject = `SHOPY — Payment Verification Pending · #${safeOrderNumber}`;
+      heading = "PAYMENT VERIFICATION PENDING";
+      message = "We've received your order and are currently verifying your payment. Your order will be prepared once your payment has been confirmed.";
+    }
+  } else {
+    // COD
+    paymentMethodLabel = "Cash on Delivery";
+    if (isPaid) {
+      paymentStatusLabel = "✓ Paid";
+      orderStatusLabel = "Confirmed";
+    } else {
+      paymentStatusLabel = "Unpaid";
+      orderStatusLabel = "Confirmed";
+      message = "Thank you for shopping with SHOPY. Your order has been confirmed. Payment will be collected when your order is delivered.";
+    }
+  }
 
-  const message = isBankTransfer && !isPaid
-    ? "We've received your order and are currently verifying your payment. Your order will be prepared once your payment has been confirmed."
-    : "Your order has been confirmed and is being prepared with utmost care in our atelier. Payment will be collected upon delivery.";
-
-  const paymentBadgeText = isBankTransfer ? "Bank Transfer" : "Cash on Delivery";
-
-  const statusBadgeText = isBankTransfer && !isPaid
-    ? "VERIFYING PAYMENT"
-    : "CONFIRMED";
+  // Format Order Date
+  const orderDateFormatted = order.createdAt
+    ? new Date(order.createdAt).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })
+    : new Date().toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
 
   // Product cards with image fallback
   const itemsHtml = order.items
@@ -110,7 +138,7 @@ export function renderOrderConfirmationEmail({
             ${heading}
           </h1>
           <p style="font-size: 13px; line-height: 1.6; letter-spacing: 0.03em; color: #495464; margin: 0; opacity: 0.9;">
-            Hello ${safeName}, thank you for choosing SHOPY. ${message}
+            Hi ${safeName}, ${message}
           </p>
         </td>
       </tr>
@@ -122,10 +150,11 @@ export function renderOrderConfirmationEmail({
             <tr>
               <td style="text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: #495464;">
                 Order: <strong style="font-family: monospace; font-size: 12px;">#${safeOrderNumber}</strong>
+                <div style="font-size: 10px; color: #717D8F; text-transform: none; margin-top: 2px;">${orderDateFormatted}</div>
               </td>
               <td style="text-align: right; font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: #495464; font-weight: 600;">
                 <span style="display: inline-block; background-color: #F4F4F2; border: 1px solid #BBBFCA; padding: 4px 8px;">
-                  ${paymentBadgeText}
+                  Status: ${orderStatusLabel}
                 </span>
               </td>
             </tr>
@@ -137,7 +166,7 @@ export function renderOrderConfirmationEmail({
       <tr>
         <td style="padding: 0 0 16px 0;">
           <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.15em; color: #717D8F; font-weight: 600; padding-bottom: 8px; border-bottom: 1px solid #BBBFCA;">
-            Ordered Items (${order.items.length})
+            Products Ordered (${order.items.length})
           </div>
           <table border="0" cellpadding="0" cellspacing="0" width="100%">
             <tbody>
@@ -176,6 +205,27 @@ export function renderOrderConfirmationEmail({
         </td>
       </tr>
 
+      <!-- PAYMENT INFORMATION CARD -->
+      <tr>
+        <td style="padding: 0 0 20px 0;">
+          <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #E8E8E8; border: 1px solid #BBBFCA; padding: 14px 16px; border-radius: 2px;">
+            <tr>
+              <td style="text-align: left;">
+                <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; color: #717D8F; font-weight: 600; margin-bottom: 4px;">
+                  Payment
+                </div>
+                <div style="font-size: 12px; color: #495464; font-weight: 600;">
+                  Method: ${paymentMethodLabel}
+                </div>
+                <div style="font-size: 11px; color: #495464; opacity: 0.85; margin-top: 2px;">
+                  Status: <strong>${paymentStatusLabel}</strong>
+                </div>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+
       <!-- DESTINATION ADDRESS -->
       <tr>
         <td style="padding: 0 0 24px 0;">
@@ -183,14 +233,14 @@ export function renderOrderConfirmationEmail({
             <tr>
               <td>
                 <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.15em; color: #717D8F; margin-bottom: 6px; font-weight: 600;">
-                  Dispatch Destination
+                  Delivery Destination
                 </div>
                 <div style="font-size: 13px; color: #495464; font-weight: 600;">
                   ${safeName}
                 </div>
                 <div style="font-size: 12px; color: #495464; opacity: 0.85; margin-top: 2px;">
                   ${safeAddressLine}<br />
-                  ${safeCity}${safeProvince ? `, ${safeProvince}` : ""}
+                  ${safeCity}${safeProvince ? `, ${safeProvince}` : ""}, Pakistan
                 </div>
                 <div style="font-size: 11px; color: #495464; opacity: 0.75; margin-top: 4px;">
                   Phone: ${safePhone}
@@ -201,6 +251,20 @@ export function renderOrderConfirmationEmail({
         </td>
       </tr>
 
+      <!-- VIEW YOUR ORDER CTA BUTTON -->
+      <tr>
+        <td align="center" style="padding: 0 0 16px 0; text-align: center;">
+          <table border="0" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
+            <tr>
+              <td align="center" style="background-color: #495464; border-radius: 2px;">
+                <a href="${orderUrl}" style="background-color: #495464; color: #F4F4F2; text-decoration: none; padding: 13px 32px; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; font-weight: 600; display: inline-block; border-radius: 2px;">
+                  View Your Order
+                </a>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
     </table>
   `;
 
@@ -218,15 +282,18 @@ export function renderOrderConfirmationEmail({
 SHOPY — ${heading}
 ----------------------------------------
 Order Reference: #${order.orderNumber}
-Payment: ${paymentBadgeText}
-Status: ${statusBadgeText}
+Date: ${orderDateFormatted}
+Status: ${orderStatusLabel}
+Payment Method: ${paymentMethodLabel}
+Payment Status: ${paymentStatusLabel}
 Total: ${formatCurrency(order.total)}
 
 ${message}
 
-ITEMS:
+PRODUCTS:
 ${textItems}
 
+ORDER SUMMARY:
 Subtotal: ${formatCurrency(order.subtotal)}
 ${order.discount > 0 ? `Discount: -${formatCurrency(order.discount)}\n` : ""}Shipping: ${order.shipping === 0 ? "Complimentary" : formatCurrency(order.shipping)}
 Total: ${formatCurrency(order.total)}
@@ -234,12 +301,14 @@ Total: ${formatCurrency(order.total)}
 DELIVERY DESTINATION:
 ${fullName}
 ${address.address}
-${address.city}
-${address.province ? `${address.province}, ` : ""}${address.postalCode || ""}
+${address.city}, Pakistan
 Phone: ${address.phone}
 
+View Your Order: ${orderUrl}
+
 ----------------------------------------
-SHOPY Concierge Support: shopy.support@gmail.com
+Need help?
+shopy.support@gmail.com
 © 2026 SHOPY Atelier
   `.trim();
 
