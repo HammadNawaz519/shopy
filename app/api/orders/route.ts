@@ -3,10 +3,12 @@ import { CheckoutSchema } from "@/lib/security/validation";
 import { db } from "@/lib/db/store";
 import { getCurrentUser } from "@/lib/security/session";
 import { checkRateLimit, getClientIp } from "@/lib/security/rateLimit";
+import { acquireDistributedLock } from "@/lib/redis";
 import { sendOrderConfirmationEmail, sendAdminNewOrderNotification } from "@/lib/email/mailer";
 import { syncOrderCreated } from "@/lib/sheets/service";
 
 export async function POST(req: Request) {
+  let lockRelease: (() => Promise<void>) | null = null;
   try {
     const ip = getClientIp(req);
     const rateLimit = await checkRateLimit(`order_${ip}`, { limit: 10, windowMs: 15 * 60 * 1000 });
@@ -29,6 +31,21 @@ export async function POST(req: Request) {
 
     const { items, shippingAddress, paymentMethod, promoCode } = parseResult.data;
 
+    // Optional user association from session
+    const session = await getCurrentUser();
+    const userId = session ? session.userId : undefined;
+
+    // Concurrency / Idempotency guard: prevent double-clicks from creating duplicate orders
+    const lockIdentifier = userId ? `order:user:${userId}` : `order:email:${shippingAddress.email.toLowerCase()}`;
+    const lock = await acquireDistributedLock(lockIdentifier, 8);
+    if (!lock.acquired) {
+      return NextResponse.json(
+        { error: "Your order is currently being placed. Please wait a moment." },
+        { status: 409 }
+      );
+    }
+    lockRelease = lock.release;
+
     // Zero-trust: Recalculate all totals server-side from Supabase PostgreSQL
     const recalculated = await db.recalculateCart(items, promoCode);
     if (recalculated.items.length === 0) {
@@ -37,10 +54,6 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
-
-    // Optional user association from session
-    const session = await getCurrentUser();
-    const userId = session ? session.userId : undefined;
 
     const order = await db.createOrder({
       userId,
@@ -86,6 +99,10 @@ export async function POST(req: Request) {
       { error: "Failed to process order." },
       { status: 500 }
     );
+  } finally {
+    if (lockRelease) {
+      await lockRelease().catch(() => {});
+    }
   }
 }
 

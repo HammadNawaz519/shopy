@@ -9,10 +9,10 @@ import { sendWelcomeEmail, sendVerificationOtpEmail, generateSecureOtp } from "@
 export async function POST(req: Request) {
   try {
     const ip = getClientIp(req);
-    const rateLimit = await checkRateLimit(`register_${ip}`, { limit: 50, windowMs: 15 * 60 * 1000 });
+    const rateLimit = await checkRateLimit(`register_${ip}`, { limit: 10, windowMs: 30 * 60 * 1000 });
     if (!rateLimit.success) {
       return NextResponse.json(
-        { error: "Too many registration attempts. Please try again later." },
+        { error: "Too many registration attempts. Please try again in a few minutes." },
         { status: 429 }
       );
     }

@@ -1,4 +1,5 @@
 import { query, transaction } from "./client";
+import { redisGet, redisSet, redisDel, redisDelPattern } from "@/lib/redis";
 
 export const ADMIN_EMAIL = "hammadnawaz276@gmail.com";
 
@@ -489,6 +490,11 @@ class SupabaseDataStore {
   // PRODUCTS
   // --------------------------------------------------------------------------
   async getProducts(filter?: { category?: string; featured?: boolean; search?: string; sort?: string }): Promise<Product[]> {
+    const filterKey = filter ? JSON.stringify(filter) : "all";
+    const cacheKey = `shopy:products:${filterKey}`;
+    const cached = await redisGet<Product[]>(cacheKey);
+    if (cached && Array.isArray(cached)) return cached;
+
     await this.ensureTablesExist();
     let sql = `
       SELECT p.*,
@@ -526,10 +532,18 @@ class SupabaseDataStore {
     }
 
     const res = await query(sql, params);
-    return res.rows.map(mapProductRow);
+    const products = res.rows.map(mapProductRow);
+    redisSet(cacheKey, products, 600).catch(() => {});
+    return products;
   }
 
   async getProductById(id: string): Promise<Product | undefined> {
+    if (!id || typeof id !== "string") return undefined;
+    const cleanId = id.trim().toLowerCase();
+    const cacheKey = `shopy:product:${cleanId}`;
+    const cached = await redisGet<Product>(cacheKey);
+    if (cached) return cached;
+
     await this.ensureTablesExist();
     const res = await query(
       `SELECT p.*,
@@ -544,7 +558,11 @@ class SupabaseDataStore {
       [id]
     );
     if (res.rows.length === 0) return undefined;
-    return mapProductRow(res.rows[0]);
+    const product = mapProductRow(res.rows[0]);
+    redisSet(cacheKey, product, 900).catch(() => {});
+    if (product.id) redisSet(`shopy:product:${product.id.toLowerCase()}`, product, 900).catch(() => {});
+    if (product.slug) redisSet(`shopy:product:${product.slug.toLowerCase()}`, product, 900).catch(() => {});
+    return product;
   }
 
   async getProductImages(productId: string): Promise<ProductImage[]> {
@@ -670,6 +688,11 @@ class SupabaseDataStore {
       await this.syncProductImages(id, validImages);
     }
 
+    // Invalidate products & categories cache
+    redisDelPattern("shopy:products:*").catch(() => {});
+    redisDelPattern("shopy:product:*").catch(() => {});
+    redisDelPattern("shopy:categories:*").catch(() => {});
+
     return mapProductRow({ ...res.rows[0], ordered_images: validImages });
   }
 
@@ -756,6 +779,11 @@ class SupabaseDataStore {
       await this.syncProductImages(id, updates.images);
     }
 
+    // Invalidate products & categories cache
+    redisDelPattern("shopy:products:*").catch(() => {});
+    redisDelPattern("shopy:product:*").catch(() => {});
+    redisDelPattern("shopy:categories:*").catch(() => {});
+
     const updatedRow = res.rows[0];
     return mapProductRow({
       ...updatedRow,
@@ -783,6 +811,12 @@ class SupabaseDataStore {
 
       // 4. Delete product row (order_items.product_id is set to NULL automatically via ON DELETE SET NULL, preserving all historical order invoices)
       const res = await query(`DELETE FROM products WHERE id = $1;`, [id]);
+
+      // Invalidate products & categories cache
+      redisDelPattern("shopy:products:*").catch(() => {});
+      redisDelPattern("shopy:product:*").catch(() => {});
+      redisDelPattern("shopy:categories:*").catch(() => {});
+
       return (res.rowCount || 0) > 0;
     } catch (err) {
       console.error("[DELETE PRODUCT ERROR]", err);
@@ -803,6 +837,10 @@ class SupabaseDataStore {
   // CATEGORIES
   // --------------------------------------------------------------------------
   async getCategories() {
+    const cacheKey = "shopy:categories:all";
+    const cached = await redisGet<any[]>(cacheKey);
+    if (cached && Array.isArray(cached)) return cached;
+
     const res = await query(`
       SELECT c.*, COUNT(p.id)::int as product_count
       FROM categories c
@@ -810,7 +848,7 @@ class SupabaseDataStore {
       GROUP BY c.id
       ORDER BY c.name ASC;
     `);
-    return res.rows.map((row) => ({
+    const categories = res.rows.map((row) => ({
       id: row.id,
       slug: row.slug,
       name: row.name,
@@ -821,9 +859,17 @@ class SupabaseDataStore {
       featured: Boolean(row.featured),
       productCount: Number(row.product_count || 0),
     }));
+    redisSet(cacheKey, categories, 1800).catch(() => {});
+    return categories;
   }
 
   async getCategoryBySlug(slug: string) {
+    if (!slug || typeof slug !== "string") return undefined;
+    const cleanSlug = slug.trim().toLowerCase();
+    const cacheKey = `shopy:category:${cleanSlug}`;
+    const cached = await redisGet<any>(cacheKey);
+    if (cached) return cached;
+
     try {
       await this.ensureTablesExist();
       const res = await query(
@@ -833,11 +879,11 @@ class SupabaseDataStore {
          WHERE LOWER(c.slug) = LOWER($1) OR c.id = $1
          GROUP BY c.id
          LIMIT 1;`,
-        [slug.trim()]
+        [cleanSlug]
       );
       if (res.rows.length === 0) return undefined;
       const row = res.rows[0];
-      return {
+      const category = {
         id: row.id,
         slug: row.slug,
         name: row.name,
@@ -848,6 +894,8 @@ class SupabaseDataStore {
         featured: Boolean(row.featured),
         productCount: Number(row.product_count || 0),
       };
+      redisSet(cacheKey, category, 1800).catch(() => {});
+      return category;
     } catch (err) {
       console.error("[GET CATEGORY BY SLUG ERROR]", err);
       return undefined;
@@ -862,6 +910,12 @@ class SupabaseDataStore {
        RETURNING *;`,
       [id, cat.name, cat.slug, cat.tagline || "", cat.image, cat.description || "", Boolean(cat.featured)]
     );
+
+    // Invalidate categories & products cache
+    redisDelPattern("shopy:categories:*").catch(() => {});
+    redisDelPattern("shopy:category:*").catch(() => {});
+    redisDelPattern("shopy:products:*").catch(() => {});
+
     return res.rows[0];
   }
 
@@ -897,6 +951,12 @@ class SupabaseDataStore {
       [row.id, newName, newSlug, newTagline, newImage, newDesc, newFeatured]
     );
     if (res.rows.length === 0) return undefined;
+
+    // Invalidate categories & products cache
+    redisDelPattern("shopy:categories:*").catch(() => {});
+    redisDelPattern("shopy:category:*").catch(() => {});
+    redisDelPattern("shopy:products:*").catch(() => {});
+
     return res.rows[0];
   }
 
@@ -915,7 +975,6 @@ class SupabaseDataStore {
       }
 
       // 2. Decouple products safely: set category_id = NULL and category_slug = 'uncategorized'
-      // NEVER delete products belonging to the category!
       await query(
         `UPDATE products 
          SET category_id = NULL, category_slug = 'uncategorized', category_label = 'Uncategorized', updated_at = NOW() 
@@ -931,6 +990,12 @@ class SupabaseDataStore {
 
       // 4. Delete the category record
       const res = await query(`DELETE FROM categories WHERE id = $1;`, [cat.id]);
+
+      // Invalidate categories & products cache
+      redisDelPattern("shopy:categories:*").catch(() => {});
+      redisDelPattern("shopy:category:*").catch(() => {});
+      redisDelPattern("shopy:products:*").catch(() => {});
+
       return { success: (res.rowCount || 0) > 0 };
     } catch (err: any) {
       console.error("[DELETE CATEGORY ERROR]", err);
@@ -2062,12 +2127,16 @@ class SupabaseDataStore {
   // STORE SETTINGS
   // --------------------------------------------------------------------------
   async getStoreSettings(): Promise<StoreSettings> {
+    const cacheKey = "shopy:settings:store";
+    const cached = await redisGet<StoreSettings>(cacheKey);
+    if (cached) return cached;
+
     await ensurePaymentSchema();
     try {
       const res = await query(`SELECT * FROM store_settings LIMIT 1;`);
       if (res.rows.length > 0) {
         const r = res.rows[0];
-        return {
+        const settings: StoreSettings = {
           id: r.id,
           storeName: r.store_name || "SHOPY Atelier",
           supportEmail: r.support_email || "shopy.support@gmail.com",
@@ -2089,12 +2158,14 @@ class SupabaseDataStore {
           bankPaymentContact: r.bank_payment_contact || "+92 300 1234567",
           bankPaymentInstructions: r.bank_payment_instructions || "Please transfer the exact total order amount to the bank account above and share screenshot on WhatsApp with your Order ID for instant payment verification.",
         };
+        redisSet(cacheKey, settings, 3600).catch(() => {});
+        return settings;
       }
     } catch (err) {
       console.error("[GET STORE SETTINGS ERROR]", err);
     }
 
-    return {
+    const defaultSettings: StoreSettings = {
       id: "settings_default",
       storeName: "SHOPY Atelier",
       supportEmail: "shopy.support@gmail.com",
@@ -2116,6 +2187,8 @@ class SupabaseDataStore {
       bankPaymentContact: "+92 300 1234567",
       bankPaymentInstructions: "Please transfer the exact total order amount to the bank account above and share screenshot on WhatsApp with your Order ID for instant payment verification.",
     };
+    redisSet(cacheKey, defaultSettings, 3600).catch(() => {});
+    return defaultSettings;
   }
 
   async updateStoreSettings(updates: Partial<StoreSettings>): Promise<StoreSettings> {
@@ -2201,6 +2274,9 @@ class SupabaseDataStore {
         merged.bankPaymentInstructions || null,
       ]
     );
+
+    // Invalidate store settings cache
+    redisDel("shopy:settings:store").catch(() => {});
 
     if (res.rows.length > 0) {
       const r = res.rows[0];
@@ -2515,12 +2591,16 @@ class SupabaseDataStore {
   // HOMEPAGE CONFIGURATION
   // --------------------------------------------------------------------------
   async getHomepageConfig(): Promise<HomepageConfig> {
+    const cacheKey = "shopy:homepage:config";
+    const cached = await redisGet<HomepageConfig>(cacheKey);
+    if (cached) return cached;
+
     try {
       await this.ensureTablesExist();
       const res = await query(`SELECT * FROM homepage_config LIMIT 1;`);
       if (res.rows.length > 0) {
         const r = res.rows[0];
-        return {
+        const config: HomepageConfig = {
           id: r.id,
           heroTitle: r.hero_title || "ARCHITECTURAL ELEGANCE",
           heroSubtitle: r.hero_subtitle || "EDITION 01 • AUTUMN / WINTER 2026",
@@ -2537,12 +2617,14 @@ class SupabaseDataStore {
           newsletterTitle: r.newsletter_title || "Join The Maison Gazette",
           newsletterSubtitle: r.newsletter_subtitle || "Receive private vernissage previews, seasonal lookbooks, and invitation-only atelier dispatches.",
         };
+        redisSet(cacheKey, config, 1800).catch(() => {});
+        return config;
       }
     } catch (err) {
       console.error("[GET HOMEPAGE CONFIG ERROR]", err);
     }
 
-    return {
+    const defaultConfig: HomepageConfig = {
       id: "home_default",
       heroTitle: "ARCHITECTURAL ELEGANCE",
       heroSubtitle: "EDITION 01 • AUTUMN / WINTER 2026",
@@ -2559,6 +2641,8 @@ class SupabaseDataStore {
       newsletterTitle: "Join The Maison Gazette",
       newsletterSubtitle: "Receive private vernissage previews, seasonal lookbooks, and invitation-only atelier dispatches.",
     };
+    redisSet(cacheKey, defaultConfig, 1800).catch(() => {});
+    return defaultConfig;
   }
 
   async updateHomepageConfig(updates: Partial<HomepageConfig>): Promise<HomepageConfig> {
@@ -2623,6 +2707,9 @@ class SupabaseDataStore {
         merged.newsletterSubtitle,
       ]
     );
+
+    // Invalidate homepage config cache
+    redisDel("shopy:homepage:config").catch(() => {});
 
     if (res.rows.length > 0) {
       return this.getHomepageConfig();

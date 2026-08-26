@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db/store";
 import { getCurrentUser } from "@/lib/security/session";
 import { sanitizeString } from "@/lib/security/sanitize";
+import { checkReviewRateLimit, getClientIp } from "@/lib/security/rateLimit";
 
 export const dynamic = "force-dynamic";
 
@@ -53,12 +54,21 @@ export async function GET(req: Request) {
  */
 export async function POST(req: Request) {
   try {
-    // 1. Verify Authentication
+    // 1. Verify Authentication & Rate Limiting
     const session = await getCurrentUser();
     if (!session) {
       return NextResponse.json(
         { error: "Authentication required to submit a verified review." },
         { status: 401 }
+      );
+    }
+
+    const ip = getClientIp(req);
+    const rateLimit = await checkReviewRateLimit(session.userId || ip);
+    if (!rateLimit.success) {
+      return NextResponse.json(
+        { error: "Too many reviews submitted. Please wait before submitting another review." },
+        { status: 429 }
       );
     }
 

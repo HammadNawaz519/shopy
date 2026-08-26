@@ -1,78 +1,74 @@
+import { getRedisClient } from "@/lib/redis";
+
 export interface RateLimitOptions {
   limit: number;      // Maximum requests allowed in window
   windowMs: number;   // Window size in milliseconds
 }
 
+export interface RateLimitResult {
+  success: boolean;
+  limit: number;
+  remaining: number;
+  reset: number;
+}
+
+// Local in-memory sliding window fallback for single-instance or dev mode
 interface RateLimitRecord {
   count: number;
   resetTime: number;
 }
 
-// Local in-memory sliding window fallback for single-instance or dev mode
 const localRateLimitStore = new Map<string, RateLimitRecord>();
 
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, record] of localRateLimitStore.entries()) {
-    if (now > record.resetTime) {
-      localRateLimitStore.delete(key);
+// Cleanup stale in-memory records periodically
+if (typeof setInterval !== "undefined") {
+  setInterval(() => {
+    const now = Date.now();
+    for (const [key, record] of localRateLimitStore.entries()) {
+      if (now > record.resetTime) {
+        localRateLimitStore.delete(key);
+      }
     }
-  }
-}, 60000);
+  }, 60000);
+}
 
+/**
+ * Universal Rate Limiter
+ * Checks rate limit via Upstash Redis distributed store first;
+ * automatically falls back to in-memory sliding window on Redis connection failure.
+ */
 export async function checkRateLimit(
   identifier: string,
   options: RateLimitOptions = { limit: 100, windowMs: 60000 }
-): Promise<{ success: boolean; limit: number; remaining: number; reset: number }> {
-  // Relax rate limit in development
-  if (process.env.NODE_ENV !== "production") {
-    return {
-      success: true,
-      limit: 1000,
-      remaining: 999,
-      reset: Math.ceil((Date.now() + 60000) / 1000),
-    };
-  }
-  // If distributed Upstash Redis credentials are provided, use distributed rate limiting
-  const upstashUrl = process.env.UPSTASH_REDIS_REST_URL;
-  const upstashToken = process.env.UPSTASH_REDIS_REST_TOKEN;
+): Promise<RateLimitResult> {
+  const windowSec = Math.max(1, Math.ceil(options.windowMs / 1000));
+  const redis = getRedisClient();
 
-  if (upstashUrl && upstashToken) {
+  if (redis) {
     try {
-      const windowSec = Math.ceil(options.windowMs / 1000);
       const key = `ratelimit:${identifier}`;
-      
-      const res = await fetch(`${upstashUrl}/pipeline`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${upstashToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify([
-          ["INCR", key],
-          ["EXPIRE", key, windowSec],
-          ["TTL", key],
-        ]),
-      });
+      const pipeline = redis.pipeline();
+      pipeline.incr(key);
+      pipeline.expire(key, windowSec);
+      pipeline.ttl(key);
 
-      if (res.ok) {
-        const results = await res.json();
-        const count = results[0]?.result || 1;
-        const ttl = results[2]?.result || windowSec;
+      const results = await pipeline.exec();
+      const count = (results[0] as number) || 1;
+      const ttl = (results[2] as number) > 0 ? (results[2] as number) : windowSec;
 
-        return {
-          success: count <= options.limit,
-          limit: options.limit,
-          remaining: Math.max(0, options.limit - count),
-          reset: Math.ceil(Date.now() / 1000) + ttl,
-        };
-      }
-    } catch {
-      // Fallback to local memory limiter on transient distributed store connection failure
+      return {
+        success: count <= options.limit,
+        limit: options.limit,
+        remaining: Math.max(0, options.limit - count),
+        reset: Math.ceil(Date.now() / 1000) + ttl,
+      };
+    } catch (err: any) {
+      console.warn(`[RATE LIMIT REDIS FALLBACK] Key "${identifier}":`, err?.message || err);
+      // Fallback to local memory limiter on transient Redis error
     }
   }
 
-  // Fallback to local sliding window store
+  // In-memory sliding window fallback
   const now = Date.now();
   const record = localRateLimitStore.get(identifier);
 
@@ -107,6 +103,9 @@ export async function checkRateLimit(
   };
 }
 
+/**
+ * Extracts client IP from incoming request headers safely.
+ */
 export function getClientIp(req: Request): string {
   const forwarded = req.headers.get("x-forwarded-for");
   if (forwarded) {
@@ -117,4 +116,57 @@ export function getClientIp(req: Request): string {
     return realIp.trim();
   }
   return "127.0.0.1";
+}
+
+// ============================================================================
+// PRESET ROUTE-SPECIFIC RATE LIMIT GUARDS
+// ============================================================================
+
+/**
+ * Login Rate Limit: 10 attempts per 15 minutes per IP
+ */
+export async function checkLoginRateLimit(ip: string): Promise<RateLimitResult> {
+  return checkRateLimit(`login_${ip}`, { limit: 10, windowMs: 15 * 60 * 1000 });
+}
+
+/**
+ * Registration Rate Limit: 5 accounts per 30 minutes per IP
+ */
+export async function checkRegisterRateLimit(ip: string): Promise<RateLimitResult> {
+  return checkRateLimit(`register_${ip}`, { limit: 5, windowMs: 30 * 60 * 1000 });
+}
+
+/**
+ * Password Reset / Forgot Password Rate Limit: 3 requests per 15 minutes per IP
+ */
+export async function checkPasswordResetRateLimit(ip: string): Promise<RateLimitResult> {
+  return checkRateLimit(`password_reset_${ip}`, { limit: 3, windowMs: 15 * 60 * 1000 });
+}
+
+/**
+ * Order Creation / Checkout Rate Limit: 10 checkout attempts per 15 minutes per IP/User
+ */
+export async function checkOrderRateLimit(identifier: string): Promise<RateLimitResult> {
+  return checkRateLimit(`order_${identifier}`, { limit: 10, windowMs: 15 * 60 * 1000 });
+}
+
+/**
+ * Review Submission Rate Limit: 5 reviews per hour per user/IP
+ */
+export async function checkReviewRateLimit(identifier: string): Promise<RateLimitResult> {
+  return checkRateLimit(`review_${identifier}`, { limit: 5, windowMs: 60 * 60 * 1000 });
+}
+
+/**
+ * Contact Form Rate Limit: 5 inquiries per 30 minutes per IP
+ */
+export async function checkContactRateLimit(ip: string): Promise<RateLimitResult> {
+  return checkRateLimit(`contact_${ip}`, { limit: 5, windowMs: 30 * 60 * 1000 });
+}
+
+/**
+ * Admin Mutation Rate Limit: 60 operations per minute per admin session
+ */
+export async function checkAdminMutationRateLimit(adminId: string): Promise<RateLimitResult> {
+  return checkRateLimit(`admin_mutation_${adminId}`, { limit: 60, windowMs: 60 * 1000 });
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin, getCurrentUser } from "@/lib/security/session";
 import { db, OrderStatus, PaymentStatus } from "@/lib/db/store";
+import { acquireDistributedLock } from "@/lib/redis";
 import { sendOrderStatusUpdateEmail, sendPaymentReceivedEmail } from "@/lib/email/mailer";
 import { syncOrderStatusUpdated } from "@/lib/sheets/service";
 
@@ -41,6 +42,7 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: "Unauthorized: Admin privileges required." }, { status: 403 });
   }
 
+  let lockRelease: (() => Promise<void>) | null = null;
   try {
     const body = await req.json();
     const { orderId, status, paymentStatus, notes } = body;
@@ -48,6 +50,16 @@ export async function PATCH(req: Request) {
     if (!orderId) {
       return NextResponse.json({ error: "Order ID is required." }, { status: 400 });
     }
+
+    // Acquire distributed lock to prevent concurrent race conditions on same order
+    const lock = await acquireDistributedLock(`order:status:${orderId}`, 8);
+    if (!lock.acquired) {
+      return NextResponse.json(
+        { error: "An update for this order is currently in progress. Please wait a moment." },
+        { status: 409 }
+      );
+    }
+    lockRelease = lock.release;
 
     const previousOrder = await db.getOrderById(orderId);
     if (!previousOrder) {
@@ -142,5 +154,9 @@ export async function PATCH(req: Request) {
   } catch (error: any) {
     console.error("[ADMIN UPDATE ORDER ERROR]", error);
     return NextResponse.json({ error: error?.message || "Failed to update order." }, { status: 500 });
+  } finally {
+    if (lockRelease) {
+      await lockRelease().catch(() => {});
+    }
   }
 }
