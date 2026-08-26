@@ -125,20 +125,20 @@ export default function OrderInvoicePrint({ order }: OrderInvoicePrintProps) {
             Deliver To
           </span>
           <p className="font-semibold text-sm text-[#111111] pt-0.5">
-            {order.shippingAddress.firstName} {order.shippingAddress.lastName}
+            {order.shippingAddress?.firstName || "Client"} {order.shippingAddress?.lastName || ""}
           </p>
           <p className="text-[#363E4B] leading-relaxed">
-            {order.shippingAddress.address}
+            {order.shippingAddress?.address || "Address unspecified"}
             <br />
-            {order.shippingAddress.city}, {order.shippingAddress.province}{" "}
-            {order.shippingAddress.postalCode}
+            {order.shippingAddress?.city || "Pakistan"}{order.shippingAddress?.province ? `, ${order.shippingAddress.province}` : ""}{" "}
+            {order.shippingAddress?.postalCode || ""}
           </p>
           <div className="pt-1 text-[11px] text-[#495464] space-y-0.5">
             <p>
-              <strong>Phone:</strong> {order.shippingAddress.phone || "N/A"}
+              <strong>Phone:</strong> {order.shippingAddress?.phone || "N/A"}
             </p>
             <p>
-              <strong>Email:</strong> {order.shippingAddress.email}
+              <strong>Email:</strong> {order.shippingAddress?.email || "N/A"}
             </p>
           </div>
         </div>

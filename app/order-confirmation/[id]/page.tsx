@@ -17,7 +17,7 @@ export default function OrderConfirmationPage({ params }: { params: { id: string
   useEffect(() => {
     async function fetchOrder() {
       try {
-        const res = await fetch(`/api/orders/${params.id}`);
+        const res = await fetch(`/api/orders/${encodeURIComponent(params.id)}`);
         if (res.ok) {
           const data = await res.json();
           setOrder(data.order);

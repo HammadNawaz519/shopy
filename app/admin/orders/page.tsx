@@ -296,12 +296,12 @@ function OrdersContent() {
                         </td>
                         <td className="px-2.5 py-3 max-w-[160px]">
                           <span className="font-medium block text-[#495464] truncate">
-                            {ord.shippingAddress.firstName} {ord.shippingAddress.lastName}
+                            {ord.shippingAddress?.firstName || "Client"} {ord.shippingAddress?.lastName || ""}
                           </span>
-                          <span className="text-[10px] text-[#495464]/60 block truncate">{ord.shippingAddress.city}</span>
+                          <span className="text-[10px] text-[#495464]/60 block truncate">{ord.shippingAddress?.city || "Pakistan"}</span>
                         </td>
                         <td className="px-2 py-3 text-[#495464]/80 whitespace-nowrap text-left">
-                          {ord.items.length} {ord.items.length === 1 ? "pc" : "pcs"}
+                          {(ord.items || []).length} {(ord.items || []).length === 1 ? "pc" : "pcs"}
                         </td>
                         <td className="px-2.5 py-3 font-serif font-semibold text-[#495464] whitespace-nowrap">
                           {formatPrice(ord.total)}
@@ -568,30 +568,36 @@ function OrdersContent() {
               {/* Items List */}
               <div className="space-y-3">
                 <h4 className="text-xs uppercase tracking-widest font-semibold text-[#495464]">
-                  Ordered Pieces ({selectedOrder.items.length})
+                  Ordered Pieces ({(selectedOrder.items || []).length})
                 </h4>
                 <div className="divide-y divide-[#BBBFCA]/20 border-y border-[#BBBFCA]/30">
-                  {selectedOrder.items.map((item: any, idx: number) => (
+                  {(selectedOrder.items || []).map((item: any, idx: number) => (
                     <div key={idx} className="py-3 flex items-center justify-between gap-4">
                       <div className="flex items-center gap-3">
                         <div className="relative w-12 h-14 bg-[#E8E8E8] flex-shrink-0 overflow-hidden">
-                          <Image
-                            src={item.image}
-                            alt={item.name}
-                            fill
-                            sizes="48px"
-                            className="object-cover"
-                          />
+                          {item.image ? (
+                            <Image
+                              src={item.image}
+                              alt={item.name || "Product"}
+                              fill
+                              sizes="48px"
+                              className="object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-[9px] text-[#495464]/60">
+                              SHOPY
+                            </div>
+                          )}
                         </div>
                         <div>
-                          <p className="font-serif text-sm font-medium text-[#495464]">{item.name}</p>
+                          <p className="font-serif text-sm font-medium text-[#495464]">{item.name || "Product Item"}</p>
                           <p className="text-[10px] text-[#495464]/60">
-                            Qty: {item.quantity} • Size: {item.size} • Color: {item.color}
+                            Qty: {item.quantity || 1} • Size: {item.size || "Standard"} • Color: {item.color || "Default"}
                           </p>
                         </div>
                       </div>
                       <span className="text-xs font-semibold text-[#495464]">
-                        {formatPrice(item.price * item.quantity)}
+                        {formatPrice((item.price || 0) * (item.quantity || 1))}
                       </span>
                     </div>
                   ))}
@@ -602,21 +608,21 @@ function OrdersContent() {
               <div className="bg-[#E8E8E8]/50 border border-[#BBBFCA]/30 p-4 space-y-2 text-xs tracking-wider">
                 <div className="flex justify-between">
                   <span>Subtotal</span>
-                  <span>{formatPrice(selectedOrder.subtotal)}</span>
+                  <span>{formatPrice(selectedOrder.subtotal || 0)}</span>
                 </div>
-                {selectedOrder.discount > 0 && (
+                {(selectedOrder.discount || 0) > 0 && (
                   <div className="flex justify-between text-emerald-800">
                     <span>Discount</span>
-                    <span>-{formatPrice(selectedOrder.discount)}</span>
+                    <span>-{formatPrice(selectedOrder.discount || 0)}</span>
                   </div>
                 )}
                 <div className="flex justify-between">
                   <span>Insured Shipping</span>
-                  <span>{selectedOrder.shipping === 0 ? "Free" : formatPrice(selectedOrder.shipping)}</span>
+                  <span>{(selectedOrder.shipping || 0) === 0 ? "Free" : formatPrice(selectedOrder.shipping || 0)}</span>
                 </div>
                 <div className="flex justify-between font-serif text-base font-semibold text-[#495464] pt-2 border-t border-[#BBBFCA]/30">
                   <span>Total Amount</span>
-                  <span>{formatPrice(selectedOrder.total)}</span>
+                  <span>{formatPrice(selectedOrder.total || 0)}</span>
                 </div>
               </div>
 
@@ -628,22 +634,23 @@ function OrdersContent() {
                 <p className="flex items-center gap-2">
                   <User className="w-3.5 h-3.5 text-[#495464]/60" />
                   <span>
-                    {selectedOrder.shippingAddress.firstName} {selectedOrder.shippingAddress.lastName}
+                    {selectedOrder.shippingAddress?.firstName || "Client"} {selectedOrder.shippingAddress?.lastName || ""}
                   </span>
                 </p>
                 <p className="flex items-center gap-2">
                   <Mail className="w-3.5 h-3.5 text-[#495464]/60" />
-                  <span>{selectedOrder.shippingAddress.email}</span>
+                  <span>{selectedOrder.shippingAddress?.email || "No email"}</span>
                 </p>
                 <p className="flex items-center gap-2">
                   <Phone className="w-3.5 h-3.5 text-[#495464]/60" />
-                  <span>{selectedOrder.shippingAddress.phone}</span>
+                  <span>{selectedOrder.shippingAddress?.phone || "No phone"}</span>
                 </p>
                 <p className="flex items-start gap-2">
                   <MapPin className="w-3.5 h-3.5 text-[#495464]/60 mt-0.5" />
                   <span>
-                    {selectedOrder.shippingAddress.address}, {selectedOrder.shippingAddress.city},{" "}
-                    {selectedOrder.shippingAddress.province} {selectedOrder.shippingAddress.postalCode}
+                    {selectedOrder.shippingAddress?.address || "Address unspecified"}, {selectedOrder.shippingAddress?.city || "Pakistan"}
+                    {selectedOrder.shippingAddress?.province ? `, ${selectedOrder.shippingAddress.province}` : ""}
+                    {selectedOrder.shippingAddress?.postalCode ? ` ${selectedOrder.shippingAddress.postalCode}` : ""}
                   </span>
                 </p>
               </div>
