@@ -1,17 +1,51 @@
 import { Redis } from "@upstash/redis";
+import crypto from "crypto";
 
 /**
- * SHOPY Production Upstash Redis Layer
+ * SHOPY Production Upstash Redis Architecture
  *
- * ARCHITECTURAL PRINCIPLE:
- * Supabase PostgreSQL remains the SINGLE SOURCE OF TRUTH for all permanent data.
- * Redis operates strictly as an optimization, security, coordination, and caching layer.
- * All Redis operations are wrapped in safe error handlers — if Redis is down or unreachable,
- * the entire platform seamlessly degrades to PostgreSQL with zero user-facing errors.
+ * ARCHITECTURAL PRINCIPLES:
+ * 1. SUPABASE POSTGRESQL IS THE SINGLE SOURCE OF TRUTH.
+ *    Permanent business records (orders, payments, users, inventory, reviews, settings)
+ *    remain strictly in PostgreSQL.
+ * 2. REDIS IS ONLY AN OPTIMIZATION & COORDINATION LAYER.
+ *    Used exclusively for:
+ *      - Versioned caching (shopy:v1:*)
+ *      - Distributed rate limiting
+ *      - Request-level checkout idempotency
+ *      - Short-lived distributed coordination locks
+ *      - Cache stampede single-flight mutex protection
+ * 3. ZERO-THROW FAIL-SAFE DEGRADATION:
+ *    If Redis is unavailable, disconnected, or throttled, all operations fail safely
+ *    to Supabase PostgreSQL without crashing, throwing 500 errors, or corrupting state.
+ * 4. SECURE SERVER-ONLY USAGE:
+ *    Never exposed to client bundles (no NEXT_PUBLIC_ prefixes).
+ *    Never logs customer credentials, OTPs, or API secrets.
  */
+
+export const CACHE_VERSION = "shopy:v1";
+
+export const CACHE_TTL = {
+  PRODUCTS_LIST: 600,      // 10 minutes
+  PRODUCT_DETAIL: 900,     // 15 minutes
+  CATEGORIES: 1800,        // 30 minutes
+  STORE_SETTINGS: 3600,    // 1 hour
+  HOMEPAGE_CONFIG: 1800,   // 30 minutes
+  ORDER_IDEMPOTENCY: 86400 // 24 hours
+} as const;
 
 let redisInstance: Redis | null = null;
 let redisAvailable: boolean | null = null;
+
+/**
+ * Generates a standard versioned cache key.
+ */
+export function buildCacheKey(namespace: string, identifier?: string): string {
+  if (!identifier) {
+    return `${CACHE_VERSION}:${namespace}`;
+  }
+  return `${CACHE_VERSION}:${namespace}:${identifier}`;
+}
 
 /**
  * Retrieves or initializes the singleton Upstash Redis client.
@@ -27,7 +61,7 @@ export function getRedisClient(): Redis | null {
 
   if (!url || !token) {
     if (redisAvailable !== false) {
-      console.warn("[REDIS NOTICE] UPSTASH_REDIS_REST_URL or UPSTASH_REDIS_REST_TOKEN not configured. Running in database-only mode.");
+      console.warn("[REDIS NOTICE] Upstash Redis credentials not configured. Running in PostgreSQL authoritative mode.");
       redisAvailable = false;
     }
     return null;
@@ -112,7 +146,7 @@ export async function redisDel(...keys: string[]): Promise<boolean> {
 }
 
 /**
- * Safely invalidates all Redis keys matching a pattern (e.g. "shopy:products:*").
+ * Safely invalidates all Redis keys matching a pattern (e.g. "shopy:v1:products:*").
  * Uses SCAN in batches to avoid blocking Redis.
  */
 export async function redisDelPattern(pattern: string): Promise<number> {
@@ -144,13 +178,12 @@ export async function redisDelPattern(pattern: string): Promise<number> {
 }
 
 /**
- * Distributed Lock Acquisition (Idempotency & Concurrency Guard)
+ * Distributed Lock with Verified Ownership Release
  *
- * Attempts to set key with NX (only if not exists) and EX (auto expiration).
- * If acquired, returns { acquired: true, release: fn }.
- * If lock is held by another concurrent request, returns { acquired: false, release: noop }.
- * If Redis is down, gracefully allows execution ({ acquired: true, release: noop })
- * because PostgreSQL transactions enforce final consistency.
+ * Implements atomic SET NX EX with cryptographically unique token.
+ * Prevents race conditions and guarantees locks are only released by their original owner.
+ * If Redis is unavailable, returns acquired: true to prevent blocking legitimate checkout,
+ * relying on PostgreSQL ACID transaction constraints.
  */
 export async function acquireDistributedLock(
   lockKey: string,
@@ -164,7 +197,7 @@ export async function acquireDistributedLock(
     return { acquired: true, release: noopRelease };
   }
 
-  const lockValue = `${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+  const lockValue = `${Date.now()}_${crypto.randomBytes(8).toString("hex")}`;
   const key = `lock:${lockKey}`;
 
   try {
@@ -178,7 +211,7 @@ export async function acquireDistributedLock(
         acquired: true,
         release: async () => {
           try {
-            // Only release if lock value matches (safe release)
+            // Verified ownership release: Only release if lock value matches token
             const currentValue = await redis.get<string>(key);
             if (currentValue === lockValue) {
               await redis.del(key);
@@ -195,5 +228,56 @@ export async function acquireDistributedLock(
     console.warn(`[REDIS LOCK ERROR] Key "${key}":`, err?.message || err);
     // Graceful degradation: allow PostgreSQL to handle transaction
     return { acquired: true, release: noopRelease };
+  }
+}
+
+/**
+ * Cache Stampede Protection (Mutex / Single Flight Pattern)
+ *
+ * When a high-traffic cache entry expires, this ensures only one request queries PostgreSQL
+ * to re-populate the cache, while concurrent requests wait briefly and read the freshly cached value.
+ * If Redis fails, falls back immediately to calling the fetcher directly.
+ */
+export async function fetchWithStampedeProtection<T>(
+  cacheKey: string,
+  fetcher: () => Promise<T>,
+  ttlSeconds: number
+): Promise<T> {
+  // 1. Try reading from cache
+  const cached = await redisGet<T>(cacheKey);
+  if (cached !== null && cached !== undefined) {
+    return cached;
+  }
+
+  // 2. Cache Miss: Acquire short mutex lock for single-flight database fetch
+  const lockKey = `stampede:${cacheKey}`;
+  const lock = await acquireDistributedLock(lockKey, 5);
+
+  if (lock.acquired) {
+    try {
+      // Re-check cache in case another worker just finished while acquiring lock
+      const doubleCheck = await redisGet<T>(cacheKey);
+      if (doubleCheck !== null && doubleCheck !== undefined) {
+        return doubleCheck;
+      }
+
+      // Authoritative PostgreSQL query
+      const freshData = await fetcher();
+      if (freshData !== null && freshData !== undefined) {
+        await redisSet(cacheKey, freshData, ttlSeconds);
+      }
+      return freshData;
+    } finally {
+      await lock.release();
+    }
+  } else {
+    // Another worker is populating the cache; wait briefly and check cache again
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    const awaitedCache = await redisGet<T>(cacheKey);
+    if (awaitedCache !== null && awaitedCache !== undefined) {
+      return awaitedCache;
+    }
+    // Fallback: direct database query if cache population took longer than wait
+    return fetcher();
   }
 }

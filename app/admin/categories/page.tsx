@@ -16,6 +16,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import AdminHeader from "@/components/admin/AdminHeader";
+import { ConfirmModal } from "@/components/admin/ConfirmModal";
 import { useToast } from "@/context/ToastContext";
 
 interface CategoryItem {
@@ -37,6 +38,12 @@ export default function AdminCategoriesPage() {
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingCat, setEditingCat] = useState<CategoryItem | null>(null);
+
+  // Custom Delete Confirmation Modal State
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deletingCat, setDeletingCat] = useState<{ id: string; name: string; image?: string | null; productCount: number } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // Form State
   const [name, setName] = useState("");
@@ -223,29 +230,45 @@ export default function AdminCategoriesPage() {
     }
   };
 
-  const handleDelete = async (id: string, name: string, productCount: number) => {
-    if (productCount > 0) {
-      alert(
-        `Cannot delete "${name}": There are ${productCount} products currently assigned to this category. Please reassign or delete these products first.`
-      );
-      return;
-    }
+  const handleOpenDeleteModal = (cat: CategoryItem) => {
+    setDeletingCat({
+      id: cat.id,
+      name: cat.name,
+      image: cat.image || null,
+      productCount: cat.productCount || 0,
+    });
+    setDeleteError(null);
+    setDeleteModalOpen(true);
+  };
 
-    if (!confirm(`Are you sure you want to permanently delete category "${name}"?`)) return;
+  const handleConfirmDelete = async () => {
+    if (!deletingCat || isDeleting) return;
+
+    setIsDeleting(true);
+    setDeleteError(null);
 
     try {
-      const res = await fetch(`/api/admin/categories?id=${encodeURIComponent(id)}`, {
+      const res = await fetch(`/api/admin/categories?id=${encodeURIComponent(deletingCat.id)}`, {
         method: "DELETE",
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+
       if (res.ok && data.success) {
-        showToast(`Category "${name}" deleted.`, "success");
+        setDeleteModalOpen(false);
+        setDeletingCat(null);
+        showToast(`✓ Category "${deletingCat.name}" deleted.`, "success");
         fetchCategories();
       } else {
-        showToast(data.error || "Failed to delete category.", "error");
+        const safeError =
+          typeof data.error === "string"
+            ? data.error
+            : "We couldn't delete this category right now. Please try again.";
+        setDeleteError(safeError);
       }
     } catch {
-      showToast("Network error deleting category.", "error");
+      setDeleteError("A network error occurred while contacting the server. Please check your connection and try again.");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -350,7 +373,7 @@ export default function AdminCategoriesPage() {
                         <Edit2 className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => handleDelete(cat.id, cat.name, cat.productCount)}
+                        onClick={() => handleOpenDeleteModal(cat)}
                         className="p-1.5 text-[#495464] hover:text-black hover:bg-[#BBBFCA]/40 transition-colors"
                         title="Delete Category"
                       >
@@ -525,6 +548,32 @@ export default function AdminCategoriesPage() {
             </div>
           </div>
         )}
+        {/* Custom Luxury Delete Category Confirmation Modal */}
+        <ConfirmModal
+          isOpen={deleteModalOpen}
+          title="Delete Collection Category"
+          description={`Are you sure you want to permanently delete this category?`}
+          entityName={deletingCat?.name}
+          entityImage={deletingCat?.image}
+          secondaryNote={
+            deletingCat?.productCount && deletingCat.productCount > 0
+              ? `There are ${deletingCat.productCount} products currently assigned to this category. Deleting it will safely reassign those products to 'Uncategorized' without removing them from your catalog or historical orders.`
+              : "This action will permanently remove the category architecture and its associated navigation links."
+          }
+          confirmLabel="Delete Category"
+          cancelLabel="Cancel"
+          isDanger={true}
+          isLoading={isDeleting}
+          error={deleteError}
+          onConfirm={handleConfirmDelete}
+          onCancel={() => {
+            if (!isDeleting) {
+              setDeleteModalOpen(false);
+              setDeletingCat(null);
+              setDeleteError(null);
+            }
+          }}
+        />
       </main>
     </div>
   );

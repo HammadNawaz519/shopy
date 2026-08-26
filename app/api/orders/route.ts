@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { CheckoutSchema } from "@/lib/security/validation";
 import { db } from "@/lib/db/store";
 import { getCurrentUser } from "@/lib/security/session";
-import { checkRateLimit, getClientIp } from "@/lib/security/rateLimit";
-import { acquireDistributedLock } from "@/lib/redis";
+import { checkOrderRateLimit, getClientIp } from "@/lib/security/rateLimit";
+import { acquireDistributedLock, buildCacheKey, redisGet, redisSet, redisDelPattern, CACHE_TTL } from "@/lib/redis";
 import { sendOrderConfirmationEmail, sendAdminNewOrderNotification } from "@/lib/email/mailer";
 import { syncOrderCreated } from "@/lib/sheets/service";
 
@@ -11,7 +11,13 @@ export async function POST(req: Request) {
   let lockRelease: (() => Promise<void>) | null = null;
   try {
     const ip = getClientIp(req);
-    const rateLimit = await checkRateLimit(`order_${ip}`, { limit: 10, windowMs: 15 * 60 * 1000 });
+
+    // Optional user association from session
+    const session = await getCurrentUser();
+    const userId = session ? session.userId : undefined;
+
+    // Distributed Rate Limit
+    const rateLimit = await checkOrderRateLimit(userId || ip);
     if (!rateLimit.success) {
       return NextResponse.json(
         { error: "Too many order requests. Please wait a few moments." },
@@ -20,8 +26,47 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json().catch(() => ({}));
-    const parseResult = CheckoutSchema.safeParse(body);
 
+    // Request-Level Idempotency Protection
+    const rawIdempotencyKey =
+      req.headers.get("idempotency-key")?.trim() ||
+      req.headers.get("Idempotency-Key")?.trim() ||
+      body.idempotencyKey?.trim() ||
+      null;
+
+    const idempotencyCacheKey = rawIdempotencyKey
+      ? buildCacheKey("idempotency", `order:${userId || ip}:${rawIdempotencyKey}`)
+      : null;
+
+    if (idempotencyCacheKey) {
+      const existingState = await redisGet<any>(idempotencyCacheKey);
+      if (existingState) {
+        if (typeof existingState === "object" && existingState.orderId) {
+          // Idempotent replay: return previously created order without re-executing
+          return NextResponse.json(
+            {
+              success: true,
+              orderId: existingState.orderId,
+              orderNumber: existingState.orderNumber,
+              total: existingState.total,
+              idempotent: true,
+            },
+            { status: 200 }
+          );
+        }
+        if (existingState === "processing") {
+          return NextResponse.json(
+            { error: "Your order is currently being placed. Please wait a moment." },
+            { status: 409 }
+          );
+        }
+      }
+
+      // Mark request as processing with short TTL
+      await redisSet(idempotencyCacheKey, "processing", 300);
+    }
+
+    const parseResult = CheckoutSchema.safeParse(body);
     if (!parseResult.success) {
       return NextResponse.json(
         { error: parseResult.error.errors[0].message },
@@ -31,12 +76,13 @@ export async function POST(req: Request) {
 
     const { items, shippingAddress, paymentMethod, promoCode } = parseResult.data;
 
-    // Optional user association from session
-    const session = await getCurrentUser();
-    const userId = session ? session.userId : undefined;
+    // Concurrency Lock: Prevents simultaneous double-submit clicks
+    const lockIdentifier = rawIdempotencyKey
+      ? `order:${rawIdempotencyKey}`
+      : userId
+      ? `order:user:${userId}`
+      : `order:email:${shippingAddress.email.toLowerCase()}`;
 
-    // Concurrency / Idempotency guard: prevent double-clicks from creating duplicate orders
-    const lockIdentifier = userId ? `order:user:${userId}` : `order:email:${shippingAddress.email.toLowerCase()}`;
     const lock = await acquireDistributedLock(lockIdentifier, 8);
     if (!lock.acquired) {
       return NextResponse.json(
@@ -55,6 +101,7 @@ export async function POST(req: Request) {
       );
     }
 
+    // Authoritative PostgreSQL Transaction (Order + Items + Atomic Inventory Decrement)
     const order = await db.createOrder({
       userId,
       items: recalculated.items,
@@ -66,6 +113,19 @@ export async function POST(req: Request) {
       shippingAddress,
     });
 
+    // Save completed order state in idempotency cache for duplicate request replays
+    if (idempotencyCacheKey) {
+      redisSet(
+        idempotencyCacheKey,
+        {
+          orderId: order.id,
+          orderNumber: order.orderNumber,
+          total: order.total,
+        },
+        CACHE_TTL.ORDER_IDEMPOTENCY
+      ).catch(() => {});
+    }
+
     // Clear synchronized cloud cart for authenticated client
     if (userId) {
       db.clearUserCart(userId).catch(() => {});
@@ -74,7 +134,11 @@ export async function POST(req: Request) {
     // Re-fetch authoritative order from database with line items and exact state
     const authoritativeOrder = (await db.getOrderById(order.id)) || order;
 
-    // Dispatch order confirmation, admin notification emails, and Google Sheets synchronization safely
+    // Invalidate product catalog cache because stock changed
+    redisDelPattern("shopy:v1:products:*").catch(() => {});
+    redisDelPattern("shopy:v1:product:*").catch(() => {});
+
+    // Non-blocking async post-commit dispatch (Email, Google Sheets)
     try {
       await Promise.allSettled([
         sendOrderConfirmationEmail(authoritativeOrder),
@@ -94,9 +158,10 @@ export async function POST(req: Request) {
       },
       { status: 201 }
     );
-  } catch {
+  } catch (err: any) {
+    console.error("[ORDER CREATION ERROR]", err);
     return NextResponse.json(
-      { error: "Failed to process order." },
+      { error: err?.message || "Failed to process order." },
       { status: 500 }
     );
   } finally {

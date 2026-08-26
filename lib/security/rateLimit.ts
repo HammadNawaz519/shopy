@@ -46,7 +46,7 @@ export async function checkRateLimit(
 
   if (redis) {
     try {
-      const key = `ratelimit:${identifier}`;
+      const key = `shopy:v1:ratelimit:${identifier}`;
       const pipeline = redis.pipeline();
       pipeline.incr(key);
       pipeline.expire(key, windowSec);

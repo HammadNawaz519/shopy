@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { Star, CheckCircle2, XCircle, Trash2, Loader2, MessageSquare } from "lucide-react";
 import AdminHeader from "@/components/admin/AdminHeader";
+import { ConfirmModal } from "@/components/admin/ConfirmModal";
 import StarRating from "@/components/ui/StarRating";
 import { useToast } from "@/context/ToastContext";
 
@@ -10,6 +11,12 @@ export default function AdminReviewsPage() {
   const { showToast } = useToast();
   const [reviews, setReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Custom Delete Confirmation Modal State
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deletingReview, setDeletingReview] = useState<{ id: string; authorName: string; comment: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const fetchReviews = async () => {
     try {
@@ -46,16 +53,44 @@ export default function AdminReviewsPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm("Remove this review?")) return;
+  const handleOpenDeleteModal = (review: any) => {
+    setDeletingReview({
+      id: review.id,
+      authorName: review.authorName || review.author_name || "Customer",
+      comment: review.comment || "",
+    });
+    setDeleteError(null);
+    setDeleteModalOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deletingReview || isDeleting) return;
+
+    setIsDeleting(true);
+    setDeleteError(null);
+
     try {
-      const res = await fetch(`/api/admin/reviews?id=${id}`, { method: "DELETE" });
-      if (res.ok) {
-        showToast("Review deleted.", "success");
-        setReviews((prev) => prev.filter((r) => r.id !== id));
+      const res = await fetch(`/api/admin/reviews?id=${encodeURIComponent(deletingReview.id)}`, {
+        method: "DELETE",
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok && (data.success !== false)) {
+        setDeleteModalOpen(false);
+        setDeletingReview(null);
+        showToast("✓ Customer review deleted.", "success");
+        setReviews((prev) => prev.filter((r) => r.id !== deletingReview.id));
+      } else {
+        const safeError =
+          typeof data.error === "string"
+            ? data.error
+            : "We couldn't delete this review right now. Please try again.";
+        setDeleteError(safeError);
       }
     } catch {
-      showToast("Error deleting review.", "error");
+      setDeleteError("A network error occurred while contacting the server. Please check your connection and try again.");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -163,9 +198,9 @@ export default function AdminReviewsPage() {
                           </button>
                         )}
                         <button
-                          onClick={() => handleDelete(r.id)}
+                          onClick={() => handleOpenDeleteModal(r)}
                           className="p-1.5 text-[#495464] hover:text-black hover:bg-[#BBBFCA]/40 transition-colors"
-                          title="Delete"
+                          title="Delete Review"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -177,6 +212,28 @@ export default function AdminReviewsPage() {
             </div>
           )}
         </div>
+
+        {/* Custom Luxury Delete Review Confirmation Modal */}
+        <ConfirmModal
+          isOpen={deleteModalOpen}
+          title="Remove Customer Review"
+          description="Are you sure you want to permanently delete this customer review and rating?"
+          entityName={deletingReview ? `${deletingReview.authorName}'s Review` : undefined}
+          secondaryNote={deletingReview?.comment ? `"${deletingReview.comment.slice(0, 120)}${deletingReview.comment.length > 120 ? "..." : ""}"` : undefined}
+          confirmLabel="Delete Review"
+          cancelLabel="Cancel"
+          isDanger={true}
+          isLoading={isDeleting}
+          error={deleteError}
+          onConfirm={handleConfirmDelete}
+          onCancel={() => {
+            if (!isDeleting) {
+              setDeleteModalOpen(false);
+              setDeletingReview(null);
+              setDeleteError(null);
+            }
+          }}
+        />
       </main>
     </div>
   );

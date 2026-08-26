@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { Plus, Tag, Trash2, CheckCircle2, XCircle, Loader2, X } from "lucide-react";
 import AdminHeader from "@/components/admin/AdminHeader";
+import { ConfirmModal } from "@/components/admin/ConfirmModal";
 import { useToast } from "@/context/ToastContext";
 import { formatPrice } from "@/lib/utils";
 
@@ -12,6 +13,12 @@ export default function AdminDiscountsPage() {
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // Custom Delete Confirmation Modal State
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deletingDiscount, setDeletingDiscount] = useState<{ code: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     code: "",
@@ -85,18 +92,40 @@ export default function AdminDiscountsPage() {
     }
   };
 
-  const handleDelete = async (code: string) => {
-    if (!window.confirm(`Delete coupon "${code}"?`)) return;
+  const handleOpenDeleteModal = (code: string) => {
+    setDeletingDiscount({ code });
+    setDeleteError(null);
+    setDeleteModalOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deletingDiscount || isDeleting) return;
+
+    setIsDeleting(true);
+    setDeleteError(null);
+
     try {
-      const res = await fetch(`/api/admin/discounts?code=${encodeURIComponent(code)}`, {
+      const res = await fetch(`/api/admin/discounts?code=${encodeURIComponent(deletingDiscount.code)}`, {
         method: "DELETE",
       });
-      if (res.ok) {
-        showToast("Coupon removed.", "success");
-        setDiscounts((prev) => prev.filter((d) => d.code !== code));
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok && (data.success !== false)) {
+        setDeleteModalOpen(false);
+        setDeletingDiscount(null);
+        showToast(`✓ Promo code "${deletingDiscount.code}" removed.`, "success");
+        setDiscounts((prev) => prev.filter((d) => d.code !== deletingDiscount.code));
+      } else {
+        const safeError =
+          typeof data.error === "string"
+            ? data.error
+            : "We couldn't delete this coupon right now. Please try again.";
+        setDeleteError(safeError);
       }
     } catch {
-      showToast("Error deleting coupon.", "error");
+      setDeleteError("A network error occurred while contacting the server. Please check your connection and try again.");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -174,9 +203,9 @@ export default function AdminDiscountsPage() {
                       </td>
                       <td className="p-4 text-right">
                         <button
-                          onClick={() => handleDelete(d.code)}
+                          onClick={() => handleOpenDeleteModal(d.code)}
                           className="p-1.5 text-[#495464] hover:text-black hover:bg-[#BBBFCA]/40 transition-colors"
-                          title="Delete"
+                          title="Delete Promo Code"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -266,6 +295,27 @@ export default function AdminDiscountsPage() {
             </div>
           </div>
         )}
+        {/* Custom Luxury Delete Coupon Confirmation Modal */}
+        <ConfirmModal
+          isOpen={deleteModalOpen}
+          title="Delete Promo Campaign"
+          description={`Are you sure you want to permanently remove discount code "${deletingDiscount?.code}"?`}
+          entityName={deletingDiscount?.code}
+          secondaryNote="Customers will no longer be able to apply this promotion code at checkout."
+          confirmLabel="Delete Code"
+          cancelLabel="Cancel"
+          isDanger={true}
+          isLoading={isDeleting}
+          error={deleteError}
+          onConfirm={handleConfirmDelete}
+          onCancel={() => {
+            if (!isDeleting) {
+              setDeleteModalOpen(false);
+              setDeletingDiscount(null);
+              setDeleteError(null);
+            }
+          }}
+        />
       </main>
     </div>
   );

@@ -20,6 +20,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import AdminHeader from "@/components/admin/AdminHeader";
+import { ConfirmModal } from "@/components/admin/ConfirmModal";
 import { formatPrice } from "@/lib/utils";
 import { useToast } from "@/context/ToastContext";
 
@@ -36,6 +37,12 @@ export default function AdminProductsPage() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [customUrlInput, setCustomUrlInput] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Custom Delete Confirmation Modal State
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deletingProduct, setDeletingProduct] = useState<{ id: string; name: string; image?: string | null } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -290,24 +297,48 @@ export default function AdminProductsPage() {
     }
   };
 
-  const handleDeleteProduct = async (id: string, name: string) => {
-    if (!window.confirm(`Are you sure you want to remove or archive "${name}" from the store?`)) return;
+  const handleOpenDeleteModal = (product: any) => {
+    setDeletingProduct({
+      id: product.id,
+      name: product.name,
+      image: Array.isArray(product.images) && product.images.length > 0 ? product.images[0] : null,
+    });
+    setDeleteError(null);
+    setDeleteModalOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deletingProduct || isDeleting) return;
+
+    setIsDeleting(true);
+    setDeleteError(null);
 
     try {
-      const res = await fetch(`/api/admin/products?id=${id}`, { method: "DELETE" });
-      const data = await res.json();
+      const res = await fetch(`/api/admin/products?id=${encodeURIComponent(deletingProduct.id)}`, {
+        method: "DELETE",
+      });
+      const data = await res.json().catch(() => ({}));
+
       if (res.ok && data.success) {
+        setDeleteModalOpen(false);
+        setDeletingProduct(null);
         if (data.archived) {
           showToast(data.message || "Product was safely archived to preserve customer order history.", "info");
         } else {
-          showToast("Product permanently deleted from catalog.", "success");
+          showToast("✓ Product deleted from catalog.", "success");
         }
         fetchProducts();
       } else {
-        showToast(data.error || "Failed to delete product.", "error");
+        const safeError =
+          typeof data.error === "string"
+            ? data.error
+            : "We couldn't delete this product right now. Please try again.";
+        setDeleteError(safeError);
       }
     } catch {
-      showToast("Network error deleting product.", "error");
+      setDeleteError("A network error occurred while contacting the server. Please check your connection and try again.");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -475,7 +506,7 @@ export default function AdminProductsPage() {
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
                         <button
-                          onClick={() => handleDeleteProduct(p.id, p.name)}
+                          onClick={() => handleOpenDeleteModal(p)}
                           className="p-1.5 text-[#495464] hover:text-black hover:bg-[#BBBFCA]/40 transition-colors"
                           title="Delete"
                         >
@@ -791,6 +822,28 @@ export default function AdminProductsPage() {
             </div>
           </div>
         )}
+        {/* Custom Luxury Delete Product Confirmation Modal */}
+        <ConfirmModal
+          isOpen={deleteModalOpen}
+          title="Delete Product Silhouette"
+          description="Are you sure you want to permanently delete this product? This action cannot be undone."
+          entityName={deletingProduct?.name}
+          entityImage={deletingProduct?.image}
+          secondaryNote="This will permanently remove the silhouette, variants, and owned media assets from the active catalog. Historical customer order invoices will remain safely preserved."
+          confirmLabel="Delete Product"
+          cancelLabel="Cancel"
+          isDanger={true}
+          isLoading={isDeleting}
+          error={deleteError}
+          onConfirm={handleConfirmDelete}
+          onCancel={() => {
+            if (!isDeleting) {
+              setDeleteModalOpen(false);
+              setDeletingProduct(null);
+              setDeleteError(null);
+            }
+          }}
+        />
       </main>
     </div>
   );

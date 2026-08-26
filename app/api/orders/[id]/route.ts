@@ -24,19 +24,20 @@ export async function GET(
       return NextResponse.json({ error: "Order not found." }, { status: 404 });
     }
 
-    // Optional access control if order is tied to a user account
+    // Strict Authorization & IDOR Protection
     if (order.userId) {
-      try {
-        const session = await getCurrentUser();
-        // If logged in under a different account that is not admin, deny
-        if (session && session.userId !== order.userId && session.role !== "admin") {
-          return NextResponse.json(
-            { error: "Unauthorized to access this order." },
-            { status: 403 }
-          );
-        }
-      } catch (authErr) {
-        console.warn("[ORDER ACCESS AUTH CHECK WARNING]", authErr);
+      const session = await getCurrentUser();
+      if (!session) {
+        return NextResponse.json(
+          { error: "Authentication required to access this order." },
+          { status: 401 }
+        );
+      }
+      if (session.userId !== order.userId && session.role !== "admin") {
+        return NextResponse.json(
+          { error: "Unauthorized to access this order." },
+          { status: 403 }
+        );
       }
     }
 

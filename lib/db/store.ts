@@ -1,5 +1,5 @@
 import { query, transaction } from "./client";
-import { redisGet, redisSet, redisDel, redisDelPattern } from "@/lib/redis";
+import { redisGet, redisSet, redisDel, redisDelPattern, buildCacheKey, fetchWithStampedeProtection, CACHE_TTL } from "@/lib/redis";
 
 export const ADMIN_EMAIL = "hammadnawaz276@gmail.com";
 
@@ -474,9 +474,30 @@ export async function ensurePaymentSchema(): Promise<void> {
       ALTER TABLE reviews ADD COLUMN IF NOT EXISTS verified_purchase BOOLEAN DEFAULT true;
       ALTER TABLE reviews ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
 
+      -- 6. High-Performance Single & Composite Indexes
       CREATE INDEX IF NOT EXISTS idx_reviews_product_id ON reviews(product_id);
       CREATE INDEX IF NOT EXISTS idx_reviews_user_id ON reviews(user_id);
       CREATE INDEX IF NOT EXISTS idx_reviews_order_id ON reviews(order_id);
+      CREATE INDEX IF NOT EXISTS idx_reviews_prod_status ON reviews(product_id, status);
+      CREATE INDEX IF NOT EXISTS idx_reviews_prod_status_created ON reviews(product_id, status, created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_reviews_user_prod ON reviews(user_id, product_id);
+
+      CREATE INDEX IF NOT EXISTS idx_products_cat_created ON products(category_slug, created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_products_feat_created ON products(featured, created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_products_stock ON products(in_stock, stock_count);
+      CREATE INDEX IF NOT EXISTS idx_products_created_at ON products(created_at DESC);
+
+      CREATE INDEX IF NOT EXISTS idx_orders_user_created ON orders(user_id, created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_orders_status_created ON orders(status, created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_orders_payment_status ON orders(payment_status);
+      CREATE INDEX IF NOT EXISTS idx_orders_order_number ON orders(order_number);
+
+      CREATE INDEX IF NOT EXISTS idx_order_items_product_id ON order_items(product_id);
+      CREATE INDEX IF NOT EXISTS idx_categories_slug ON categories(slug);
+      CREATE INDEX IF NOT EXISTS idx_categories_featured ON categories(featured);
+      CREATE INDEX IF NOT EXISTS idx_discounts_active ON discounts(active);
+      CREATE INDEX IF NOT EXISTS idx_navigation_active_order ON navigation_items(is_active, order_index ASC);
     `);
 
     schemaEnsured = true;
@@ -491,77 +512,83 @@ class SupabaseDataStore {
   // --------------------------------------------------------------------------
   async getProducts(filter?: { category?: string; featured?: boolean; search?: string; sort?: string }): Promise<Product[]> {
     const filterKey = filter ? JSON.stringify(filter) : "all";
-    const cacheKey = `shopy:products:${filterKey}`;
-    const cached = await redisGet<Product[]>(cacheKey);
-    if (cached && Array.isArray(cached)) return cached;
+    const cacheKey = buildCacheKey("products", filterKey);
 
-    await this.ensureTablesExist();
-    let sql = `
-      SELECT p.*,
-        (
-          SELECT json_agg(pi.image_url ORDER BY pi.sort_order ASC, pi.created_at ASC)
-          FROM product_images pi
-          WHERE pi.product_id = p.id
-        ) as ordered_images
-      FROM products p
-      WHERE 1=1
-    `;
-    const params: any[] = [];
+    return fetchWithStampedeProtection(cacheKey, async () => {
+      await this.ensureTablesExist();
+      let sql = `
+        SELECT p.*,
+          (
+            SELECT json_agg(pi.image_url ORDER BY pi.sort_order ASC, pi.created_at ASC)
+            FROM product_images pi
+            WHERE pi.product_id = p.id
+          ) as ordered_images
+        FROM products p
+        WHERE 1=1
+      `;
+      const params: any[] = [];
 
-    if (filter?.category) {
-      params.push(filter.category.toLowerCase());
-      sql += ` AND LOWER(p.category_slug) = $${params.length}`;
-    }
+      if (filter?.category) {
+        params.push(filter.category.toLowerCase());
+        sql += ` AND LOWER(p.category_slug) = $${params.length}`;
+      }
 
-    if (filter?.featured !== undefined) {
-      params.push(filter.featured);
-      sql += ` AND p.featured = $${params.length}`;
-    }
+      if (filter?.featured !== undefined) {
+        params.push(filter.featured);
+        sql += ` AND p.featured = $${params.length}`;
+      }
 
-    if (filter?.search) {
-      params.push(`%${filter.search.toLowerCase()}%`);
-      sql += ` AND (LOWER(p.name) LIKE $${params.length} OR LOWER(p.description) LIKE $${params.length})`;
-    }
+      if (filter?.search) {
+        params.push(`%${filter.search.toLowerCase()}%`);
+        sql += ` AND (LOWER(p.name) LIKE $${params.length} OR LOWER(p.description) LIKE $${params.length})`;
+      }
 
-    if (filter?.sort === "price-asc") {
-      sql += ` ORDER BY p.price ASC;`;
-    } else if (filter?.sort === "price-desc") {
-      sql += ` ORDER BY p.price DESC;`;
-    } else {
-      sql += ` ORDER BY p.created_at DESC;`;
-    }
+      if (filter?.sort === "price-asc") {
+        sql += ` ORDER BY p.price ASC;`;
+      } else if (filter?.sort === "price-desc") {
+        sql += ` ORDER BY p.price DESC;`;
+      } else {
+        sql += ` ORDER BY p.created_at DESC;`;
+      }
 
-    const res = await query(sql, params);
-    const products = res.rows.map(mapProductRow);
-    redisSet(cacheKey, products, 600).catch(() => {});
-    return products;
+      const res = await query(sql, params);
+      return res.rows.map(mapProductRow);
+    }, CACHE_TTL.PRODUCTS_LIST);
   }
 
   async getProductById(id: string): Promise<Product | undefined> {
     if (!id || typeof id !== "string") return undefined;
     const cleanId = id.trim().toLowerCase();
-    const cacheKey = `shopy:product:${cleanId}`;
-    const cached = await redisGet<Product>(cacheKey);
-    if (cached) return cached;
+    const cacheKey = buildCacheKey("product", cleanId);
 
-    await this.ensureTablesExist();
-    const res = await query(
-      `SELECT p.*,
-        (
-          SELECT json_agg(pi.image_url ORDER BY pi.sort_order ASC, pi.created_at ASC)
-          FROM product_images pi
-          WHERE pi.product_id = p.id
-        ) as ordered_images
-      FROM products p
-      WHERE p.id = $1 OR p.slug = $1
-      LIMIT 1;`,
-      [id]
-    );
-    if (res.rows.length === 0) return undefined;
-    const product = mapProductRow(res.rows[0]);
-    redisSet(cacheKey, product, 900).catch(() => {});
-    if (product.id) redisSet(`shopy:product:${product.id.toLowerCase()}`, product, 900).catch(() => {});
-    if (product.slug) redisSet(`shopy:product:${product.slug.toLowerCase()}`, product, 900).catch(() => {});
+    const product = await fetchWithStampedeProtection(cacheKey, async () => {
+      await this.ensureTablesExist();
+      const res = await query(
+        `SELECT p.*,
+          (
+            SELECT json_agg(pi.image_url ORDER BY pi.sort_order ASC, pi.created_at ASC)
+            FROM product_images pi
+            WHERE pi.product_id = p.id
+          ) as ordered_images
+        FROM products p
+        WHERE p.id = $1 OR p.slug = $1
+        LIMIT 1;`,
+        [id]
+      );
+      if (res.rows.length === 0) return null;
+      return mapProductRow(res.rows[0]);
+    }, CACHE_TTL.PRODUCT_DETAIL);
+
+    if (!product) return undefined;
+
+    // Cross-link ID and Slug cache keys for ultra-fast secondary lookups
+    if (product.id && product.id.toLowerCase() !== cleanId) {
+      redisSet(buildCacheKey("product", product.id.toLowerCase()), product, CACHE_TTL.PRODUCT_DETAIL).catch(() => {});
+    }
+    if (product.slug && product.slug.toLowerCase() !== cleanId) {
+      redisSet(buildCacheKey("product", product.slug.toLowerCase()), product, CACHE_TTL.PRODUCT_DETAIL).catch(() => {});
+    }
+
     return product;
   }
 
@@ -689,9 +716,10 @@ class SupabaseDataStore {
     }
 
     // Invalidate products & categories cache
-    redisDelPattern("shopy:products:*").catch(() => {});
-    redisDelPattern("shopy:product:*").catch(() => {});
-    redisDelPattern("shopy:categories:*").catch(() => {});
+    redisDelPattern("shopy:v1:products:*").catch(() => {});
+    redisDelPattern("shopy:v1:product:*").catch(() => {});
+    redisDelPattern("shopy:v1:categories:*").catch(() => {});
+    redisDelPattern("shopy:v1:category:*").catch(() => {});
 
     return mapProductRow({ ...res.rows[0], ordered_images: validImages });
   }
@@ -780,9 +808,10 @@ class SupabaseDataStore {
     }
 
     // Invalidate products & categories cache
-    redisDelPattern("shopy:products:*").catch(() => {});
-    redisDelPattern("shopy:product:*").catch(() => {});
-    redisDelPattern("shopy:categories:*").catch(() => {});
+    redisDelPattern("shopy:v1:products:*").catch(() => {});
+    redisDelPattern("shopy:v1:product:*").catch(() => {});
+    redisDelPattern("shopy:v1:categories:*").catch(() => {});
+    redisDelPattern("shopy:v1:category:*").catch(() => {});
 
     const updatedRow = res.rows[0];
     return mapProductRow({
@@ -813,9 +842,10 @@ class SupabaseDataStore {
       const res = await query(`DELETE FROM products WHERE id = $1;`, [id]);
 
       // Invalidate products & categories cache
-      redisDelPattern("shopy:products:*").catch(() => {});
-      redisDelPattern("shopy:product:*").catch(() => {});
-      redisDelPattern("shopy:categories:*").catch(() => {});
+      redisDelPattern("shopy:v1:products:*").catch(() => {});
+      redisDelPattern("shopy:v1:product:*").catch(() => {});
+      redisDelPattern("shopy:v1:categories:*").catch(() => {});
+      redisDelPattern("shopy:v1:category:*").catch(() => {});
 
       return (res.rowCount || 0) > 0;
     } catch (err) {
@@ -837,53 +867,16 @@ class SupabaseDataStore {
   // CATEGORIES
   // --------------------------------------------------------------------------
   async getCategories() {
-    const cacheKey = "shopy:categories:all";
-    const cached = await redisGet<any[]>(cacheKey);
-    if (cached && Array.isArray(cached)) return cached;
-
-    const res = await query(`
-      SELECT c.*, COUNT(p.id)::int as product_count
-      FROM categories c
-      LEFT JOIN products p ON c.id = p.category_id OR LOWER(c.slug) = LOWER(p.category_slug)
-      GROUP BY c.id
-      ORDER BY c.name ASC;
-    `);
-    const categories = res.rows.map((row) => ({
-      id: row.id,
-      slug: row.slug,
-      name: row.name,
-      tagline: row.tagline,
-      image: row.image,
-      description: row.description,
-      aspectRatio: row.aspect_ratio || "tall",
-      featured: Boolean(row.featured),
-      productCount: Number(row.product_count || 0),
-    }));
-    redisSet(cacheKey, categories, 1800).catch(() => {});
-    return categories;
-  }
-
-  async getCategoryBySlug(slug: string) {
-    if (!slug || typeof slug !== "string") return undefined;
-    const cleanSlug = slug.trim().toLowerCase();
-    const cacheKey = `shopy:category:${cleanSlug}`;
-    const cached = await redisGet<any>(cacheKey);
-    if (cached) return cached;
-
-    try {
-      await this.ensureTablesExist();
-      const res = await query(
-        `SELECT c.*, COUNT(p.id)::int as product_count
-         FROM categories c
-         LEFT JOIN products p ON c.id = p.category_id OR LOWER(c.slug) = LOWER(p.category_slug)
-         WHERE LOWER(c.slug) = LOWER($1) OR c.id = $1
-         GROUP BY c.id
-         LIMIT 1;`,
-        [cleanSlug]
-      );
-      if (res.rows.length === 0) return undefined;
-      const row = res.rows[0];
-      const category = {
+    const cacheKey = buildCacheKey("categories", "all");
+    return fetchWithStampedeProtection(cacheKey, async () => {
+      const res = await query(`
+        SELECT c.*, COUNT(p.id)::int as product_count
+        FROM categories c
+        LEFT JOIN products p ON c.id = p.category_id OR LOWER(c.slug) = LOWER(p.category_slug)
+        GROUP BY c.id
+        ORDER BY c.name ASC;
+      `);
+      return res.rows.map((row) => ({
         id: row.id,
         slug: row.slug,
         name: row.name,
@@ -893,13 +886,47 @@ class SupabaseDataStore {
         aspectRatio: row.aspect_ratio || "tall",
         featured: Boolean(row.featured),
         productCount: Number(row.product_count || 0),
-      };
-      redisSet(cacheKey, category, 1800).catch(() => {});
-      return category;
-    } catch (err) {
-      console.error("[GET CATEGORY BY SLUG ERROR]", err);
-      return undefined;
-    }
+      }));
+    }, CACHE_TTL.CATEGORIES);
+  }
+
+  async getCategoryBySlug(slug: string) {
+    if (!slug || typeof slug !== "string") return undefined;
+    const cleanSlug = slug.trim().toLowerCase();
+    const cacheKey = buildCacheKey("category", cleanSlug);
+
+    const cat = await fetchWithStampedeProtection(cacheKey, async () => {
+      try {
+        await this.ensureTablesExist();
+        const res = await query(
+          `SELECT c.*, COUNT(p.id)::int as product_count
+           FROM categories c
+           LEFT JOIN products p ON c.id = p.category_id OR LOWER(c.slug) = LOWER(p.category_slug)
+           WHERE LOWER(c.slug) = LOWER($1) OR c.id = $1
+           GROUP BY c.id
+           LIMIT 1;`,
+          [cleanSlug]
+        );
+        if (res.rows.length === 0) return null;
+        const row = res.rows[0];
+        return {
+          id: row.id,
+          slug: row.slug,
+          name: row.name,
+          tagline: row.tagline,
+          image: row.image,
+          description: row.description,
+          aspectRatio: row.aspect_ratio || "tall",
+          featured: Boolean(row.featured),
+          productCount: Number(row.product_count || 0),
+        };
+      } catch (err) {
+        console.error("[GET CATEGORY BY SLUG ERROR]", err);
+        return null;
+      }
+    }, CACHE_TTL.CATEGORIES);
+
+    return cat || undefined;
   }
 
   async addCategory(cat: { id?: string; name: string; slug: string; tagline?: string; image: string; description?: string; featured?: boolean }) {
@@ -912,9 +939,9 @@ class SupabaseDataStore {
     );
 
     // Invalidate categories & products cache
-    redisDelPattern("shopy:categories:*").catch(() => {});
-    redisDelPattern("shopy:category:*").catch(() => {});
-    redisDelPattern("shopy:products:*").catch(() => {});
+    redisDelPattern("shopy:v1:categories:*").catch(() => {});
+    redisDelPattern("shopy:v1:category:*").catch(() => {});
+    redisDelPattern("shopy:v1:products:*").catch(() => {});
 
     return res.rows[0];
   }
@@ -953,9 +980,9 @@ class SupabaseDataStore {
     if (res.rows.length === 0) return undefined;
 
     // Invalidate categories & products cache
-    redisDelPattern("shopy:categories:*").catch(() => {});
-    redisDelPattern("shopy:category:*").catch(() => {});
-    redisDelPattern("shopy:products:*").catch(() => {});
+    redisDelPattern("shopy:v1:categories:*").catch(() => {});
+    redisDelPattern("shopy:v1:category:*").catch(() => {});
+    redisDelPattern("shopy:v1:products:*").catch(() => {});
 
     return res.rows[0];
   }
@@ -992,9 +1019,9 @@ class SupabaseDataStore {
       const res = await query(`DELETE FROM categories WHERE id = $1;`, [cat.id]);
 
       // Invalidate categories & products cache
-      redisDelPattern("shopy:categories:*").catch(() => {});
-      redisDelPattern("shopy:category:*").catch(() => {});
-      redisDelPattern("shopy:products:*").catch(() => {});
+      redisDelPattern("shopy:v1:categories:*").catch(() => {});
+      redisDelPattern("shopy:v1:category:*").catch(() => {});
+      redisDelPattern("shopy:v1:products:*").catch(() => {});
 
       return { success: (res.rowCount || 0) > 0 };
     } catch (err: any) {
@@ -1478,16 +1505,20 @@ class SupabaseDataStore {
           image: item.image,
         });
 
-        // Deduct inventory in products table (only once upon checkout creation)
+        // Atomically deduct inventory in products table (guaranteed safe against concurrent checkout races)
         if (item.productId) {
-          await client.query(
+          const invRes = await client.query(
             `UPDATE products 
-             SET stock_count = GREATEST(0, stock_count - $1),
+             SET stock_count = stock_count - $1,
                  in_stock = (stock_count - $1 > 0),
                  updated_at = NOW()
-             WHERE id = $2;`,
+             WHERE id = $2 AND stock_count >= $1;`,
             [item.quantity, item.productId]
           );
+
+          if (invRes.rowCount === 0) {
+            throw new Error(`Insufficient inventory available for product "${item.name}". Please adjust quantity.`);
+          }
         }
       }
 
@@ -1521,102 +1552,110 @@ class SupabaseDataStore {
     changedBy: string = "Admin"
   ): Promise<OrderRecord | undefined> {
     await ensurePaymentSchema();
-    const prev = await this.getOrderById(id);
-    if (!prev) return undefined;
 
-    // Normalizing incoming status
-    let normStatus = String(status || "").toUpperCase().trim() as OrderStatus;
-    if ((normStatus as string) === "VERIFYING") {
-      normStatus = "VERIFYING_PAYMENT";
-    }
+    return transaction(async (client) => {
+      // Row-level lock ensures concurrent requests queue up and process sequentially in PostgreSQL
+      const lockedRes = await client.query(
+        `SELECT * FROM orders WHERE id = $1 OR order_number = $1 FOR UPDATE;`,
+        [id]
+      );
+      if (lockedRes.rows.length === 0) return undefined;
+      const prev = mapOrderRow(lockedRes.rows[0]);
 
-    const methodLower = String(prev.paymentMethod || "").toLowerCase().trim();
-    const isBank = methodLower === "bank_transfer" || methodLower === "online" || methodLower.includes("bank");
-    const isCod = !isBank;
-
-    // Intelligent automated payment status derivation
-    let targetPaymentStatus: PaymentStatus = prev.paymentStatus;
-    let paymentChanged = false;
-    let paymentNote = "";
-
-    if (normStatus === "REFUNDED") {
-      targetPaymentStatus = "REFUNDED";
-    } else if (normStatus === "CANCELLED") {
-      targetPaymentStatus = prev.paymentStatus === "PAID" ? "REFUNDED" : "UNPAID";
-    } else if (isBank) {
-      if (
-        normStatus === "VERIFYING_PAYMENT" ||
-        normStatus === "AWAITING_PAYMENT_VERIFICATION" ||
-        (normStatus as string) === "VERIFYING"
-      ) {
-        targetPaymentStatus = "UNPAID";
-      } else {
-        // All active fulfillment statuses for Bank are considered verified & PAID
-        targetPaymentStatus = "PAID";
+      // Normalizing incoming status
+      let normStatus = String(status || "").toUpperCase().trim() as OrderStatus;
+      if ((normStatus as string) === "VERIFYING") {
+        normStatus = "VERIFYING_PAYMENT";
       }
-    } else if (isCod) {
-      if (normStatus === "DELIVERED") {
-        targetPaymentStatus = "PAID";
-      } else {
-        // All other statuses for COD (CONFIRMED, PREPARING, CANCELLED, VERIFYING, etc.) are UNPAID
-        targetPaymentStatus = "UNPAID";
-      }
-    }
 
-    if (targetPaymentStatus !== prev.paymentStatus) {
-      paymentChanged = true;
-      paymentNote =
-        targetPaymentStatus === "PAID"
-          ? (isBank ? "Bank payment verified & marked Paid" : "COD payment collected upon delivery")
-          : targetPaymentStatus === "REFUNDED"
-          ? "Payment marked as refunded alongside order refund"
-          : (isBank ? "Payment verification pending / reset to Unpaid" : "Payment status reset to Unpaid");
-    }
+      const methodLower = String(prev.paymentMethod || "").toLowerCase().trim();
+      const isBank = methodLower === "bank_transfer" || methodLower === "online" || methodLower.includes("bank");
+      const isCod = !isBank;
 
-    if (prev.status === normStatus && !paymentChanged) return prev;
+      // Intelligent automated payment status derivation
+      let targetPaymentStatus: PaymentStatus = prev.paymentStatus;
+      let paymentChanged = false;
+      let paymentNote = "";
 
-    const nowIso = new Date().toISOString();
-    const orderHistoryEntry: OrderStatusHistoryEntry = {
-      status: normStatus,
-      previousStatus: prev.status,
-      changedBy,
-      changedAt: nowIso,
-      note: notes || undefined,
-    };
-
-    const paymentHistoryEntry: PaymentStatusHistoryEntry | null = paymentChanged
-      ? {
-          status: targetPaymentStatus,
-          previousStatus: prev.paymentStatus,
-          changedBy,
-          changedAt: nowIso,
-          note: paymentNote || notes || undefined,
+      if (normStatus === "REFUNDED") {
+        targetPaymentStatus = "REFUNDED";
+      } else if (normStatus === "CANCELLED") {
+        targetPaymentStatus = prev.paymentStatus === "PAID" ? "REFUNDED" : "UNPAID";
+      } else if (isBank) {
+        if (
+          normStatus === "VERIFYING_PAYMENT" ||
+          normStatus === "AWAITING_PAYMENT_VERIFICATION" ||
+          (normStatus as string) === "VERIFYING"
+        ) {
+          targetPaymentStatus = "UNPAID";
+        } else {
+          // All active fulfillment statuses for Bank are considered verified & PAID
+          targetPaymentStatus = "PAID";
         }
-      : null;
+      } else if (isCod) {
+        if (normStatus === "DELIVERED") {
+          targetPaymentStatus = "PAID";
+        } else {
+          targetPaymentStatus = "UNPAID";
+        }
+      }
 
-    const res = await query(
-      `UPDATE orders SET
-        status = $1,
-        payment_status = $2,
-        order_history = COALESCE(order_history, '[]'::jsonb) || $3::jsonb,
-        payment_history = CASE WHEN $4::boolean THEN COALESCE(payment_history, '[]'::jsonb) || $5::jsonb ELSE COALESCE(payment_history, '[]'::jsonb) END,
-        notes = COALESCE($6, notes),
-        updated_at = NOW()
-      WHERE id = $7 OR order_number = $7
-      RETURNING id;`,
-      [
-        normStatus,
-        targetPaymentStatus,
-        JSON.stringify([orderHistoryEntry]),
-        paymentChanged,
-        paymentHistoryEntry ? JSON.stringify([paymentHistoryEntry]) : "[]",
-        notes || null,
-        id,
-      ]
-    );
+      if (targetPaymentStatus !== prev.paymentStatus) {
+        paymentChanged = true;
+        paymentNote =
+          targetPaymentStatus === "PAID"
+            ? (isBank ? "Bank payment verified & marked Paid" : "COD payment collected upon delivery")
+            : targetPaymentStatus === "REFUNDED"
+            ? "Payment marked as refunded alongside order refund"
+            : (isBank ? "Payment verification pending / reset to Unpaid" : "Payment status reset to Unpaid");
+      }
 
-    if (res.rows.length === 0) return undefined;
-    return this.getOrderById(res.rows[0].id);
+      // Exact idempotency: If status didn't change and payment didn't change, return without modifying
+      if (prev.status === normStatus && !paymentChanged) return prev;
+
+      const nowIso = new Date().toISOString();
+      const orderHistoryEntry: OrderStatusHistoryEntry = {
+        status: normStatus,
+        previousStatus: prev.status,
+        changedBy,
+        changedAt: nowIso,
+        note: notes || undefined,
+      };
+
+      const paymentHistoryEntry: PaymentStatusHistoryEntry | null = paymentChanged
+        ? {
+            status: targetPaymentStatus,
+            previousStatus: prev.paymentStatus,
+            changedBy,
+            changedAt: nowIso,
+            note: paymentNote || notes || undefined,
+          }
+        : null;
+
+      const res = await client.query(
+        `UPDATE orders SET
+          status = $1,
+          payment_status = $2,
+          order_history = COALESCE(order_history, '[]'::jsonb) || $3::jsonb,
+          payment_history = CASE WHEN $4::boolean THEN COALESCE(payment_history, '[]'::jsonb) || $5::jsonb ELSE COALESCE(payment_history, '[]'::jsonb) END,
+          notes = COALESCE($6, notes),
+          updated_at = NOW()
+        WHERE id = $7 OR order_number = $7
+        RETURNING id;`,
+        [
+          normStatus,
+          targetPaymentStatus,
+          JSON.stringify([orderHistoryEntry]),
+          paymentChanged,
+          paymentHistoryEntry ? JSON.stringify([paymentHistoryEntry]) : "[]",
+          notes || null,
+          prev.id,
+        ]
+      );
+
+      if (res.rows.length === 0) return undefined;
+      return this.getOrderById(res.rows[0].id);
+    });
   }
 
   async updateOrderPaymentStatus(
@@ -1626,37 +1665,44 @@ class SupabaseDataStore {
     changedBy: string = "Admin"
   ): Promise<OrderRecord | undefined> {
     await ensurePaymentSchema();
-    const prev = await this.getOrderById(id);
-    if (!prev) return undefined;
 
-    const normPaymentStatus = paymentStatus as PaymentStatus;
-    if (prev.paymentStatus === normPaymentStatus) return prev;
+    return transaction(async (client) => {
+      const lockedRes = await client.query(
+        `SELECT * FROM orders WHERE id = $1 OR order_number = $1 FOR UPDATE;`,
+        [id]
+      );
+      if (lockedRes.rows.length === 0) return undefined;
+      const prev = mapOrderRow(lockedRes.rows[0]);
 
-    const nowIso = new Date().toISOString();
-    const paymentHistoryEntry: PaymentStatusHistoryEntry = {
-      status: normPaymentStatus,
-      previousStatus: prev.paymentStatus,
-      changedBy,
-      changedAt: nowIso,
-      note: notes || `Payment status updated to ${normPaymentStatus}`,
-    };
+      const normPaymentStatus = paymentStatus as PaymentStatus;
+      if (prev.paymentStatus === normPaymentStatus) return prev;
 
-    const res = await query(
-      `UPDATE orders SET
-        payment_status = $1,
-        payment_history = COALESCE(payment_history, '[]'::jsonb) || $2::jsonb,
-        updated_at = NOW()
-      WHERE id = $3 OR order_number = $3
-      RETURNING id;`,
-      [
-        normPaymentStatus,
-        JSON.stringify([paymentHistoryEntry]),
-        id,
-      ]
-    );
+      const nowIso = new Date().toISOString();
+      const paymentHistoryEntry: PaymentStatusHistoryEntry = {
+        status: normPaymentStatus,
+        previousStatus: prev.paymentStatus,
+        changedBy,
+        changedAt: nowIso,
+        note: notes || `Payment status updated to ${normPaymentStatus}`,
+      };
 
-    if (res.rows.length === 0) return undefined;
-    return this.getOrderById(res.rows[0].id);
+      const res = await client.query(
+        `UPDATE orders SET
+          payment_status = $1,
+          payment_history = COALESCE(payment_history, '[]'::jsonb) || $2::jsonb,
+          updated_at = NOW()
+        WHERE id = $3 OR order_number = $3
+        RETURNING id;`,
+        [
+          normPaymentStatus,
+          JSON.stringify([paymentHistoryEntry]),
+          prev.id,
+        ]
+      );
+
+      if (res.rows.length === 0) return undefined;
+      return this.getOrderById(res.rows[0].id);
+    });
   }
 
   async submitPaymentProof(
@@ -2127,68 +2173,64 @@ class SupabaseDataStore {
   // STORE SETTINGS
   // --------------------------------------------------------------------------
   async getStoreSettings(): Promise<StoreSettings> {
-    const cacheKey = "shopy:settings:store";
-    const cached = await redisGet<StoreSettings>(cacheKey);
-    if (cached) return cached;
+    const cacheKey = buildCacheKey("settings", "store");
 
-    await ensurePaymentSchema();
-    try {
-      const res = await query(`SELECT * FROM store_settings LIMIT 1;`);
-      if (res.rows.length > 0) {
-        const r = res.rows[0];
-        const settings: StoreSettings = {
-          id: r.id,
-          storeName: r.store_name || "SHOPY Atelier",
-          supportEmail: r.support_email || "shopy.support@gmail.com",
-          currency: r.currency || "PKR",
-          currencySymbol: r.currency_symbol || "Rs.",
-          freeShippingThreshold: Number(r.free_shipping_threshold ?? 15000),
-          flatShippingRate: Number(r.flat_shipping_rate ?? 500),
-          taxPercentage: Number(r.tax_percentage ?? 0),
-          orderNotifications: Boolean(r.order_notifications ?? true),
-          inventoryAlertThreshold: Number(r.inventory_alert_threshold ?? 5),
-          codEnabled: r.cod_enabled !== undefined ? Boolean(r.cod_enabled) : true,
-          bankTransferEnabled: r.bank_transfer_enabled !== undefined ? Boolean(r.bank_transfer_enabled) : true,
-          bankAccountHolder: r.bank_account_holder || "SHOPY Retail Private Limited",
-          bankName: r.bank_name || "Meezan Bank Limited",
-          bankAccountTitle: r.bank_account_title || "SHOPY Main Operations",
-          bankAccountNumber: r.bank_account_number || "01020304050607",
-          bankIban: r.bank_iban || "PK12MEZN0001020304050607",
-          bankRaastId: r.bank_raast_id || "03001234567",
-          bankPaymentContact: r.bank_payment_contact || "+92 300 1234567",
-          bankPaymentInstructions: r.bank_payment_instructions || "Please transfer the exact total order amount to the bank account above and share screenshot on WhatsApp with your Order ID for instant payment verification.",
-        };
-        redisSet(cacheKey, settings, 3600).catch(() => {});
-        return settings;
+    return fetchWithStampedeProtection(cacheKey, async () => {
+      await ensurePaymentSchema();
+      try {
+        const res = await query(`SELECT * FROM store_settings LIMIT 1;`);
+        if (res.rows.length > 0) {
+          const r = res.rows[0];
+          return {
+            id: r.id,
+            storeName: r.store_name || "SHOPY Atelier",
+            supportEmail: r.support_email || "shopy.support@gmail.com",
+            currency: r.currency || "PKR",
+            currencySymbol: r.currency_symbol || "Rs.",
+            freeShippingThreshold: Number(r.free_shipping_threshold ?? 15000),
+            flatShippingRate: Number(r.flat_shipping_rate ?? 500),
+            taxPercentage: Number(r.tax_percentage ?? 0),
+            orderNotifications: Boolean(r.order_notifications ?? true),
+            inventoryAlertThreshold: Number(r.inventory_alert_threshold ?? 5),
+            codEnabled: r.cod_enabled !== undefined ? Boolean(r.cod_enabled) : true,
+            bankTransferEnabled: r.bank_transfer_enabled !== undefined ? Boolean(r.bank_transfer_enabled) : true,
+            bankAccountHolder: r.bank_account_holder || "SHOPY Retail Private Limited",
+            bankName: r.bank_name || "Meezan Bank Limited",
+            bankAccountTitle: r.bank_account_title || "SHOPY Main Operations",
+            bankAccountNumber: r.bank_account_number || "01020304050607",
+            bankIban: r.bank_iban || "PK12MEZN0001020304050607",
+            bankRaastId: r.bank_raast_id || "03001234567",
+            bankPaymentContact: r.bank_payment_contact || "+92 300 1234567",
+            bankPaymentInstructions: r.bank_payment_instructions || "Please transfer the exact total order amount to the bank account above and share screenshot on WhatsApp with your Order ID for instant payment verification.",
+          };
+        }
+      } catch (err) {
+        console.error("[GET STORE SETTINGS ERROR]", err);
       }
-    } catch (err) {
-      console.error("[GET STORE SETTINGS ERROR]", err);
-    }
 
-    const defaultSettings: StoreSettings = {
-      id: "settings_default",
-      storeName: "SHOPY Atelier",
-      supportEmail: "shopy.support@gmail.com",
-      currency: "PKR",
-      currencySymbol: "Rs.",
-      freeShippingThreshold: 15000,
-      flatShippingRate: 500,
-      taxPercentage: 0,
-      orderNotifications: true,
-      inventoryAlertThreshold: 5,
-      codEnabled: true,
-      bankTransferEnabled: true,
-      bankAccountHolder: "SHOPY Retail Private Limited",
-      bankName: "Meezan Bank Limited",
-      bankAccountTitle: "SHOPY Main Operations",
-      bankAccountNumber: "01020304050607",
-      bankIban: "PK12MEZN0001020304050607",
-      bankRaastId: "03001234567",
-      bankPaymentContact: "+92 300 1234567",
-      bankPaymentInstructions: "Please transfer the exact total order amount to the bank account above and share screenshot on WhatsApp with your Order ID for instant payment verification.",
-    };
-    redisSet(cacheKey, defaultSettings, 3600).catch(() => {});
-    return defaultSettings;
+      return {
+        id: "settings_default",
+        storeName: "SHOPY Atelier",
+        supportEmail: "shopy.support@gmail.com",
+        currency: "PKR",
+        currencySymbol: "Rs.",
+        freeShippingThreshold: 15000,
+        flatShippingRate: 500,
+        taxPercentage: 0,
+        orderNotifications: true,
+        inventoryAlertThreshold: 5,
+        codEnabled: true,
+        bankTransferEnabled: true,
+        bankAccountHolder: "SHOPY Retail Private Limited",
+        bankName: "Meezan Bank Limited",
+        bankAccountTitle: "SHOPY Main Operations",
+        bankAccountNumber: "01020304050607",
+        bankIban: "PK12MEZN0001020304050607",
+        bankRaastId: "03001234567",
+        bankPaymentContact: "+92 300 1234567",
+        bankPaymentInstructions: "Please transfer the exact total order amount to the bank account above and share screenshot on WhatsApp with your Order ID for instant payment verification.",
+      };
+    }, CACHE_TTL.STORE_SETTINGS);
   }
 
   async updateStoreSettings(updates: Partial<StoreSettings>): Promise<StoreSettings> {
@@ -2276,7 +2318,7 @@ class SupabaseDataStore {
     );
 
     // Invalidate store settings cache
-    redisDel("shopy:settings:store").catch(() => {});
+    redisDel("shopy:v1:settings:store").catch(() => {});
 
     if (res.rows.length > 0) {
       const r = res.rows[0];
@@ -2591,58 +2633,54 @@ class SupabaseDataStore {
   // HOMEPAGE CONFIGURATION
   // --------------------------------------------------------------------------
   async getHomepageConfig(): Promise<HomepageConfig> {
-    const cacheKey = "shopy:homepage:config";
-    const cached = await redisGet<HomepageConfig>(cacheKey);
-    if (cached) return cached;
+    const cacheKey = buildCacheKey("homepage", "config");
 
-    try {
-      await this.ensureTablesExist();
-      const res = await query(`SELECT * FROM homepage_config LIMIT 1;`);
-      if (res.rows.length > 0) {
-        const r = res.rows[0];
-        const config: HomepageConfig = {
-          id: r.id,
-          heroTitle: r.hero_title || "ARCHITECTURAL ELEGANCE",
-          heroSubtitle: r.hero_subtitle || "EDITION 01 • AUTUMN / WINTER 2026",
-          heroImage: r.hero_image || "/hero-luxury.jpg",
-          heroCtaText: r.hero_cta_text || "Explore Collection",
-          heroCtaLink: r.hero_cta_link || "/products",
-          featuredTitle: r.featured_title || "Featured Essentials",
-          featuredSubtitle: r.featured_subtitle || "SELECTION OF THE SEASON",
-          editorialTag: r.editorial_tag || "EDITORIAL CAMPAIGN",
-          editorialTitle: r.editorial_title || "Permanence in Form & Texture",
-          editorialQuote: r.editorial_quote || "We reject the cycle of seasonal excess. Each silhouette is engineered with tactile permanence, heavyweight organic knits, and architectural draping.",
-          editorialImage1: r.editorial_image_1 || "/editorial-craft.jpg",
-          editorialImage2: r.editorial_image_2 || "/category-tops.jpg",
-          newsletterTitle: r.newsletter_title || "Join The Maison Gazette",
-          newsletterSubtitle: r.newsletter_subtitle || "Receive private vernissage previews, seasonal lookbooks, and invitation-only atelier dispatches.",
-        };
-        redisSet(cacheKey, config, 1800).catch(() => {});
-        return config;
+    return fetchWithStampedeProtection(cacheKey, async () => {
+      try {
+        await this.ensureTablesExist();
+        const res = await query(`SELECT * FROM homepage_config LIMIT 1;`);
+        if (res.rows.length > 0) {
+          const r = res.rows[0];
+          return {
+            id: r.id,
+            heroTitle: r.hero_title || "ARCHITECTURAL ELEGANCE",
+            heroSubtitle: r.hero_subtitle || "EDITION 01 • AUTUMN / WINTER 2026",
+            heroImage: r.hero_image || "/hero-luxury.jpg",
+            heroCtaText: r.hero_cta_text || "Explore Collection",
+            heroCtaLink: r.hero_cta_link || "/products",
+            featuredTitle: r.featured_title || "Featured Essentials",
+            featuredSubtitle: r.featured_subtitle || "SELECTION OF THE SEASON",
+            editorialTag: r.editorial_tag || "EDITORIAL CAMPAIGN",
+            editorialTitle: r.editorial_title || "Permanence in Form & Texture",
+            editorialQuote: r.editorial_quote || "We reject the cycle of seasonal excess. Each silhouette is engineered with tactile permanence, heavyweight organic knits, and architectural draping.",
+            editorialImage1: r.editorial_image_1 || "/editorial-craft.jpg",
+            editorialImage2: r.editorial_image_2 || "/category-tops.jpg",
+            newsletterTitle: r.newsletter_title || "Join The Maison Gazette",
+            newsletterSubtitle: r.newsletter_subtitle || "Receive private vernissage previews, seasonal lookbooks, and invitation-only atelier dispatches.",
+          };
+        }
+      } catch (err) {
+        console.error("[GET HOMEPAGE CONFIG ERROR]", err);
       }
-    } catch (err) {
-      console.error("[GET HOMEPAGE CONFIG ERROR]", err);
-    }
 
-    const defaultConfig: HomepageConfig = {
-      id: "home_default",
-      heroTitle: "ARCHITECTURAL ELEGANCE",
-      heroSubtitle: "EDITION 01 • AUTUMN / WINTER 2026",
-      heroImage: "/hero-luxury.jpg",
-      heroCtaText: "Explore Collection",
-      heroCtaLink: "/products",
-      featuredTitle: "Featured Essentials",
-      featuredSubtitle: "SELECTION OF THE SEASON",
-      editorialTag: "EDITORIAL CAMPAIGN",
-      editorialTitle: "Permanence in Form & Texture",
-      editorialQuote: "We reject the cycle of seasonal excess. Each silhouette is engineered with tactile permanence, heavyweight organic knits, and architectural draping.",
-      editorialImage1: "/editorial-craft.jpg",
-      editorialImage2: "/category-tops.jpg",
-      newsletterTitle: "Join The Maison Gazette",
-      newsletterSubtitle: "Receive private vernissage previews, seasonal lookbooks, and invitation-only atelier dispatches.",
-    };
-    redisSet(cacheKey, defaultConfig, 1800).catch(() => {});
-    return defaultConfig;
+      return {
+        id: "home_default",
+        heroTitle: "ARCHITECTURAL ELEGANCE",
+        heroSubtitle: "EDITION 01 • AUTUMN / WINTER 2026",
+        heroImage: "/hero-luxury.jpg",
+        heroCtaText: "Explore Collection",
+        heroCtaLink: "/products",
+        featuredTitle: "Featured Essentials",
+        featuredSubtitle: "SELECTION OF THE SEASON",
+        editorialTag: "EDITORIAL CAMPAIGN",
+        editorialTitle: "Permanence in Form & Texture",
+        editorialQuote: "We reject the cycle of seasonal excess. Each silhouette is engineered with tactile permanence, heavyweight organic knits, and architectural draping.",
+        editorialImage1: "/editorial-craft.jpg",
+        editorialImage2: "/category-tops.jpg",
+        newsletterTitle: "Join The Maison Gazette",
+        newsletterSubtitle: "Receive private vernissage previews, seasonal lookbooks, and invitation-only atelier dispatches.",
+      };
+    }, CACHE_TTL.HOMEPAGE_CONFIG);
   }
 
   async updateHomepageConfig(updates: Partial<HomepageConfig>): Promise<HomepageConfig> {
@@ -2709,7 +2747,7 @@ class SupabaseDataStore {
     );
 
     // Invalidate homepage config cache
-    redisDel("shopy:homepage:config").catch(() => {});
+    redisDel("shopy:v1:homepage:config").catch(() => {});
 
     if (res.rows.length > 0) {
       return this.getHomepageConfig();

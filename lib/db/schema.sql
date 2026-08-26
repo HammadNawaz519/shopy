@@ -200,16 +200,41 @@ CREATE TABLE IF NOT EXISTS homepage_config (
 );
 
 -- ============================================================================
--- PERFORMANCE INDEXES
+-- PERFORMANCE & COMPOSITE INDEXES
 -- ============================================================================
 CREATE INDEX IF NOT EXISTS idx_products_category ON products(category_slug);
 CREATE INDEX IF NOT EXISTS idx_products_featured ON products(featured);
 CREATE INDEX IF NOT EXISTS idx_products_slug ON products(slug);
+CREATE INDEX IF NOT EXISTS idx_products_cat_created ON products(category_slug, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_products_feat_created ON products(featured, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_products_stock ON products(in_stock, stock_count);
+CREATE INDEX IF NOT EXISTS idx_products_created_at ON products(created_at DESC);
+
 CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
+CREATE INDEX IF NOT EXISTS idx_orders_user_created ON orders(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_orders_status_created ON orders(status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_orders_payment_status ON orders(payment_status);
+CREATE INDEX IF NOT EXISTS idx_orders_order_number ON orders(order_number);
+
 CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id);
+CREATE INDEX IF NOT EXISTS idx_order_items_product_id ON order_items(product_id);
+
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(LOWER(email));
 CREATE INDEX IF NOT EXISTS idx_discounts_code ON discounts(UPPER(code));
+CREATE INDEX IF NOT EXISTS idx_discounts_active ON discounts(active);
+
+CREATE INDEX IF NOT EXISTS idx_reviews_product_id ON reviews(product_id);
+CREATE INDEX IF NOT EXISTS idx_reviews_user_id ON reviews(user_id);
+CREATE INDEX IF NOT EXISTS idx_reviews_order_id ON reviews(order_id);
+CREATE INDEX IF NOT EXISTS idx_reviews_prod_status ON reviews(product_id, status);
+CREATE INDEX IF NOT EXISTS idx_reviews_prod_status_created ON reviews(product_id, status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_reviews_user_prod ON reviews(user_id, product_id);
+
+CREATE INDEX IF NOT EXISTS idx_categories_slug ON categories(slug);
+CREATE INDEX IF NOT EXISTS idx_categories_featured ON categories(featured);
+CREATE INDEX IF NOT EXISTS idx_navigation_active_order ON navigation_items(is_active, order_index ASC);
 
 -- ============================================================================
 -- INITIAL SEED DATA

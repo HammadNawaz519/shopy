@@ -17,6 +17,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import AdminHeader from "@/components/admin/AdminHeader";
+import { ConfirmModal } from "@/components/admin/ConfirmModal";
 import { useToast } from "@/context/ToastContext";
 
 interface NavItem {
@@ -34,6 +35,12 @@ export default function AdminNavigationPage() {
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<NavItem | null>(null);
+
+  // Custom Delete Confirmation Modal State
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deletingNav, setDeletingNav] = useState<{ id: string; name: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // Form State
   const [name, setName] = useState("");
@@ -161,21 +168,40 @@ export default function AdminNavigationPage() {
     }
   };
 
-  const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Are you sure you want to remove "${name}" from the header navigation?`)) return;
+  const handleOpenDeleteModal = (item: NavItem) => {
+    setDeletingNav({ id: item.id, name: item.name });
+    setDeleteError(null);
+    setDeleteModalOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deletingNav || isDeleting) return;
+
+    setIsDeleting(true);
+    setDeleteError(null);
 
     try {
-      const res = await fetch(`/api/admin/navigation?id=${id}`, {
+      const res = await fetch(`/api/admin/navigation?id=${encodeURIComponent(deletingNav.id)}`, {
         method: "DELETE",
       });
-      if (res.ok) {
-        showToast(`Navigation link "${name}" removed.`, "success");
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok && (data.success !== false)) {
+        setDeleteModalOpen(false);
+        setDeletingNav(null);
+        showToast(`✓ Navigation link "${deletingNav.name}" removed.`, "success");
         fetchNavItems();
       } else {
-        showToast("Failed to delete navigation item.", "error");
+        const safeError =
+          typeof data.error === "string"
+            ? data.error
+            : "We couldn't remove this navigation link right now. Please try again.";
+        setDeleteError(safeError);
       }
     } catch {
-      showToast("Network error deleting navigation item.", "error");
+      setDeleteError("A network error occurred while contacting the server. Please check your connection and try again.");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -373,7 +399,7 @@ export default function AdminNavigationPage() {
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => handleDelete(item.id, item.name)}
+                          onClick={() => handleOpenDeleteModal(item)}
                           className="p-1.5 text-[#495464] hover:text-black hover:bg-[#BBBFCA]/40 transition-colors"
                           title="Delete Link"
                         >
@@ -493,6 +519,27 @@ export default function AdminNavigationPage() {
             </div>
           </div>
         )}
+        {/* Custom Luxury Delete Navigation Item Confirmation Modal */}
+        <ConfirmModal
+          isOpen={deleteModalOpen}
+          title="Remove Navigation Link"
+          description={`Are you sure you want to remove "${deletingNav?.name}" from the header navigation?`}
+          entityName={deletingNav?.name}
+          secondaryNote="This will remove the link from the storefront header bar. The underlying category or product page will remain fully accessible."
+          confirmLabel="Remove Link"
+          cancelLabel="Cancel"
+          isDanger={true}
+          isLoading={isDeleting}
+          error={deleteError}
+          onConfirm={handleConfirmDelete}
+          onCancel={() => {
+            if (!isDeleting) {
+              setDeleteModalOpen(false);
+              setDeletingNav(null);
+              setDeleteError(null);
+            }
+          }}
+        />
       </main>
     </div>
   );
