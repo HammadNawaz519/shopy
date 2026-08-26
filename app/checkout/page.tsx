@@ -278,7 +278,7 @@ export default function CheckoutPage() {
                 </div>
                 <div>
                   <label className="block text-[11px] uppercase tracking-widest text-[#495464] mb-1 font-medium">
-                    Phone (WhatsApp Contact) *
+                    Phone (WhatsApp / Payment Proof) *
                   </label>
                   <input
                     type="tel"

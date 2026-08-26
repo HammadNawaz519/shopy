@@ -8,15 +8,8 @@ import {
   Filter,
   Eye,
   Printer,
-  CheckCircle2,
-  Clock,
-  Package,
-  Truck,
-  RotateCcw,
   Loader2,
   X,
-  ShieldCheck,
-  CreditCard,
   MapPin,
   User,
   Phone,
@@ -115,10 +108,10 @@ function OrdersContent() {
       if (res.ok && data.success) {
         showToast(`Order status updated to ${formatStatusLabel(newStatus)}`, "success");
         setOrders((prev) =>
-          prev.map((o) => (o.id === orderId ? data.order || { ...o, status: newStatus } : o))
+          prev.map((o) => (o.id === orderId ? (data.order ? { ...o, ...data.order } : { ...o, status: newStatus }) : o))
         );
         if (selectedOrder?.id === orderId) {
-          setSelectedOrder(data.order || { ...selectedOrder, status: newStatus });
+          setSelectedOrder((prev: any) => (data.order ? { ...prev, ...data.order } : { ...prev, status: newStatus }));
         }
       } else {
         showToast(data.error || "Failed to update order status.", "error");
@@ -142,10 +135,10 @@ function OrdersContent() {
       if (res.ok && data.success) {
         showToast(`Payment status updated to ${newPaymentStatus}`, "success");
         setOrders((prev) =>
-          prev.map((o) => (o.id === orderId ? data.order || { ...o, paymentStatus: newPaymentStatus } : o))
+          prev.map((o) => (o.id === orderId ? (data.order ? { ...o, ...data.order } : { ...o, paymentStatus: newPaymentStatus }) : o))
         );
         if (selectedOrder?.id === orderId) {
-          setSelectedOrder(data.order || { ...selectedOrder, paymentStatus: newPaymentStatus });
+          setSelectedOrder((prev: any) => (data.order ? { ...prev, ...data.order } : { ...prev, paymentStatus: newPaymentStatus }));
         }
       } else {
         showToast(data.error || "Failed to update payment status.", "error");
@@ -316,17 +309,14 @@ function OrdersContent() {
                             onChange={(e) => handleUpdateStatus(ord.id, e.target.value)}
                             className="bg-[#E8E8E8] border border-[#BBBFCA] px-1 py-1 text-[10px] uppercase font-semibold text-[#495464] focus:outline-none cursor-pointer w-full max-w-[100px] h-[28px] text-center"
                           >
-                            {/* For Bank: VERIFYING is allowed. For COD: only if currently in that state */}
-                            {(isBank || ord.status === "VERIFYING_PAYMENT") && (
-                              <option value="VERIFYING_PAYMENT">VERIFYING</option>
-                            )}
+                            <option value="VERIFYING_PAYMENT">VERIFYING</option>
                             <option value="CONFIRMED">CONFIRMED</option>
                             <option value="PREPARING">PREPARING</option>
-                            {ord.status === "SHIPPED" && <option value="SHIPPED">SHIPPED</option>}
-                            {ord.status === "OUT_FOR_DELIVERY" && <option value="OUT_FOR_DELIVERY">DELIVERY</option>}
+                            <option value="SHIPPED">SHIPPED</option>
+                            <option value="OUT_FOR_DELIVERY">DELIVERY</option>
                             <option value="DELIVERED">DELIVERED</option>
                             <option value="CANCELLED">CANCELLED</option>
-                            {ord.status === "RETURN_REQUESTED" && <option value="RETURN_REQUESTED">RETURN REQ</option>}
+                            <option value="RETURN_REQUESTED">RETURN REQ</option>
                             <option value="RETURNED">RETURNED</option>
                             <option value="REFUNDED">REFUNDED</option>
                           </select>
@@ -435,136 +425,6 @@ function OrdersContent() {
                   </select>
                 </div>
               </div>
-
-              {/* Payment Details Card */}
-              <div className="bg-[#E8E8E8]/50 border border-[#BBBFCA]/40 p-4 space-y-3 text-xs">
-                <div className="flex items-center justify-between border-b border-[#BBBFCA]/30 pb-2">
-                  <span className="text-[10px] uppercase tracking-widest font-semibold text-[#495464]/80">
-                    Payment Overview
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-[#495464] uppercase text-[11px]">
-                      {selectedOrder.paymentMethod === "bank_transfer" || selectedOrder.paymentMethod === "online"
-                        ? "Bank Transfer / Raast"
-                        : "Cash on Delivery (COD)"}
-                    </span>
-                    {getPaymentBadge(selectedOrder)}
-                  </div>
-                </div>
-
-                {(selectedOrder.paymentMethod === "bank_transfer" || selectedOrder.paymentMethod === "online") &&
-                  selectedOrder.paymentDetails && (
-                    <div className="space-y-2 bg-[#F4F4F2] border border-[#BBBFCA]/50 p-3 text-[11px] text-[#495464]">
-                      <div className="flex justify-between">
-                        <span className="font-medium text-[#495464]/70">Bank Name:</span>
-                        <span className="font-semibold">{selectedOrder.paymentDetails.bankName || "Meezan Bank Limited"}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="font-medium text-[#495464]/70">Account Holder:</span>
-                        <span className="font-semibold">{selectedOrder.paymentDetails.accountHolderName}</span>
-                      </div>
-                      {selectedOrder.paymentDetails.accountTitle && (
-                        <div className="flex justify-between">
-                          <span className="font-medium text-[#495464]/70">Account Title:</span>
-                          <span className="font-semibold">{selectedOrder.paymentDetails.accountTitle}</span>
-                        </div>
-                      )}
-                      <div className="flex justify-between">
-                        <span className="font-medium text-[#495464]/70">Account Number:</span>
-                        <span className="font-mono font-bold">{selectedOrder.paymentDetails.accountNumber}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="font-medium text-[#495464]/70">IBAN:</span>
-                        <span className="font-mono font-bold">{selectedOrder.paymentDetails.iban}</span>
-                      </div>
-                      {selectedOrder.paymentDetails.raastId && (
-                        <div className="flex justify-between">
-                          <span className="font-medium text-[#495464]/70">Raast ID:</span>
-                          <span className="font-mono font-semibold">{selectedOrder.paymentDetails.raastId}</span>
-                        </div>
-                      )}
-                      {selectedOrder.paymentDetails.paymentContact && (
-                        <div className="flex justify-between">
-                          <span className="font-medium text-[#495464]/70">Verification Support:</span>
-                          <span className="font-mono font-semibold">{selectedOrder.paymentDetails.paymentContact}</span>
-                        </div>
-                      )}
-                      {selectedOrder.paymentDetails.transactionRef && (
-                        <div className="flex justify-between border-t border-[#BBBFCA]/30 pt-1.5 mt-1.5">
-                          <span className="font-medium text-emerald-800">Customer Submitted Ref:</span>
-                          <span className="font-mono font-bold text-emerald-800">
-                            {selectedOrder.paymentDetails.transactionRef}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-              </div>
-
-              {/* Order & Payment History Timelines */}
-              {((selectedOrder.orderHistory && selectedOrder.orderHistory.length > 0) ||
-                (selectedOrder.paymentHistory && selectedOrder.paymentHistory.length > 0)) && (
-                <div className="bg-[#E8E8E8]/50 border border-[#BBBFCA]/40 p-4 space-y-4 text-xs">
-                  <span className="text-[10px] uppercase tracking-widest font-semibold text-[#495464]/80 block">
-                    Audit Logs &amp; Status Timelines
-                  </span>
-
-                  {/* Order History */}
-                  {selectedOrder.orderHistory && selectedOrder.orderHistory.length > 0 && (
-                    <div className="space-y-2">
-                      <span className="text-[9px] uppercase tracking-wider font-bold text-[#495464]/60 block">
-                        Order Lifecycle Progression
-                      </span>
-                      <div className="space-y-1.5 pl-2 border-l-2 border-[#495464]/30">
-                        {selectedOrder.orderHistory.map((h: any, idx: number) => (
-                          <div key={idx} className="text-[11px] text-[#495464]">
-                            <div className="flex items-center justify-between">
-                              <span className="font-semibold">{formatStatusLabel(h.status)}</span>
-                              <span className="text-[10px] text-[#495464]/60">
-                                {new Date(h.changedAt).toLocaleString([], {
-                                  month: "short",
-                                  day: "numeric",
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })}
-                              </span>
-                            </div>
-                            {h.note && <p className="text-[10px] text-[#495464]/70">{h.note}</p>}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Payment History */}
-                  {selectedOrder.paymentHistory && selectedOrder.paymentHistory.length > 0 && (
-                    <div className="space-y-2 pt-2 border-t border-[#BBBFCA]/20">
-                      <span className="text-[9px] uppercase tracking-wider font-bold text-[#495464]/60 block">
-                        Payment Status Log
-                      </span>
-                      <div className="space-y-1.5 pl-2 border-l-2 border-emerald-600/40">
-                        {selectedOrder.paymentHistory.map((h: any, idx: number) => (
-                          <div key={idx} className="text-[11px] text-[#495464]">
-                            <div className="flex items-center justify-between">
-                              <span className="font-semibold text-emerald-900">{h.status}</span>
-                              <span className="text-[10px] text-[#495464]/60">
-                                {new Date(h.changedAt).toLocaleString([], {
-                                  month: "short",
-                                  day: "numeric",
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })}
-                              </span>
-                            </div>
-                            {h.note && <p className="text-[10px] text-[#495464]/70">{h.note}</p>}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
               {/* Items List */}
               <div className="space-y-3">
                 <h4 className="text-xs uppercase tracking-widest font-semibold text-[#495464]">
@@ -643,7 +503,10 @@ function OrdersContent() {
                 </p>
                 <p className="flex items-center gap-2">
                   <Phone className="w-3.5 h-3.5 text-[#495464]/60" />
-                  <span>{selectedOrder.shippingAddress?.phone || "No phone"}</span>
+                  <span>
+                    <span className="text-[#495464]/70">Phone (Payment / WhatsApp): </span>
+                    <span className="font-mono font-semibold">{selectedOrder.shippingAddress?.phone || "No phone"}</span>
+                  </span>
                 </p>
                 <p className="flex items-start gap-2">
                   <MapPin className="w-3.5 h-3.5 text-[#495464]/60 mt-0.5" />
@@ -653,61 +516,6 @@ function OrdersContent() {
                     {selectedOrder.shippingAddress?.postalCode ? ` ${selectedOrder.shippingAddress.postalCode}` : ""}
                   </span>
                 </p>
-              </div>
-
-              {/* Email Activity Audit Log */}
-              <div className="bg-[#E8E8E8]/50 border border-[#BBBFCA]/30 p-4 space-y-3 text-xs">
-                <div className="flex items-center justify-between border-b border-[#BBBFCA]/30 pb-2">
-                  <h4 className="text-[11px] uppercase tracking-widest font-semibold text-[#495464] flex items-center gap-1.5">
-                    <Mail className="w-3.5 h-3.5 text-[#495464]/70" />
-                    <span>Email Activity</span>
-                  </h4>
-                  <span className="text-[10px] text-[#495464]/60">
-                    shopy.orderupdate@gmail.com
-                  </span>
-                </div>
-                {selectedOrder.emailLogs && selectedOrder.emailLogs.length > 0 ? (
-                  <div className="space-y-2">
-                    {selectedOrder.emailLogs.map((log: any, idx: number) => (
-                      <div
-                        key={idx}
-                        className="bg-[#F4F4F2] border border-[#BBBFCA]/30 p-2.5 flex items-start justify-between gap-2"
-                      >
-                        <div className="space-y-0.5">
-                          <div className="font-semibold text-[#495464] text-[11px] uppercase tracking-wide">
-                            {log.eventType?.replace(/_/g, " ") || "Order Update"}
-                          </div>
-                          <div className="text-[10px] text-[#495464]/70">
-                            To: {log.recipient}
-                          </div>
-                          <div className="text-[9px] text-[#495464]/50">
-                            {new Date(log.sentAt).toLocaleDateString()} &bull;{" "}
-                            {new Date(log.sentAt).toLocaleTimeString([], {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
-                          </div>
-                        </div>
-                        <div className="text-right flex-shrink-0">
-                          {log.status === "SENT" ? (
-                            <span className="inline-flex items-center gap-1 text-[10px] text-emerald-700 font-semibold bg-emerald-50 border border-emerald-200 px-2 py-0.5">
-                              <CheckCircle2 className="w-3 h-3" />
-                              <span>Sent</span>
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 text-[10px] text-rose-700 font-semibold bg-rose-50 border border-rose-200 px-2 py-0.5">
-                              <span>✕ Failed</span>
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-[11px] text-[#495464]/60 italic">
-                    No automated order update emails logged yet for this order.
-                  </p>
-                )}
               </div>
 
               {/* Google Sheets Live Synchronization Status */}

@@ -135,7 +135,7 @@ export default function OrderInvoicePrint({ order }: OrderInvoicePrintProps) {
           </p>
           <div className="pt-1 text-[11px] text-[#495464] space-y-0.5">
             <p>
-              <strong>Phone:</strong> {order.shippingAddress?.phone || "N/A"}
+              <strong>Phone (Payment / WhatsApp):</strong> {order.shippingAddress?.phone || "N/A"}
             </p>
             <p>
               <strong>Email:</strong> {order.shippingAddress?.email || "N/A"}

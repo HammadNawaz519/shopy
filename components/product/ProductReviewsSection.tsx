@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { CheckCircle2, Star, ShieldCheck, Loader2, MessageSquarePlus, Filter } from "lucide-react";
+import { CheckCircle2, Star, Loader2, MessageSquarePlus, Filter } from "lucide-react";
 import StarRating from "@/components/ui/StarRating";
 import ReviewModal from "@/components/review/ReviewModal";
 import { ProductReview, ProductRatingSummary } from "@/lib/db/store";
@@ -161,14 +161,6 @@ export default function ProductReviewsSection({
                 </div>
               );
             })}
-          </div>
-
-          {/* Verified Guarantee Badge */}
-          <div className="pt-4 border-t border-[#BBBFCA]/30 flex items-start gap-2.5 text-[11px] text-[#495464]/80">
-            <ShieldCheck className="w-4 h-4 text-emerald-800 flex-shrink-0 mt-0.5" />
-            <span>
-              100% verified evaluations from customers with delivered atelier orders.
-            </span>
           </div>
         </div>
 

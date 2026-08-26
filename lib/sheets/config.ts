@@ -7,6 +7,7 @@ export interface GoogleSheetsConfig {
   spreadsheetId: string;
   clientEmail: string;
   privateKey: string;
+  webhookSecret: string;
   isConfigured: boolean;
 }
 
@@ -32,12 +33,18 @@ export function getGoogleSheetsConfig(): GoogleSheetsConfig {
     rawKey = rawKey.replace(/\\n/g, "\n");
   }
 
+  const webhookSecret = cleanEnv(
+    process.env.GOOGLE_SHEETS_WEBHOOK_SECRET || process.env.SESSION_SECRET,
+    "shopy_sheets_sync_secret_key_2026"
+  );
+
   const isConfigured = Boolean(spreadsheetId && clientEmail && rawKey);
 
   return {
     spreadsheetId,
     clientEmail,
     privateKey: rawKey,
+    webhookSecret,
     isConfigured,
   };
 }

@@ -1641,7 +1641,7 @@ class SupabaseDataStore {
           notes = COALESCE($6, notes),
           updated_at = NOW()
         WHERE id = $7 OR order_number = $7
-        RETURNING id;`,
+        RETURNING *;`,
         [
           normStatus,
           targetPaymentStatus,
@@ -1654,7 +1654,8 @@ class SupabaseDataStore {
       );
 
       if (res.rows.length === 0) return undefined;
-      return this.getOrderById(res.rows[0].id);
+      const updatedRow = { ...res.rows[0], items: prev.items };
+      return mapOrderRow(updatedRow);
     });
   }
 
@@ -1692,7 +1693,7 @@ class SupabaseDataStore {
           payment_history = COALESCE(payment_history, '[]'::jsonb) || $2::jsonb,
           updated_at = NOW()
         WHERE id = $3 OR order_number = $3
-        RETURNING id;`,
+        RETURNING *;`,
         [
           normPaymentStatus,
           JSON.stringify([paymentHistoryEntry]),
@@ -1701,7 +1702,8 @@ class SupabaseDataStore {
       );
 
       if (res.rows.length === 0) return undefined;
-      return this.getOrderById(res.rows[0].id);
+      const updatedRow = { ...res.rows[0], items: prev.items };
+      return mapOrderRow(updatedRow);
     });
   }
 

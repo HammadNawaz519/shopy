@@ -297,7 +297,7 @@ export default function OrderConfirmationPage({ params }: { params: { id: string
               <p>
                 {order.shippingAddress.city}, {order.shippingAddress.province} {order.shippingAddress.postalCode}
               </p>
-              <p>Phone: {order.shippingAddress.phone}</p>
+              <p>Phone (Payment / WhatsApp): {order.shippingAddress.phone}</p>
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 <span className="text-[11px] text-[#495464]">
                   Payment Method:
