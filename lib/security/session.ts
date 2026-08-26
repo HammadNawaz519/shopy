@@ -151,3 +151,40 @@ export async function requireAdmin(): Promise<SessionData | null> {
   }
   return user;
 }
+
+/**
+ * Single-call admin authorization for API routes.
+ * Calls getCurrentUser() exactly ONCE per request — eliminates the triple
+ * getCurrentUser() anti-pattern that previously existed across admin routes.
+ *
+ * AUTHORIZATION RULES (server-side only — never trusts client-provided role):
+ *
+ * Production (NODE_ENV=production):
+ *   → User MUST have role==="admin" in the signed JWT. No exceptions.
+ *
+ * Vercel preview deployments (VERCEL=1, NODE_ENV=production):
+ *   → NODE_ENV is "production" on ALL Vercel deployments (preview + production),
+ *     so the dev bypass below cannot activate on any Vercel environment.
+ *
+ * Local development (NODE_ENV=development, VERCEL is unset):
+ *   → Dev bypass: any authenticated user can access admin APIs.
+ *     This preserves the existing intentional development behavior.
+ *
+ * Guard: process.env.VERCEL is set to "1" by Vercel on ALL deployed instances
+ * (preview and production alike). The double-guard (!VERCEL AND !production)
+ * ensures the bypass is strictly limited to local `next dev` only.
+ */
+export async function getAdminUser(): Promise<SessionData | null> {
+  const user = await getCurrentUser();
+  if (!user) return null;
+  if (user.role === "admin") return user;
+
+  // Dev bypass: ONLY active when running locally via `next dev`.
+  // Cannot activate on Vercel preview, Vercel production, or any VERCEL=1 environment.
+  const isLocalDev =
+    process.env.NODE_ENV !== "production" &&
+    !process.env.VERCEL; // Vercel sets VERCEL=1 on all deployed environments
+  if (isLocalDev) return user;
+
+  return null;
+}

@@ -217,7 +217,7 @@ function OrdersContent() {
         subtitle="Manage & Dispatch Customer Orders"
       />
 
-      <main className="flex-1 p-6 lg:p-10 max-w-[1720px] w-full mx-auto space-y-6">
+      <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-[1720px] w-full mx-auto space-y-6">
         {/* Filter Tabs & Search Bar */}
         <div className="bg-[#F4F4F2] border border-[#BBBFCA]/40 p-4 lg:p-6 shadow-xs space-y-4">
           {/* Tabs */}
@@ -273,14 +273,14 @@ function OrdersContent() {
               <table className="w-full text-left text-xs tracking-wider">
                 <thead className="bg-[#E8E8E8]/70 border-b border-[#BBBFCA]/40 text-[#495464] uppercase text-[10px]">
                   <tr>
-                    <th className="px-3 py-3 font-semibold whitespace-nowrap">Order ID</th>
-                    <th className="px-2.5 py-3 font-semibold whitespace-nowrap">Date</th>
-                    <th className="px-2.5 py-3 font-semibold whitespace-nowrap max-w-[160px]">Customer</th>
-                    <th className="px-2 py-3 font-semibold whitespace-nowrap text-left">Items</th>
-                    <th className="px-2.5 py-3 font-semibold whitespace-nowrap">Total</th>
-                    <th className="px-2 py-3 font-semibold whitespace-nowrap text-center">Payment</th>
-                    <th className="px-2 py-3 font-semibold whitespace-nowrap text-center">Order Status</th>
-                    <th className="px-3 py-3 font-semibold text-right whitespace-nowrap">Action</th>
+                    <th className="px-3 py-3 font-semibold whitespace-nowrap w-[14%] min-w-[120px]">Order ID</th>
+                    <th className="px-2.5 py-3 font-semibold whitespace-nowrap w-[9%] min-w-[85px]">Date</th>
+                    <th className="px-3 py-3 font-semibold whitespace-nowrap w-[23%] min-w-[140px]">Customer</th>
+                    <th className="px-2 py-3 font-semibold whitespace-nowrap text-left w-[7%] min-w-[55px]">Items</th>
+                    <th className="px-2.5 py-3 font-semibold whitespace-nowrap w-[11%] min-w-[90px]">Total</th>
+                    <th className="px-2 py-3 font-semibold whitespace-nowrap text-center w-[12%] min-w-[105px]">Payment</th>
+                    <th className="px-2 py-3 font-semibold whitespace-nowrap text-center w-[11%] min-w-[110px]">Order Status</th>
+                    <th className="px-3 py-3 font-semibold text-right whitespace-nowrap w-[13%] min-w-[135px]">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#BBBFCA]/20">
@@ -294,7 +294,7 @@ function OrdersContent() {
                         <td className="px-2.5 py-3 text-[#495464]/70 whitespace-nowrap">
                           {new Date(ord.createdAt).toLocaleDateString()}
                         </td>
-                        <td className="px-2.5 py-3 max-w-[160px]">
+                        <td className="px-3 py-3 min-w-0">
                           <span className="font-medium block text-[#495464] truncate">
                             {ord.shippingAddress?.firstName || "Client"} {ord.shippingAddress?.lastName || ""}
                           </span>
@@ -306,10 +306,10 @@ function OrdersContent() {
                         <td className="px-2.5 py-3 font-serif font-semibold text-[#495464] whitespace-nowrap">
                           {formatPrice(ord.total)}
                         </td>
-                        <td className="px-2 py-3 text-center">
+                        <td className="px-2 py-3 text-center whitespace-nowrap">
                           {getPaymentBadge(ord)}
                         </td>
-                        <td className="px-2 py-3 text-center">
+                        <td className="px-2 py-3 text-center whitespace-nowrap">
                           <select
                             value={ord.status}
                             disabled={updating}

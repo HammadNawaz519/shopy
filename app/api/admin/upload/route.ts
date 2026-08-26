@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAdmin, getCurrentUser } from "@/lib/security/session";
+import { getAdminUser } from "@/lib/security/session";
 import { db } from "@/lib/db/store";
 import sharp from "sharp";
 import path from "path";
@@ -8,19 +8,7 @@ import fs from "fs/promises";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
-  let admin = await requireAdmin();
-  if (!admin) {
-    const user = await getCurrentUser();
-    if (user && user.role === "admin") {
-      admin = user;
-    }
-  }
-
-  // Also allow in non-production if requested from admin dashboard
-  if (!admin && process.env.NODE_ENV !== "production") {
-    const user = await getCurrentUser();
-    if (user) admin = user;
-  }
+  const admin = await getAdminUser();
 
   if (!admin) {
     return NextResponse.json(

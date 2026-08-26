@@ -168,8 +168,12 @@ export default function AdminProductsPage() {
   };
 
   useEffect(() => {
-    fetchProducts();
     fetchCategories();
+    // Categories are static lookup data — fetch only once on mount
+  }, []);
+
+  useEffect(() => {
+    fetchProducts();
   }, [categoryFilter]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {

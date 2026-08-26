@@ -169,13 +169,21 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     [items, promoCode]
   );
 
-  // Recalculate server price only when cart drawer is active or promoCode is applied
+  // Recalculate server price only when cart drawer is active or promoCode is applied.
+  // Debounced 500ms to coalesce rapid quantity changes into a single validate request.
   useEffect(() => {
-    if (isHydrated && items.length > 0 && (isOpen || promoCode)) {
-      validateWithServer();
-    } else if (items.length === 0) {
+    if (!isHydrated) return;
+    if (items.length === 0) {
       setServerCalculation(null);
+      return;
     }
+    if (!isOpen && !promoCode) return;
+
+    const timer = setTimeout(() => {
+      validateWithServer();
+    }, 500);
+
+    return () => clearTimeout(timer);
   }, [items, isHydrated, isOpen, promoCode, validateWithServer]);
 
   const openCart = () => {
