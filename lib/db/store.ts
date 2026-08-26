@@ -1115,6 +1115,75 @@ class SupabaseDataStore {
   }
 
   /**
+   * Fetches lightweight metadata of newly-created orders placed after a specific timestamp/order ID.
+   * Used by the real-time admin notification badge system.
+   */
+  async getUnseenOrders(afterIso?: string, afterId?: string): Promise<{ id: string; orderNumber: string; createdAt: string }[]> {
+    try {
+      if (!afterIso) {
+        return [];
+      }
+      const targetTime = new Date(afterIso);
+      if (isNaN(targetTime.getTime())) return [];
+
+      let sql = `
+        SELECT id, order_number, created_at 
+        FROM orders 
+        WHERE created_at > $1
+      `;
+      const params: any[] = [targetTime.toISOString()];
+
+      if (afterId) {
+        params.push(afterId);
+        sql += ` AND id != $${params.length}`;
+      }
+
+      sql += ` ORDER BY created_at DESC LIMIT 100;`;
+
+      const res = await query(sql, params);
+
+      // In JS, also ensure precision boundary check
+      return res.rows
+        .map((r) => ({
+          id: r.id,
+          orderNumber: r.order_number,
+          createdAt: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
+        }))
+        .filter((r) => {
+          if (afterId && r.id === afterId) return false;
+          return new Date(r.createdAt).getTime() > targetTime.getTime();
+        });
+    } catch (err) {
+      console.error("[GET UNSEEN ORDERS ERROR]", err);
+      return [];
+    }
+  }
+
+  /**
+   * Retrieves the most recent order metadata in the database to establish the initial anchor.
+   */
+  async getLatestOrderAnchor(): Promise<{ timestamp: string; id: string } | null> {
+    try {
+      const res = await query(`SELECT id, created_at FROM orders ORDER BY created_at DESC LIMIT 1;`);
+      if (res.rows.length === 0) return null;
+      return {
+        id: res.rows[0].id,
+        timestamp: res.rows[0].created_at ? new Date(res.rows[0].created_at).toISOString() : new Date().toISOString(),
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Backward-compatible helper for latest order timestamp
+   */
+  async getLatestOrderTimestamp(): Promise<string | null> {
+    const anchor = await this.getLatestOrderAnchor();
+    return anchor ? anchor.timestamp : null;
+  }
+
+  /**
    * Recalculates cart items and pricing authoritatively from Supabase PostgreSQL.
    */
   async recalculateCart(

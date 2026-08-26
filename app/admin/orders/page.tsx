@@ -27,6 +27,7 @@ import AdminHeader from "@/components/admin/AdminHeader";
 import OrderInvoicePrint from "@/components/admin/OrderInvoicePrint";
 import { formatPrice } from "@/lib/utils";
 import { useToast } from "@/context/ToastContext";
+import { useAdminOrderNotification } from "@/context/AdminOrderNotificationContext";
 
 function OrdersContent() {
   const searchParams = useSearchParams();
@@ -34,6 +35,7 @@ function OrdersContent() {
   const initialStatus = searchParams.get("status") || "ALL";
 
   const { showToast } = useToast();
+  const { markAllAsSeen } = useAdminOrderNotification();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -78,6 +80,7 @@ function OrdersContent() {
       if (res.ok) {
         const data = await res.json();
         setOrders(data.orders || []);
+        markAllAsSeen();
 
         if (highlightId) {
           const matched = (data.orders || []).find((o: any) => o.id === highlightId);

@@ -21,6 +21,7 @@ import {
   LogOut,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { useAdminOrderNotification } from "@/context/AdminOrderNotificationContext";
 
 interface AdminSidebarProps {
   mobileOpen?: boolean;
@@ -45,6 +46,7 @@ const navItems = [
 export default function AdminSidebar({ mobileOpen = false, onCloseMobile }: AdminSidebarProps) {
   const pathname = usePathname();
   const { logout, user } = useAuth();
+  const { unseenCount } = useAdminOrderNotification();
 
   const sidebarContent = (
     <div className="flex flex-col h-full bg-[#181A1D] text-[#F4F4F2] border-r border-[#495464]/40 select-none">
@@ -84,13 +86,23 @@ export default function AdminSidebar({ mobileOpen = false, onCloseMobile }: Admi
               href={item.href}
               prefetch={false}
               onClick={onCloseMobile}
-              className={`flex items-center gap-3 px-3.5 py-2.5 text-xs font-medium tracking-wide transition-colors ${isActive
+              className={`flex items-center justify-between px-3.5 py-2.5 text-xs font-medium tracking-wide transition-colors ${isActive
                   ? "bg-[#495464] text-[#F4F4F2] font-semibold border-l-2 border-[#F4F4F2]"
                   : "text-[#BBBFCA] hover:bg-[#495464]/30 hover:text-[#F4F4F2]"
                 }`}
             >
-              <Icon className="w-4 h-4" />
-              <span>{item.name}</span>
+              <div className="flex items-center gap-3 min-w-0">
+                <Icon className="w-4 h-4 flex-shrink-0" />
+                <span className="truncate">{item.name}</span>
+              </div>
+              {item.name === "Orders" && unseenCount > 0 && (
+                <span
+                  className="inline-flex items-center justify-center min-w-[19px] h-4.5 px-1.5 text-[10px] font-bold font-mono tracking-tight bg-[#F4F4F2] text-[#495464] border border-[#BBBFCA]/60 rounded-full shadow-xs transition-all duration-300 transform scale-100 animate-fadeIn"
+                  title={`${unseenCount} new unseen ${unseenCount === 1 ? "order" : "orders"}`}
+                >
+                  {unseenCount > 99 ? "99+" : unseenCount}
+                </span>
+              )}
             </Link>
           );
         })}
