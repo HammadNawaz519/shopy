@@ -273,14 +273,14 @@ function OrdersContent() {
               <table className="w-full table-fixed text-left text-xs tracking-wider">
                 <thead className="bg-[#E8E8E8]/70 border-b border-[#BBBFCA]/40 text-[#495464] uppercase text-[10px]">
                   <tr>
-                    <th className="w-[17%] px-3 py-3 font-semibold whitespace-nowrap">Order ID</th>
+                    <th className="w-[12%] px-3 py-3 font-semibold whitespace-nowrap">Order ID</th>
                     <th className="w-[9%] px-2 py-3 font-semibold whitespace-nowrap">Date</th>
-                    <th className="w-[20%] px-2.5 py-3 font-semibold whitespace-nowrap">Customer</th>
-                    <th className="w-[8%] px-2 py-3 font-semibold whitespace-nowrap text-left">Items</th>
+                    <th className="w-[17%] px-2.5 py-3 font-semibold whitespace-nowrap">Customer</th>
+                    <th className="w-[7%] px-2 py-3 font-semibold whitespace-nowrap text-left">Items</th>
                     <th className="w-[11%] px-2 py-3 font-semibold whitespace-nowrap">Total</th>
-                    <th className="w-[12%] px-2 py-3 font-semibold whitespace-nowrap text-center">Payment</th>
-                    <th className="w-[11%] px-2 py-3 font-semibold whitespace-nowrap text-center">Order Status</th>
-                    <th className="w-[12%] px-2.5 py-3 font-semibold text-right whitespace-nowrap">Action</th>
+                    <th className="w-[13%] px-2 py-3 font-semibold whitespace-nowrap text-center">Payment</th>
+                    <th className="w-[13%] px-2 py-3 font-semibold whitespace-nowrap text-center">Order Status</th>
+                    <th className="w-[18%] px-2.5 py-3 font-semibold text-right whitespace-nowrap">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#BBBFCA]/20">
