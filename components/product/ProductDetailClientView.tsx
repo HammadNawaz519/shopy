@@ -8,6 +8,8 @@ import { formatPrice } from "@/lib/utils";
 import { useCart } from "@/context/CartContext";
 import { useToast } from "@/context/ToastContext";
 import ProductCard from "@/components/product/ProductCard";
+import StarRating from "@/components/ui/StarRating";
+import ProductReviewsSection from "@/components/product/ProductReviewsSection";
 import {
   ChevronDown,
   ArrowLeft,
@@ -32,9 +34,29 @@ export default function ProductDetailClientView({
   const [selectedColor, setSelectedColor] = useState(product?.colors?.[0]?.name || "Default");
   const [quantity, setQuantity] = useState(1);
   const [openAccordion, setOpenAccordion] = useState<string | null>("details");
+  const [ratingSummary, setRatingSummary] = useState<{ averageRating: number; reviewCount: number }>({
+    averageRating: 0,
+    reviewCount: 0,
+  });
 
   const { addItem, openCart } = useCart();
   const { showToast } = useToast();
+
+  React.useEffect(() => {
+    if (!product?.id) return;
+    async function loadRating() {
+      try {
+        const res = await fetch(`/api/reviews?productId=${encodeURIComponent(product.id)}&limit=1`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.summary) {
+            setRatingSummary(data.summary);
+          }
+        }
+      } catch {}
+    }
+    loadRating();
+  }, [product?.id]);
 
   const handleAddToCart = () => {
     addItem(product, selectedSize, selectedColor, quantity);
@@ -140,6 +162,22 @@ export default function ProductDetailClientView({
                     </span>
                   )}
                 </div>
+
+                {/* Rating Badge Anchor Link */}
+                {ratingSummary.reviewCount > 0 && (
+                  <a
+                    href="#ratings-and-reviews"
+                    className="inline-flex items-center gap-2 pt-1 hover:opacity-80 transition-opacity"
+                  >
+                    <StarRating rating={ratingSummary.averageRating} size="xs" />
+                    <span className="font-mono text-xs text-[#495464] font-medium">
+                      {ratingSummary.averageRating.toFixed(1)}
+                    </span>
+                    <span className="text-[11px] text-[#495464]/70 underline">
+                      ({ratingSummary.reviewCount} {ratingSummary.reviewCount === 1 ? "review" : "reviews"})
+                    </span>
+                  </a>
+                )}
               </div>
 
               <p className="text-xs text-[#495464]/80 leading-relaxed tracking-normal font-normal">
@@ -351,6 +389,13 @@ export default function ProductDetailClientView({
             </div>
           </div>
         </div>
+
+        {/* Client Ratings & Reviews Section */}
+        <ProductReviewsSection
+          productId={product.id}
+          productName={product.name}
+          productImage={currentImage}
+        />
 
         {/* Related Pieces Section */}
         {relatedProducts.length > 0 && (

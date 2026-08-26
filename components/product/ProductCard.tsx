@@ -160,14 +160,23 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
           </Link>
         </div>
 
-        <div className="flex items-center gap-2 mt-2">
-          <span className="text-xs font-medium text-[#495464] tracking-wider">
-            {formatPrice(product.price)}
-          </span>
-          {product.originalPrice && (
-            <span className="text-xs text-[#495464]/50 line-through tracking-wider">
-              {formatPrice(product.originalPrice)}
+        <div className="flex items-center justify-between gap-2 mt-2">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium text-[#495464] tracking-wider">
+              {formatPrice(product.price)}
             </span>
+            {product.originalPrice && (
+              <span className="text-xs text-[#495464]/50 line-through tracking-wider">
+                {formatPrice(product.originalPrice)}
+              </span>
+            )}
+          </div>
+          {(product as any).rating !== undefined && (product as any).rating > 0 && (
+            <div className="flex items-center gap-1">
+              <span className="text-[10px] font-mono font-medium text-[#495464]">
+                {(product as any).rating.toFixed(1)}★
+              </span>
+            </div>
           )}
         </div>
       </div>

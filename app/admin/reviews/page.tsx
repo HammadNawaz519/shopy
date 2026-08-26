@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { Star, CheckCircle2, XCircle, Trash2, Loader2, MessageSquare } from "lucide-react";
 import AdminHeader from "@/components/admin/AdminHeader";
+import StarRating from "@/components/ui/StarRating";
 import { useToast } from "@/context/ToastContext";
 
 export default function AdminReviewsPage() {
@@ -87,7 +88,7 @@ export default function AdminReviewsPage() {
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs tracking-wider">
-                <thead className="bg-[#E8E8E8]/70 border-b border-[#BBBFCA]/40 text-[#495464] uppercase text-[10px]">
+                <thead className="bg-[#E8E8E8] border-b border-[#BBBFCA]/40 text-[#495464] uppercase text-[10px] tracking-wider">
                   <tr>
                     <th className="p-4 font-semibold">Product</th>
                     <th className="p-4 font-semibold">Customer</th>
@@ -101,33 +102,42 @@ export default function AdminReviewsPage() {
                   {reviews.map((r) => (
                     <tr key={r.id} className="hover:bg-[#E8E8E8]/40 transition-colors">
                       <td className="p-4 font-medium text-[#495464]">
-                        {r.productName}
+                        <span className="block">{r.productName}</span>
+                        {r.orderId && (
+                          <span className="font-mono text-[10px] text-[#495464]/60 block mt-0.5">
+                            Order: {r.orderId}
+                          </span>
+                        )}
                       </td>
                       <td className="p-4">
                         <span className="font-semibold block text-[#495464]">{r.customerName}</span>
                         <span className="text-[10px] text-[#495464]/60">{r.customerEmail}</span>
+                        {r.verifiedPurchase && (
+                          <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-[#495464] bg-[#E8E8E8] border border-[#BBBFCA]/60 px-1.5 py-0.2 mt-1">
+                            <CheckCircle2 className="w-2.5 h-2.5" />
+                            <span>Verified Buyer</span>
+                          </span>
+                        )}
                       </td>
                       <td className="p-4">
-                        <div className="flex items-center text-amber-500">
-                          {Array.from({ length: 5 }).map((_, i) => (
-                            <Star
-                              key={i}
-                              className={`w-3 h-3 ${i < r.rating ? "fill-current" : "text-gray-300"}`}
-                            />
-                          ))}
+                        <div className="flex items-center gap-1">
+                          <StarRating rating={r.rating} size="xs" />
+                          <span className="font-mono text-[11px] font-semibold text-[#495464]">
+                            {r.rating}★
+                          </span>
                         </div>
                       </td>
-                      <td className="p-4 max-w-sm text-[#495464]/80 italic">
-                        &quot;{r.comment}&quot;
+                      <td className="p-4 max-w-sm text-[#495464] italic">
+                        &ldquo;{r.comment}&rdquo;
                       </td>
                       <td className="p-4">
                         <span
-                          className={`inline-block px-2 py-0.5 text-[9px] uppercase font-semibold tracking-wider ${
+                          className={`inline-block px-2.5 py-0.5 text-[9px] uppercase font-semibold tracking-wider ${
                             r.status === "approved"
-                              ? "bg-emerald-100 text-emerald-800"
+                              ? "bg-[#E8E8E8] text-[#495464] border border-[#BBBFCA]"
                               : r.status === "rejected"
-                              ? "bg-red-100 text-red-800"
-                              : "bg-amber-100 text-amber-800"
+                              ? "bg-red-50 text-red-800 border border-red-200"
+                              : "bg-[#F4F4F2] text-[#495464]/60 border border-dashed border-[#BBBFCA]"
                           }`}
                         >
                           {r.status}
@@ -137,7 +147,7 @@ export default function AdminReviewsPage() {
                         {r.status !== "approved" && (
                           <button
                             onClick={() => handleUpdateStatus(r.id, "approved")}
-                            className="p-1.5 text-emerald-800 hover:bg-emerald-50"
+                            className="p-1.5 text-[#495464] hover:bg-[#BBBFCA]/30 transition-colors"
                             title="Approve"
                           >
                             <CheckCircle2 className="w-4 h-4" />
@@ -146,7 +156,7 @@ export default function AdminReviewsPage() {
                         {r.status !== "rejected" && (
                           <button
                             onClick={() => handleUpdateStatus(r.id, "rejected")}
-                            className="p-1.5 text-amber-800 hover:bg-amber-50"
+                            className="p-1.5 text-[#495464]/70 hover:text-red-700 hover:bg-[#BBBFCA]/30 transition-colors"
                             title="Reject"
                           >
                             <XCircle className="w-4 h-4" />

@@ -186,12 +186,29 @@ export interface ProductReview {
   id: string;
   productId: string;
   productName: string;
+  userId?: string;
+  orderId?: string;
+  orderItemId?: string;
   customerName: string;
   customerEmail: string;
   rating: number;
   comment: string;
   status: "approved" | "pending" | "rejected";
+  verifiedPurchase: boolean;
   createdAt: string;
+  updatedAt?: string;
+}
+
+export interface ProductRatingSummary {
+  averageRating: number;
+  reviewCount: number;
+  distribution: {
+    5: number;
+    4: number;
+    3: number;
+    2: number;
+    1: number;
+  };
 }
 
 export interface StoreSettings {
@@ -448,6 +465,17 @@ export async function ensurePaymentSchema(): Promise<void> {
         items JSONB NOT NULL DEFAULT '[]'::jsonb,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
       );
+
+      -- 5. Verified Product Reviews Schema Migration
+      ALTER TABLE reviews ADD COLUMN IF NOT EXISTS user_id VARCHAR(50);
+      ALTER TABLE reviews ADD COLUMN IF NOT EXISTS order_id VARCHAR(50);
+      ALTER TABLE reviews ADD COLUMN IF NOT EXISTS order_item_id VARCHAR(50);
+      ALTER TABLE reviews ADD COLUMN IF NOT EXISTS verified_purchase BOOLEAN DEFAULT true;
+      ALTER TABLE reviews ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+
+      CREATE INDEX IF NOT EXISTS idx_reviews_product_id ON reviews(product_id);
+      CREATE INDEX IF NOT EXISTS idx_reviews_user_id ON reviews(user_id);
+      CREATE INDEX IF NOT EXISTS idx_reviews_order_id ON reviews(order_id);
     `);
 
     schemaEnsured = true;
@@ -1763,9 +1791,17 @@ class SupabaseDataStore {
   }
 
   // --------------------------------------------------------------------------
-  // REVIEWS
+  // REVIEWS & RATING AGGREGATION
   // --------------------------------------------------------------------------
-  async getReviews(filter?: { status?: string; productId?: string }): Promise<ProductReview[]> {
+  async getReviews(filter?: {
+    status?: string;
+    productId?: string;
+    userId?: string;
+    sort?: "newest" | "highest" | "lowest";
+    limit?: number;
+    offset?: number;
+  }): Promise<ProductReview[]> {
+    await ensurePaymentSchema();
     let sql = `SELECT * FROM reviews WHERE 1=1`;
     const params: any[] = [];
 
@@ -1779,32 +1815,152 @@ class SupabaseDataStore {
       sql += ` AND product_id = $${params.length}`;
     }
 
-    sql += ` ORDER BY created_at DESC;`;
+    if (filter?.userId) {
+      params.push(filter.userId);
+      sql += ` AND user_id = $${params.length}`;
+    }
+
+    if (filter?.sort === "highest") {
+      sql += ` ORDER BY rating DESC, created_at DESC`;
+    } else if (filter?.sort === "lowest") {
+      sql += ` ORDER BY rating ASC, created_at DESC`;
+    } else {
+      sql += ` ORDER BY created_at DESC`;
+    }
+
+    if (filter?.limit) {
+      params.push(filter.limit);
+      sql += ` LIMIT $${params.length}`;
+    }
+
+    if (filter?.offset) {
+      params.push(filter.offset);
+      sql += ` OFFSET $${params.length}`;
+    }
+
+    sql += `;`;
 
     const res = await query(sql, params);
     return res.rows.map((r) => ({
       id: r.id,
       productId: r.product_id,
       productName: r.product_name,
+      userId: r.user_id || undefined,
+      orderId: r.order_id || undefined,
+      orderItemId: r.order_item_id || undefined,
       customerName: r.customer_name,
       customerEmail: r.customer_email,
       rating: Number(r.rating),
       comment: r.comment,
       status: r.status,
+      verifiedPurchase: r.verified_purchase !== false,
       createdAt: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
+      updatedAt: r.updated_at ? new Date(r.updated_at).toISOString() : undefined,
     }));
   }
 
-  async addReview(review: Omit<ProductReview, "id" | "createdAt" | "status">): Promise<ProductReview> {
-    const id = `rev_${Date.now()}`;
+  async getProductRatingSummary(productId: string): Promise<ProductRatingSummary> {
+    await ensurePaymentSchema();
     const res = await query(
-      `INSERT INTO reviews (id, product_id, product_name, customer_name, customer_email, rating, comment, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending')
+      `SELECT 
+         COALESCE(ROUND(AVG(rating)::numeric, 1), 0)::float as avg_rating,
+         COUNT(*)::int as total_count,
+         COUNT(*) FILTER (WHERE rating = 5)::int as count_5,
+         COUNT(*) FILTER (WHERE rating = 4)::int as count_4,
+         COUNT(*) FILTER (WHERE rating = 3)::int as count_3,
+         COUNT(*) FILTER (WHERE rating = 2)::int as count_2,
+         COUNT(*) FILTER (WHERE rating = 1)::int as count_1
+       FROM reviews 
+       WHERE product_id = $1 AND status = 'approved';`,
+      [productId]
+    );
+
+    if (res.rows.length === 0) {
+      return {
+        averageRating: 0,
+        reviewCount: 0,
+        distribution: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 },
+      };
+    }
+
+    const row = res.rows[0];
+    return {
+      averageRating: Number(row.avg_rating || 0),
+      reviewCount: Number(row.total_count || 0),
+      distribution: {
+        5: Number(row.count_5 || 0),
+        4: Number(row.count_4 || 0),
+        3: Number(row.count_3 || 0),
+        2: Number(row.count_2 || 0),
+        1: Number(row.count_1 || 0),
+      },
+    };
+  }
+
+  async getUserProductReview(userId: string, productId: string): Promise<ProductReview | undefined> {
+    await ensurePaymentSchema();
+    const res = await query(
+      `SELECT * FROM reviews WHERE user_id = $1 AND product_id = $2 LIMIT 1;`,
+      [userId, productId]
+    );
+    if (res.rows.length === 0) return undefined;
+    const r = res.rows[0];
+    return {
+      id: r.id,
+      productId: r.product_id,
+      productName: r.product_name,
+      userId: r.user_id || undefined,
+      orderId: r.order_id || undefined,
+      orderItemId: r.order_item_id || undefined,
+      customerName: r.customer_name,
+      customerEmail: r.customer_email,
+      rating: Number(r.rating),
+      comment: r.comment,
+      status: r.status,
+      verifiedPurchase: r.verified_purchase !== false,
+      createdAt: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
+      updatedAt: r.updated_at ? new Date(r.updated_at).toISOString() : undefined,
+    };
+  }
+
+  async getUserReviewedProductIds(userId: string): Promise<string[]> {
+    await ensurePaymentSchema();
+    const res = await query(
+      `SELECT DISTINCT product_id FROM reviews WHERE user_id = $1;`,
+      [userId]
+    );
+    return res.rows.map((r) => r.product_id);
+  }
+
+  async createVerifiedReview(review: {
+    productId: string;
+    productName: string;
+    userId: string;
+    orderId: string;
+    orderItemId?: string;
+    customerName: string;
+    customerEmail: string;
+    rating: number;
+    comment: string;
+  }): Promise<ProductReview> {
+    await ensurePaymentSchema();
+    const id = `rev_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
+    
+    // Auto-approve verified purchase reviews so they appear immediately
+    const res = await query(
+      `INSERT INTO reviews (
+         id, product_id, product_name, user_id, order_id, order_item_id, 
+         customer_name, customer_email, rating, comment, status, verified_purchase
+       )
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'approved', true)
        RETURNING *;`,
       [
         id,
         review.productId,
         review.productName,
+        review.userId,
+        review.orderId,
+        review.orderItemId || null,
         review.customerName,
         review.customerEmail,
         review.rating,
@@ -1817,18 +1973,63 @@ class SupabaseDataStore {
       id: r.id,
       productId: r.product_id,
       productName: r.product_name,
+      userId: r.user_id || undefined,
+      orderId: r.order_id || undefined,
+      orderItemId: r.order_item_id || undefined,
       customerName: r.customer_name,
       customerEmail: r.customer_email,
       rating: Number(r.rating),
       comment: r.comment,
       status: r.status,
+      verifiedPurchase: r.verified_purchase !== false,
       createdAt: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
+      updatedAt: r.updated_at ? new Date(r.updated_at).toISOString() : undefined,
+    };
+  }
+
+  async addReview(review: Omit<ProductReview, "id" | "createdAt" | "status" | "verifiedPurchase">): Promise<ProductReview> {
+    await ensurePaymentSchema();
+    const id = `rev_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
+    const res = await query(
+      `INSERT INTO reviews (id, product_id, product_name, user_id, order_id, customer_name, customer_email, rating, comment, status, verified_purchase)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending', false)
+       RETURNING *;`,
+      [
+        id,
+        review.productId,
+        review.productName,
+        review.userId || null,
+        review.orderId || null,
+        review.customerName,
+        review.customerEmail,
+        review.rating,
+        review.comment,
+      ]
+    );
+
+    const r = res.rows[0];
+    return {
+      id: r.id,
+      productId: r.product_id,
+      productName: r.product_name,
+      userId: r.user_id || undefined,
+      orderId: r.order_id || undefined,
+      orderItemId: r.order_item_id || undefined,
+      customerName: r.customer_name,
+      customerEmail: r.customer_email,
+      rating: Number(r.rating),
+      comment: r.comment,
+      status: r.status,
+      verifiedPurchase: r.verified_purchase !== false,
+      createdAt: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
+      updatedAt: r.updated_at ? new Date(r.updated_at).toISOString() : undefined,
     };
   }
 
   async updateReviewStatus(id: string, status: "approved" | "rejected"): Promise<ProductReview | undefined> {
+    await ensurePaymentSchema();
     const res = await query(
-      `UPDATE reviews SET status = $1 WHERE id = $2 RETURNING *;`,
+      `UPDATE reviews SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *;`,
       [status, id]
     );
     if (res.rows.length === 0) return undefined;
@@ -1837,16 +2038,22 @@ class SupabaseDataStore {
       id: r.id,
       productId: r.product_id,
       productName: r.product_name,
+      userId: r.user_id || undefined,
+      orderId: r.order_id || undefined,
+      orderItemId: r.order_item_id || undefined,
       customerName: r.customer_name,
       customerEmail: r.customer_email,
       rating: Number(r.rating),
       comment: r.comment,
       status: r.status,
+      verifiedPurchase: r.verified_purchase !== false,
       createdAt: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
+      updatedAt: r.updated_at ? new Date(r.updated_at).toISOString() : undefined,
     };
   }
 
   async deleteReview(id: string): Promise<boolean> {
+    await ensurePaymentSchema();
     const res = await query(`DELETE FROM reviews WHERE id = $1;`, [id]);
     return (res.rowCount || 0) > 0;
   }

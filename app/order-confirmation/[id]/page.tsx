@@ -4,11 +4,19 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { formatPrice } from "@/lib/utils";
-import { CheckCircle2, Truck, Package, ArrowRight, Loader2 } from "lucide-react";
+import { CheckCircle2, Truck, Package, ArrowRight, Loader2, Star } from "lucide-react";
+import ReviewModal from "@/components/review/ReviewModal";
 
 export default function OrderConfirmationPage({ params }: { params: { id: string } }) {
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [reviewedProductIds, setReviewedProductIds] = useState<Set<string>>(new Set());
+  const [activeReviewTarget, setActiveReviewTarget] = useState<{
+    product: any;
+    orderId: string;
+    orderNumber: string;
+    orderItemId?: string;
+  } | null>(null);
 
   useEffect(() => {
     document.title = "Order Confirmed | SHOPY";
@@ -17,10 +25,21 @@ export default function OrderConfirmationPage({ params }: { params: { id: string
   useEffect(() => {
     async function fetchOrder() {
       try {
-        const res = await fetch(`/api/orders/${encodeURIComponent(params.id)}`);
-        if (res.ok) {
-          const data = await res.json();
+        const [orderRes, reviewRes] = await Promise.all([
+          fetch(`/api/orders/${encodeURIComponent(params.id)}`),
+          fetch("/api/reviews/eligibility"),
+        ]);
+
+        if (orderRes.ok) {
+          const data = await orderRes.json();
           setOrder(data.order);
+        }
+
+        if (reviewRes.ok) {
+          const reviewData = await reviewRes.json();
+          if (Array.isArray(reviewData.reviewedProductIds)) {
+            setReviewedProductIds(new Set(reviewData.reviewedProductIds));
+          }
         }
       } catch {
         // ignore
@@ -175,30 +194,71 @@ export default function OrderConfirmationPage({ params }: { params: { id: string
               Ordered Items ({order.items.length})
             </h3>
             <div className="divide-y divide-[#BBBFCA]/20">
-              {order.items.map((item: any, idx: number) => (
-                <div key={idx} className="py-3 flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className="relative w-12 h-14 bg-[#E8E8E8] flex-shrink-0 overflow-hidden">
-                      <Image
-                        src={item.image}
-                        alt={item.name}
-                        fill
-                        sizes="48px"
-                        className="object-cover"
-                      />
+              {order.items.map((item: any, idx: number) => {
+                const isDelivered = order.status === "DELIVERED";
+                const hasReviewed = item.productId && reviewedProductIds.has(item.productId);
+
+                return (
+                  <div key={idx} className="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <div className="relative w-12 h-14 bg-[#E8E8E8] flex-shrink-0 overflow-hidden">
+                        <Image
+                          src={item.image || "/placeholder.jpg"}
+                          alt={item.name}
+                          fill
+                          sizes="48px"
+                          className="object-cover"
+                        />
+                      </div>
+                      <div className="min-w-0">
+                        <h4 className="font-serif text-xs sm:text-sm font-medium text-[#495464] truncate">{item.name}</h4>
+                        <p className="text-[10px] text-[#495464]/60 tracking-wider">
+                          Qty: {item.quantity} • {item.size} • {item.color}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="font-serif text-xs font-medium text-[#495464]">{item.name}</h4>
-                      <p className="text-[10px] text-[#495464]/60 tracking-wider">
-                        Qty: {item.quantity} • {item.size} • {item.color}
-                      </p>
+
+                    <div className="flex items-center justify-between sm:justify-end gap-3 flex-shrink-0">
+                      <span className="text-xs font-medium text-[#495464]">
+                        {formatPrice(item.price * item.quantity)}
+                      </span>
+
+                      {/* Review Action (DELIVERED status only) */}
+                      {isDelivered && (
+                        <div>
+                          {hasReviewed ? (
+                            <span className="inline-flex items-center gap-1 text-[9px] uppercase tracking-wider font-semibold text-[#495464] bg-[#E8E8E8] border border-[#BBBFCA]/60 px-2.5 py-1">
+                              <CheckCircle2 className="w-3 h-3 text-[#495464]" />
+                              <span>Reviewed</span>
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() =>
+                                setActiveReviewTarget({
+                                  product: {
+                                    id: item.productId,
+                                    name: item.name,
+                                    image: item.image,
+                                    size: item.size,
+                                    color: item.color,
+                                  },
+                                  orderId: order.id,
+                                  orderNumber: order.orderNumber,
+                                  orderItemId: item.id,
+                                })
+                              }
+                              className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-semibold text-[#F4F4F2] bg-[#495464] hover:bg-[#363E4B] px-3 py-1 transition-colors shadow-xs"
+                            >
+                              <Star className="w-3 h-3 fill-[#F4F4F2]" />
+                              <span>Review</span>
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
-                  <span className="text-xs font-medium text-[#495464]">
-                    {formatPrice(item.price * item.quantity)}
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
@@ -309,6 +369,23 @@ export default function OrderConfirmationPage({ params }: { params: { id: string
           </Link>
         </div>
       </div>
+
+      {/* Review Modal for Verified Delivered Orders */}
+      {activeReviewTarget && (
+        <ReviewModal
+          isOpen={Boolean(activeReviewTarget)}
+          onClose={() => setActiveReviewTarget(null)}
+          product={activeReviewTarget.product}
+          orderId={activeReviewTarget.orderId}
+          orderNumber={activeReviewTarget.orderNumber}
+          orderItemId={activeReviewTarget.orderItemId}
+          onSuccess={(createdReview) => {
+            if (createdReview?.productId) {
+              setReviewedProductIds((prev) => new Set([...prev, createdReview.productId]));
+            }
+          }}
+        />
+      )}
     </div>
   );
 }

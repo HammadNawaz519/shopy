@@ -5,13 +5,21 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { formatPrice } from "@/lib/utils";
-import { User, Package, LogOut, Loader2, ArrowRight, ShieldCheck, ExternalLink } from "lucide-react";
+import { User, Package, LogOut, Loader2, ArrowRight, ShieldCheck, ExternalLink, Star, CheckCircle2 } from "lucide-react";
+import ReviewModal from "@/components/review/ReviewModal";
 
 export default function AccountPage() {
   const router = useRouter();
   const { user, loading, logout } = useAuth();
   const [orders, setOrders] = useState<any[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(true);
+  const [reviewedProductIds, setReviewedProductIds] = useState<Set<string>>(new Set());
+  const [activeReviewTarget, setActiveReviewTarget] = useState<{
+    product: any;
+    orderId: string;
+    orderNumber: string;
+    orderItemId?: string;
+  } | null>(null);
 
   useEffect(() => {
     document.title = "Account | SHOPY";
@@ -24,18 +32,29 @@ export default function AccountPage() {
     }
   }, [user, loading]);
 
-  // Fetch orders when user is authenticated
+  // Fetch orders and review eligibility when user is authenticated
   useEffect(() => {
     let isMounted = true;
 
     async function fetchUserOrders() {
       if (!user) return;
       try {
-        const res = await fetch("/api/orders");
-        if (res.ok) {
-          const data = await res.json();
+        const [ordersRes, reviewRes] = await Promise.all([
+          fetch("/api/orders"),
+          fetch("/api/reviews/eligibility"),
+        ]);
+
+        if (ordersRes.ok) {
+          const data = await ordersRes.json();
           if (isMounted) {
             setOrders(data.orders || []);
+          }
+        }
+
+        if (reviewRes.ok) {
+          const reviewData = await reviewRes.json();
+          if (isMounted && Array.isArray(reviewData.reviewedProductIds)) {
+            setReviewedProductIds(new Set(reviewData.reviewedProductIds));
           }
         }
       } catch {
@@ -201,16 +220,61 @@ export default function AccountPage() {
                       </div>
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="space-y-2.5">
                       {ord.items &&
-                        ord.items.map((item: any, idx: number) => (
-                          <div key={idx} className="flex justify-between text-xs tracking-wider">
-                            <span>
-                              {item.quantity}x {item.name} {item.size ? `(${item.size})` : ""}
-                            </span>
-                            <span className="font-medium">{formatPrice(item.price * item.quantity)}</span>
-                          </div>
-                        ))}
+                        ord.items.map((item: any, idx: number) => {
+                          const isDelivered = ord.status === "DELIVERED";
+                          const hasReviewed = item.productId && reviewedProductIds.has(item.productId);
+
+                          return (
+                            <div
+                              key={idx}
+                              className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs tracking-wider py-1.5 border-b border-[#BBBFCA]/15 last:border-0"
+                            >
+                              <div className="min-w-0 flex-1">
+                                <span className="font-medium text-[#495464] block truncate">
+                                  {item.quantity}x {item.name} {item.size ? `(${item.size})` : ""}
+                                </span>
+                                <span className="text-[11px] text-[#495464]/60">
+                                  {formatPrice(item.price * item.quantity)}
+                                </span>
+                              </div>
+
+                              {/* Review Action (Only on DELIVERED orders) */}
+                              {isDelivered && (
+                                <div className="flex-shrink-0 self-start sm:self-auto">
+                                  {hasReviewed ? (
+                                    <span className="inline-flex items-center gap-1 text-[9px] uppercase tracking-wider font-semibold text-[#495464] bg-[#E8E8E8] border border-[#BBBFCA]/60 px-2.5 py-1">
+                                      <CheckCircle2 className="w-3 h-3 text-[#495464]" />
+                                      <span>Reviewed</span>
+                                    </span>
+                                  ) : (
+                                    <button
+                                      onClick={() =>
+                                        setActiveReviewTarget({
+                                          product: {
+                                            id: item.productId,
+                                            name: item.name,
+                                            image: item.image,
+                                            size: item.size,
+                                            color: item.color,
+                                          },
+                                          orderId: ord.id,
+                                          orderNumber: ord.orderNumber,
+                                          orderItemId: item.id,
+                                        })
+                                      }
+                                      className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-semibold text-[#F4F4F2] bg-[#495464] hover:bg-[#363E4B] px-3 py-1 transition-colors shadow-xs"
+                                    >
+                                      <Star className="w-3 h-3 fill-[#F4F4F2]" />
+                                      <span>Review</span>
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                     </div>
 
                     <div className="flex justify-between items-center pt-3 border-t border-[#BBBFCA]/20 text-xs font-semibold text-[#495464]">
@@ -251,6 +315,23 @@ export default function AccountPage() {
           </div>
         </div>
       </div>
+
+      {/* Review Modal for Verified Delivered Orders */}
+      {activeReviewTarget && (
+        <ReviewModal
+          isOpen={Boolean(activeReviewTarget)}
+          onClose={() => setActiveReviewTarget(null)}
+          product={activeReviewTarget.product}
+          orderId={activeReviewTarget.orderId}
+          orderNumber={activeReviewTarget.orderNumber}
+          orderItemId={activeReviewTarget.orderItemId}
+          onSuccess={(createdReview) => {
+            if (createdReview?.productId) {
+              setReviewedProductIds((prev) => new Set([...prev, createdReview.productId]));
+            }
+          }}
+        />
+      )}
     </div>
   );
 }
