@@ -342,20 +342,21 @@ export default function AdminNavigationPage() {
                       <td className="p-4 text-center">
                         <button
                           onClick={() => toggleVisibility(item)}
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] uppercase font-semibold transition-colors ${
+                          className={`inline-flex items-center gap-1.5 px-3 py-1 text-[10px] uppercase font-semibold tracking-wider transition-colors ${
                             item.isActive
-                              ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
-                              : "bg-amber-100 text-amber-800 border border-amber-300"
+                              ? "bg-[#E8E8E8] text-[#495464] border border-[#BBBFCA] hover:bg-[#495464] hover:text-[#F4F4F2]"
+                              : "bg-[#F4F4F2] text-[#495464]/60 border border-dashed border-[#BBBFCA] hover:bg-[#E8E8E8] hover:text-[#495464]"
                           }`}
+                          title={`Click to ${item.isActive ? "hide from" : "show in"} storefront navbar`}
                         >
                           {item.isActive ? (
                             <>
-                              <Eye className="w-3 h-3" />
+                              <Eye className="w-3 h-3 text-[#495464]" />
                               <span>Live</span>
                             </>
                           ) : (
                             <>
-                              <EyeOff className="w-3 h-3" />
+                              <EyeOff className="w-3 h-3 text-[#495464]/60" />
                               <span>Hidden</span>
                             </>
                           )}
