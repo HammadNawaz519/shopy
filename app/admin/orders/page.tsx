@@ -270,17 +270,17 @@ function OrdersContent() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs tracking-wider">
+              <table className="w-full table-fixed text-left text-xs tracking-wider">
                 <thead className="bg-[#E8E8E8]/70 border-b border-[#BBBFCA]/40 text-[#495464] uppercase text-[10px]">
                   <tr>
-                    <th className="px-3 py-3 font-semibold whitespace-nowrap w-[14%] min-w-[120px]">Order ID</th>
-                    <th className="px-2.5 py-3 font-semibold whitespace-nowrap w-[9%] min-w-[85px]">Date</th>
-                    <th className="px-3 py-3 font-semibold whitespace-nowrap w-[23%] min-w-[140px]">Customer</th>
-                    <th className="px-2 py-3 font-semibold whitespace-nowrap text-left w-[7%] min-w-[55px]">Items</th>
-                    <th className="px-2.5 py-3 font-semibold whitespace-nowrap w-[11%] min-w-[90px]">Total</th>
-                    <th className="px-2 py-3 font-semibold whitespace-nowrap text-center w-[12%] min-w-[105px]">Payment</th>
-                    <th className="px-2 py-3 font-semibold whitespace-nowrap text-center w-[11%] min-w-[110px]">Order Status</th>
-                    <th className="px-3 py-3 font-semibold text-right whitespace-nowrap w-[13%] min-w-[135px]">Action</th>
+                    <th className="w-[17%] px-3 py-3 font-semibold whitespace-nowrap">Order ID</th>
+                    <th className="w-[9%] px-2 py-3 font-semibold whitespace-nowrap">Date</th>
+                    <th className="w-[20%] px-2.5 py-3 font-semibold whitespace-nowrap">Customer</th>
+                    <th className="w-[8%] px-2 py-3 font-semibold whitespace-nowrap text-left">Items</th>
+                    <th className="w-[11%] px-2 py-3 font-semibold whitespace-nowrap">Total</th>
+                    <th className="w-[12%] px-2 py-3 font-semibold whitespace-nowrap text-center">Payment</th>
+                    <th className="w-[11%] px-2 py-3 font-semibold whitespace-nowrap text-center">Order Status</th>
+                    <th className="w-[12%] px-2.5 py-3 font-semibold text-right whitespace-nowrap">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#BBBFCA]/20">
@@ -288,13 +288,13 @@ function OrdersContent() {
                     const isBank = ord.paymentMethod === "bank_transfer" || ord.paymentMethod === "online";
                     return (
                       <tr key={ord.id} className="hover:bg-[#E8E8E8]/40 transition-colors">
-                        <td className="px-3 py-3 font-serif font-semibold text-[#495464] whitespace-nowrap">
+                        <td className="px-3 py-3 font-serif font-semibold text-[#495464] truncate">
                           {ord.orderNumber}
                         </td>
-                        <td className="px-2.5 py-3 text-[#495464]/70 whitespace-nowrap">
+                        <td className="px-2 py-3 text-[#495464]/70 whitespace-nowrap">
                           {new Date(ord.createdAt).toLocaleDateString()}
                         </td>
-                        <td className="px-3 py-3 min-w-0">
+                        <td className="px-2.5 py-3 min-w-0">
                           <span className="font-medium block text-[#495464] truncate">
                             {ord.shippingAddress?.firstName || "Client"} {ord.shippingAddress?.lastName || ""}
                           </span>
@@ -303,7 +303,7 @@ function OrdersContent() {
                         <td className="px-2 py-3 text-[#495464]/80 whitespace-nowrap text-left">
                           {(ord.items || []).length} {(ord.items || []).length === 1 ? "pc" : "pcs"}
                         </td>
-                        <td className="px-2.5 py-3 font-serif font-semibold text-[#495464] whitespace-nowrap">
+                        <td className="px-2 py-3 font-serif font-semibold text-[#495464] whitespace-nowrap">
                           {formatPrice(ord.total)}
                         </td>
                         <td className="px-2 py-3 text-center whitespace-nowrap">
@@ -314,7 +314,7 @@ function OrdersContent() {
                             value={ord.status}
                             disabled={updating}
                             onChange={(e) => handleUpdateStatus(ord.id, e.target.value)}
-                            className="bg-[#E8E8E8] border border-[#BBBFCA] px-2 py-1 text-[10px] uppercase font-semibold text-[#495464] focus:outline-none cursor-pointer w-[105px] h-[28px] text-center"
+                            className="bg-[#E8E8E8] border border-[#BBBFCA] px-1 py-1 text-[10px] uppercase font-semibold text-[#495464] focus:outline-none cursor-pointer w-full max-w-[100px] h-[28px] text-center"
                           >
                             {/* For Bank: VERIFYING is allowed. For COD: only if currently in that state */}
                             {(isBank || ord.status === "VERIFYING_PAYMENT") && (
@@ -331,18 +331,18 @@ function OrdersContent() {
                             <option value="REFUNDED">REFUNDED</option>
                           </select>
                         </td>
-                        <td className="px-3 py-3 text-right whitespace-nowrap">
-                        <div className="inline-flex items-center justify-end gap-1.5 flex-nowrap">
+                        <td className="px-2.5 py-3 text-right whitespace-nowrap">
+                        <div className="inline-flex items-center justify-end gap-1 flex-nowrap">
                           <button
                             onClick={() => setSelectedOrder(ord)}
-                            className="inline-flex items-center justify-center gap-1 bg-[#495464] text-[#F4F4F2] px-2 sm:px-2.5 py-1 text-[11px] uppercase tracking-normal font-medium hover:bg-[#363E4B] transition-colors whitespace-nowrap h-[28px]"
+                            className="inline-flex items-center justify-center gap-1 bg-[#495464] text-[#F4F4F2] px-2 py-1 text-[10.5px] uppercase font-medium hover:bg-[#363E4B] transition-colors whitespace-nowrap h-[28px]"
                           >
                             <Eye className="w-3 h-3 flex-shrink-0" />
                             <span>View</span>
                           </button>
                           <button
                             onClick={() => setPrintingOrder(ord)}
-                            className="inline-flex items-center justify-center gap-1 bg-[#495464] text-[#F4F4F2] px-2 sm:px-2.5 py-1 text-[11px] uppercase tracking-normal font-medium hover:bg-[#363E4B] transition-colors whitespace-nowrap h-[28px]"
+                            className="inline-flex items-center justify-center gap-1 bg-[#495464] text-[#F4F4F2] px-2 py-1 text-[10.5px] uppercase font-medium hover:bg-[#363E4B] transition-colors whitespace-nowrap h-[28px]"
                           >
                             <Printer className="w-3 h-3 flex-shrink-0" />
                             <span>Print</span>
@@ -740,12 +740,11 @@ function OrdersContent() {
                   <div>
                     {selectedOrder.sheetsSync?.status === "FAILED" ? (
                       <span className="inline-flex items-center gap-1 text-[10px] text-rose-700 font-semibold bg-rose-50 border border-rose-200 px-2 py-0.5">
-                        <span>✕ Sync Failed</span>
+                        <span>Sync Failed</span>
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 text-[10px] text-emerald-700 font-semibold bg-emerald-50 border border-emerald-200 px-2 py-0.5">
-                        <CheckCircle2 className="w-3 h-3" />
-                        <span>✓ Synchronized</span>
+                      <span className="inline-flex items-center justify-center px-2.5 py-1 text-[10px] uppercase font-medium tracking-wider bg-[#495464] text-[#F4F4F2] border border-[#495464] whitespace-nowrap">
+                        Synchronized
                       </span>
                     )}
                   </div>
