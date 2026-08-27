@@ -205,10 +205,11 @@ export default function CheckoutPage() {
     }
   };
 
-  const calculatedSubtotal = serverCalculation ? serverCalculation.subtotal : 0;
-  const calculatedShipping = serverCalculation ? serverCalculation.shipping : 0;
+  const clientSubtotal = items.reduce((acc, i) => acc + (Number(i.price) || 0) * (Number(i.quantity) || 1), 0);
+  const calculatedSubtotal = serverCalculation && serverCalculation.subtotal > 0 ? serverCalculation.subtotal : clientSubtotal;
+  const calculatedShipping = serverCalculation ? serverCalculation.shipping : (calculatedSubtotal === 0 || calculatedSubtotal >= 15000 ? 0 : 500);
   const calculatedDiscount = serverCalculation ? serverCalculation.discount : 0;
-  const calculatedTotal = serverCalculation ? serverCalculation.total : 0;
+  const calculatedTotal = serverCalculation && serverCalculation.total > 0 ? serverCalculation.total : Math.max(0, calculatedSubtotal - calculatedDiscount + calculatedShipping);
 
   return (
     <div className="pt-20 pb-20 bg-[#F4F4F2] text-[#495464]">

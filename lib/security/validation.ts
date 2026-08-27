@@ -44,9 +44,12 @@ export const ContactSchema = z.object({
 
 export const CartItemValidationSchema = z.object({
   productId: z.string().min(1),
-  quantity: z.number().int().min(1).max(50),
-  size: z.string().min(1).max(20),
-  color: z.string().min(1).max(30),
+  name: z.string().optional(),
+  price: z.number().optional(),
+  quantity: z.number().int().min(1).max(100),
+  size: z.string().optional().nullable().transform((v) => (v && v.trim()) ? v.trim() : "M"),
+  color: z.string().optional().nullable().transform((v) => (v && v.trim()) ? v.trim() : "Default"),
+  image: z.string().optional(),
 });
 
 export const CheckoutSchema = z.object({

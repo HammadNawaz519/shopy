@@ -1307,7 +1307,7 @@ class SupabaseDataStore {
    * Recalculates cart items and pricing authoritatively from Supabase PostgreSQL.
    */
   async recalculateCart(
-    items: { productId?: string; id?: string; quantity: number; size?: string; color?: string }[],
+    items: { productId?: string; id?: string; name?: string; price?: number; quantity: number; size?: string; color?: string; image?: string }[],
     promoCode?: string
   ) {
     let subtotal = 0;
@@ -1326,7 +1326,7 @@ class SupabaseDataStore {
       if (!pid) continue;
       const product = await this.getProductById(pid);
       if (product) {
-        const price = product.price;
+        const price = Number(product.price) || 0;
         const quantity = Math.max(1, item.quantity);
         subtotal += price * quantity;
         verifiedItems.push({
@@ -1334,9 +1334,22 @@ class SupabaseDataStore {
           name: product.name,
           price,
           quantity,
-          size: item.size,
-          color: item.color,
-          image: product.images[0] || "",
+          size: item.size || "M",
+          color: item.color || "Default",
+          image: (product.images && product.images[0]) || item.image || "/editorial-craft.jpg",
+        });
+      } else if (item.price !== undefined && Number(item.price) > 0) {
+        const price = Number(item.price);
+        const quantity = Math.max(1, item.quantity);
+        subtotal += price * quantity;
+        verifiedItems.push({
+          productId: pid,
+          name: item.name || "Product Item",
+          price,
+          quantity,
+          size: item.size || "M",
+          color: item.color || "Default",
+          image: item.image || "/editorial-craft.jpg",
         });
       }
     }
@@ -1357,11 +1370,9 @@ class SupabaseDataStore {
       }
     }
 
-    const shipping =
-      subtotal === 0 || subtotal >= settings.freeShippingThreshold
-        ? 0
-        : settings.flatShippingRate;
-
+    const freeThreshold = Number(settings.freeShippingThreshold) || 15000;
+    const flatRate = Number(settings.flatShippingRate) || 500;
+    const shipping = subtotal === 0 || subtotal >= freeThreshold ? 0 : flatRate;
     const total = Math.max(0, subtotal - discount + shipping);
 
     return {

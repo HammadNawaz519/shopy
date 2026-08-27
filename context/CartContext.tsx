@@ -147,9 +147,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           body: JSON.stringify({
             items: items.map((i) => ({
               productId: i.productId,
+              name: i.name,
+              price: i.price,
               quantity: i.quantity,
-              size: i.size,
-              color: i.color,
+              size: i.size || "M",
+              color: i.color || "Default",
+              image: i.image,
             })),
             promoCode: promo !== undefined ? promo : promoCode,
           }),
