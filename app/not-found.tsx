@@ -1,32 +1,135 @@
+"use client";
+
 import React from "react";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 
 export default function NotFound() {
+  const router = useRouter();
+
+  const handleGoBack = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (typeof window !== "undefined") {
+      // Check if user came from an internal page (cart, collections, products, etc.)
+      if (document.referrer && document.referrer.includes(window.location.host)) {
+        window.history.back();
+      } else if (window.history.length > 1) {
+        window.history.back();
+      } else {
+        router.push("/");
+      }
+    }
+  };
+
   return (
-    <div className="min-h-[70vh] pt-32 pb-32 flex items-center justify-center bg-[#F4F4F2] text-[#495464]">
-      <div className="max-w-md w-full mx-auto px-6 text-center space-y-6">
-        <span className="text-xs uppercase tracking-widest text-[#495464]/60 block font-medium">
-          404 • SILHOUETTE NOT FOUND
-        </span>
+    <div className="fixed inset-0 z-[100] min-h-screen w-full bg-[#F4F4F2] text-[#495464] overflow-y-auto flex items-center justify-center px-5 sm:px-6 py-12 select-none">
+      <div className="max-w-xl w-full mx-auto text-center relative z-10 flex flex-col items-center my-auto">
+        
+        {/* Architectural 404 Circle Frame (Optically & Mathematically Centered) */}
+        <div className="relative w-56 h-56 sm:w-64 sm:h-64 flex items-center justify-center mb-6">
+          <svg
+            viewBox="0 0 200 200"
+            className="w-full h-full text-[#495464]"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            aria-label="404 Silhouette Not Found"
+          >
+            {/* Fine Hairline Dashed Frame */}
+            <circle
+              cx="100"
+              cy="100"
+              r="94"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeDasharray="4 4"
+              className="opacity-20"
+            />
+            
+            {/* Inner Architectural Axis Lines */}
+            <line
+              x1="100"
+              y1="8"
+              x2="100"
+              y2="192"
+              stroke="currentColor"
+              strokeWidth="0.75"
+              className="opacity-15"
+            />
+            <line
+              x1="8"
+              y1="100"
+              x2="192"
+              y2="100"
+              stroke="currentColor"
+              strokeWidth="0.75"
+              className="opacity-15"
+            />
+            <circle
+              cx="100"
+              cy="100"
+              r="62"
+              stroke="currentColor"
+              strokeWidth="0.75"
+              className="opacity-15"
+            />
 
-        <h1 className="font-serif text-3xl sm:text-4xl font-medium text-[#495464]">
-          Page Does Not Exist
-        </h1>
+            {/* Optically Centered Editorial 404 Text */}
+            <text
+              x="100"
+              y="88"
+              textAnchor="middle"
+              dominantBaseline="central"
+              fill="#495464"
+              fontFamily="var(--font-cormorant), 'Cormorant Garamond', Georgia, serif"
+              fontSize="74"
+              fontWeight="300"
+              letterSpacing="-2"
+              className="font-serif font-light select-none"
+            >
+              404
+            </text>
+          </svg>
+        </div>
 
-        <p className="text-xs text-[#495464]/70 tracking-wider uppercase max-w-sm mx-auto leading-relaxed">
-          The editorial page or piece you are searching for has been relocated or archived.
+        {/* Minimalist Eyebrow Label Placed Under the Entire 404 Circle */}
+        <div className="flex items-center gap-2 mb-3">
+          <span className="h-1.5 w-1.5 rounded-full bg-[#495464] flex-shrink-0" />
+          <span className="text-[10px] sm:text-[11px] uppercase tracking-[0.25em] text-[#495464]/80 font-semibold font-mono">
+            404 • SILHOUETTE NOT FOUND
+          </span>
+        </div>
+
+        {/* Hairline Divider */}
+        <div className="w-12 h-px bg-[#BBBFCA]/70 my-2" aria-hidden="true" />
+
+        {/* Polished Editorial Supporting Text */}
+        <p className="text-xs sm:text-[13px] text-[#495464]/75 tracking-editorial uppercase max-w-md mx-auto leading-relaxed mt-2 mb-8">
+          The page you&apos;re looking for doesn't exist, has moved, or is temporarily unavailable.
         </p>
 
-        <div className="pt-4">
+        {/* Action Buttons (Primary: Back to Home, Secondary: Go Back) */}
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5 sm:gap-4 w-full max-w-xs sm:max-w-none">
+          {/* Primary CTA */}
           <Link
             href="/"
-            className="inline-flex items-center gap-3 bg-[#495464] text-[#F4F4F2] px-8 py-3.5 text-xs uppercase tracking-widest font-medium hover:bg-[#363E4B] transition-colors"
+            className="group w-full sm:w-auto inline-flex items-center justify-center gap-3 bg-[#495464] text-[#F4F4F2] px-7 sm:px-8 py-3.5 sm:py-4 text-[11px] sm:text-xs uppercase tracking-[0.22em] font-medium hover:bg-[#363E4B] transition-all duration-300 shadow-sm text-center focus:outline-none focus:ring-1 focus:ring-[#495464]"
           >
-            <span>Return to Homepage</span>
-            <ArrowRight className="w-3.5 h-3.5" />
+            <span>Back to Home</span>
+            <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform duration-300" />
           </Link>
+
+          {/* Secondary CTA */}
+          <button
+            type="button"
+            onClick={handleGoBack}
+            className="group w-full sm:w-auto inline-flex items-center justify-center gap-3 border border-[#495464]/40 bg-transparent text-[#495464] px-7 sm:px-8 py-3.5 sm:py-4 text-[11px] sm:text-xs uppercase tracking-[0.22em] font-medium hover:border-[#495464] hover:bg-[#495464]/5 transition-all duration-300 text-center focus:outline-none focus:ring-1 focus:ring-[#495464]"
+          >
+            <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-1 transition-transform duration-300" />
+            <span>Go Back</span>
+          </button>
         </div>
+
       </div>
     </div>
   );
