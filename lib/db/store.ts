@@ -290,8 +290,8 @@ function mapProductRow(row: any): Product {
     id: row.id,
     name: row.name,
     slug: row.slug,
-    category: row.category_slug || "tops",
-    categoryLabel: row.category_label || "Tops",
+    category: row.category_slug || "",
+    categoryLabel: row.category_label || (row.category_slug ? row.category_slug.toUpperCase() : "General"),
     price: Number(row.price),
     originalPrice: row.original_price ? Number(row.original_price) : undefined,
     description: row.description,
@@ -650,12 +650,12 @@ class SupabaseDataStore {
     if (!slug) slug = `product-${Date.now()}`;
     const stockCount = productData.stockCount !== undefined ? productData.stockCount : 15;
 
-    const categoryInput = typeof productData.category === "string" ? productData.category.trim() : "tops";
+    const categoryInput = typeof productData.category === "string" ? productData.category.trim() : "";
     
     // Resolve dynamic category_id from PostgreSQL categories table
     let categoryId: string | null = null;
-    let categorySlug = categoryInput.toLowerCase();
-    let categoryLabel = productData.categoryLabel || categoryInput.toUpperCase();
+    let categorySlug = categoryInput ? categoryInput.toLowerCase() : "general";
+    let categoryLabel = productData.categoryLabel || (categoryInput ? categoryInput.toUpperCase() : "General");
 
     try {
       const catRes = await query(

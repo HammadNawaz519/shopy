@@ -46,8 +46,8 @@ export default function AdminProductsPage() {
 
   const [formData, setFormData] = useState({
     name: "",
-    category: "tops",
-    categoryLabel: "Tops",
+    category: "",
+    categoryLabel: "",
     price: "",
     originalPrice: "",
     stockCount: "15",
@@ -141,9 +141,7 @@ export default function AdminProductsPage() {
       const res = await fetch("/api/admin/categories");
       if (res.ok) {
         const data = await res.json();
-        if (data.categories && data.categories.length > 0) {
-          setCategories(data.categories);
-        }
+        setCategories(data.categories || []);
       }
     } catch {}
   };
@@ -185,8 +183,8 @@ export default function AdminProductsPage() {
     setEditingProduct(null);
     setFormData({
       name: "",
-      category: categories.length > 0 ? categories[0].slug : "tops",
-      categoryLabel: categories.length > 0 ? categories[0].name : "Tops",
+      category: categories.length > 0 ? categories[0].slug : "",
+      categoryLabel: categories.length > 0 ? categories[0].name : "",
       price: "",
       originalPrice: "",
       stockCount: "15",
@@ -403,12 +401,11 @@ export default function AdminProductsPage() {
               className="bg-[#E8E8E8] border border-[#BBBFCA] px-3 py-2 text-xs uppercase tracking-wider font-medium text-[#495464] focus:outline-none"
             >
               <option value="all">All Categories</option>
-              <option value="tops">Tops</option>
-              <option value="bottoms">Bottoms</option>
-              <option value="footwear">Footwear</option>
-              <option value="fragrances">Fragrances</option>
-              <option value="co-ord-sets">Co-Ord Sets</option>
-              <option value="accessories">Accessories</option>
+              {categories.map((c) => (
+                <option key={c.id || c.slug} value={c.slug}>
+                  {c.name}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -567,7 +564,8 @@ export default function AdminProductsPage() {
                     <select
                       value={formData.category}
                       onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                      className="h-10 w-full bg-[#E8E8E8] border border-[#BBBFCA] px-3.5 text-xs text-[#495464] uppercase focus:outline-none focus:border-[#495464] transition-colors"
+                      disabled={categories.length === 0}
+                      className="h-10 w-full bg-[#E8E8E8] border border-[#BBBFCA] px-3.5 text-xs text-[#495464] uppercase focus:outline-none focus:border-[#495464] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                       {categories.length > 0 ? (
                         categories.map((c) => (
@@ -576,16 +574,14 @@ export default function AdminProductsPage() {
                           </option>
                         ))
                       ) : (
-                        <>
-                          <option value="tops">Tops</option>
-                          <option value="bottoms">Bottoms</option>
-                          <option value="footwear">Footwear</option>
-                          <option value="fragrances">Fragrances</option>
-                          <option value="co-ord-sets">Co-Ord Sets</option>
-                          <option value="accessories">Accessories</option>
-                        </>
+                        <option value="">No collections available</option>
                       )}
                     </select>
+                    {categories.length === 0 && (
+                      <p className="text-[10px] text-amber-700 mt-1">
+                        No collections found. Please add a collection in the Collections tab first.
+                      </p>
+                    )}
                   </div>
 
                   <div>
