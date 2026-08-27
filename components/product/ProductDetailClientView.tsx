@@ -23,40 +23,28 @@ import {
 interface ProductDetailClientViewProps {
   product: any;
   relatedProducts: any[];
+  initialRatingSummary?: { averageRating: number; reviewCount: number };
 }
 
 export default function ProductDetailClientView({
   product,
   relatedProducts,
+  initialRatingSummary,
 }: ProductDetailClientViewProps) {
   const [selectedImageIdx, setSelectedImageIdx] = useState(0);
   const [selectedSize, setSelectedSize] = useState(product?.sizes?.[0] || "M");
   const [selectedColor, setSelectedColor] = useState(product?.colors?.[0]?.name || "Default");
   const [quantity, setQuantity] = useState(1);
   const [openAccordion, setOpenAccordion] = useState<string | null>("details");
-  const [ratingSummary, setRatingSummary] = useState<{ averageRating: number; reviewCount: number }>({
-    averageRating: 0,
-    reviewCount: 0,
-  });
+  const [ratingSummary, setRatingSummary] = useState<{ averageRating: number; reviewCount: number }>(
+    initialRatingSummary || {
+      averageRating: 0,
+      reviewCount: 0,
+    }
+  );
 
   const { addItem, openCart } = useCart();
   const { showToast } = useToast();
-
-  React.useEffect(() => {
-    if (!product?.id) return;
-    async function loadRating() {
-      try {
-        const res = await fetch(`/api/reviews?productId=${encodeURIComponent(product.id)}&limit=1`);
-        if (res.ok) {
-          const data = await res.json();
-          if (data.summary) {
-            setRatingSummary(data.summary);
-          }
-        }
-      } catch {}
-    }
-    loadRating();
-  }, [product?.id]);
 
   const handleAddToCart = () => {
     addItem(product, selectedSize, selectedColor, quantity);

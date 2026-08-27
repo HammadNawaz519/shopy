@@ -126,6 +126,7 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
                 <Link
                   key={product.id}
                   href={`/product/${product.id}`}
+                  prefetch={false}
                   onClick={onClose}
                   className="group block"
                 >

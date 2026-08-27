@@ -1,6 +1,6 @@
 import React from "react";
 import { notFound } from "next/navigation";
-import { db, getCachedProductById } from "@/lib/db/store";
+import { db, getCachedProductById, getCachedProductRatingSummary } from "@/lib/db/store";
 import { PRODUCTS } from "@/lib/data/products";
 import ProductDetailClientView from "@/components/product/ProductDetailClientView";
 
@@ -52,9 +52,22 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
     notFound();
   }
 
+  let ratingSummary: { averageRating: number; reviewCount: number } = { averageRating: 0, reviewCount: 0 };
   let relatedProducts: any[] = [];
+
   try {
-    const dbRelated = await db.getProducts({ category: product.category });
+    const [summary, dbRelated] = await Promise.all([
+      getCachedProductRatingSummary(product.id).catch(() => null),
+      db.getProducts({ category: product.category }).catch(() => []),
+    ]);
+
+    if (summary) {
+      ratingSummary = {
+        averageRating: summary.averageRating,
+        reviewCount: summary.reviewCount,
+      };
+    }
+
     relatedProducts = (dbRelated || [])
       .filter((p) => p.id !== product.id)
       .slice(0, 4);
@@ -68,6 +81,7 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
     <ProductDetailClientView
       product={product}
       relatedProducts={relatedProducts}
+      initialRatingSummary={ratingSummary}
     />
   );
 }

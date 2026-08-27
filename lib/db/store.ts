@@ -3083,3 +3083,24 @@ export const getCachedCategoryBySlug = serverCache(async (slug: string) => {
   return db.getCategoryBySlug(slug);
 });
 
+export const getCachedCategories = serverCache(async () => {
+  return db.getCategories();
+});
+
+export const getCachedStoreSettings = serverCache(async () => {
+  return db.getStoreSettings();
+});
+
+export const getCachedProductRatingSummary = serverCache(async (productId: string) => {
+  return db.getProductRatingSummary(productId);
+});
+
+export const getCachedHomepageConfig = serverCache(async () => {
+  return db.getHomepageConfig();
+});
+
+export const getCachedNavigationItems = serverCache(async (onlyActive: boolean = true) => {
+  return db.getNavigationItems(onlyActive);
+});
+
+
