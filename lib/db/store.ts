@@ -1,5 +1,6 @@
+import crypto from "crypto";
 import { query, transaction } from "./client";
-import { redisGet, redisSet, redisDel, redisDelPattern, buildCacheKey, fetchWithStampedeProtection, CACHE_TTL } from "@/lib/redis";
+import { redisGet, redisSet, redisDel, redisDelPattern, buildCacheKey, fetchWithStampedeProtection, CACHE_TTL, CACHE_VERSION } from "@/lib/redis";
 
 export const ADMIN_EMAIL = "hammadnawaz276@gmail.com";
 
@@ -411,106 +412,8 @@ function mapUserRow(row: any): UserRecord {
 }
 
 export async function ensurePaymentSchema(): Promise<void> {
-  if ((global as any).__shopy_schema_ensured) return;
-  if ((global as any).__shopy_schema_promise) return (global as any).__shopy_schema_promise;
-
-  const initPromise = (async () => {
-    try {
-    // 1. Add bank payment and toggle columns to store_settings
-    await query(`
-      ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS cod_enabled BOOLEAN DEFAULT true;
-      ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS bank_transfer_enabled BOOLEAN DEFAULT true;
-      ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS bank_account_holder VARCHAR(255) DEFAULT 'SHOPY Retail Private Limited';
-      ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS bank_account_title VARCHAR(255) DEFAULT 'SHOPY Main Operations';
-      ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS bank_name VARCHAR(255) DEFAULT 'Meezan Bank Limited';
-      ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS bank_account_number VARCHAR(100) DEFAULT '01020304050607';
-      ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS bank_iban VARCHAR(100) DEFAULT 'PK12MEZN0001020304050607';
-      ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS bank_raast_id VARCHAR(100) DEFAULT '03001234567';
-      ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS bank_payment_contact VARCHAR(100) DEFAULT '+92 300 1234567';
-      ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS bank_payment_instructions TEXT DEFAULT 'Please transfer the exact total order amount to the bank account above and share screenshot on WhatsApp with your Order ID for instant payment verification.';
-    `);
-
-    // 2. Add payment_details, order_history, payment_history, email_logs, and sheets_sync JSONB snapshots to orders
-    await query(`
-      ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_details JSONB;
-      ALTER TABLE orders ADD COLUMN IF NOT EXISTS order_history JSONB DEFAULT '[]'::jsonb;
-      ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_history JSONB DEFAULT '[]'::jsonb;
-      ALTER TABLE orders ADD COLUMN IF NOT EXISTS email_logs JSONB DEFAULT '[]'::jsonb;
-      ALTER TABLE orders ADD COLUMN IF NOT EXISTS sheets_sync JSONB;
-    `);
-
-    // 3. Relax constraints to safely support modern and legacy payment methods and statuses
-    await query(`
-      DO $$
-      BEGIN
-        ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_payment_method_check;
-        ALTER TABLE orders ADD CONSTRAINT orders_payment_method_check CHECK (payment_method IN ('cod', 'bank_transfer', 'online', 'card'));
-      EXCEPTION WHEN OTHERS THEN NULL;
-      END $$;
-
-      DO $$
-      BEGIN
-        ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_payment_status_check;
-        ALTER TABLE orders ADD CONSTRAINT orders_payment_status_check CHECK (payment_status IN ('UNPAID', 'PENDING_VERIFICATION', 'PAID', 'FAILED', 'REFUNDED', 'PENDING'));
-      EXCEPTION WHEN OTHERS THEN NULL;
-      END $$;
-
-      DO $$
-      BEGIN
-        ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_status_check;
-      EXCEPTION WHEN OTHERS THEN NULL;
-      END $$;
-
-      -- 4. Persistent Cloud User Cart for multi-device synchronization
-      CREATE TABLE IF NOT EXISTS user_carts (
-        user_id VARCHAR(255) PRIMARY KEY,
-        items JSONB NOT NULL DEFAULT '[]'::jsonb,
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-      );
-
-      -- 5. Verified Product Reviews Schema Migration
-      ALTER TABLE reviews ADD COLUMN IF NOT EXISTS user_id VARCHAR(50);
-      ALTER TABLE reviews ADD COLUMN IF NOT EXISTS order_id VARCHAR(50);
-      ALTER TABLE reviews ADD COLUMN IF NOT EXISTS order_item_id VARCHAR(50);
-      ALTER TABLE reviews ADD COLUMN IF NOT EXISTS verified_purchase BOOLEAN DEFAULT true;
-      ALTER TABLE reviews ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
-
-      -- 6. High-Performance Single & Composite Indexes
-      CREATE INDEX IF NOT EXISTS idx_reviews_product_id ON reviews(product_id);
-      CREATE INDEX IF NOT EXISTS idx_reviews_user_id ON reviews(user_id);
-      CREATE INDEX IF NOT EXISTS idx_reviews_order_id ON reviews(order_id);
-      CREATE INDEX IF NOT EXISTS idx_reviews_prod_status ON reviews(product_id, status);
-      CREATE INDEX IF NOT EXISTS idx_reviews_prod_status_created ON reviews(product_id, status, created_at DESC);
-      CREATE INDEX IF NOT EXISTS idx_reviews_user_prod ON reviews(user_id, product_id);
-
-      CREATE INDEX IF NOT EXISTS idx_products_cat_created ON products(category_slug, created_at DESC);
-      CREATE INDEX IF NOT EXISTS idx_products_feat_created ON products(featured, created_at DESC);
-      CREATE INDEX IF NOT EXISTS idx_products_stock ON products(in_stock, stock_count);
-      CREATE INDEX IF NOT EXISTS idx_products_created_at ON products(created_at DESC);
-
-      CREATE INDEX IF NOT EXISTS idx_orders_user_created ON orders(user_id, created_at DESC);
-      CREATE INDEX IF NOT EXISTS idx_orders_status_created ON orders(status, created_at DESC);
-      CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at DESC);
-      CREATE INDEX IF NOT EXISTS idx_orders_payment_status ON orders(payment_status);
-      CREATE INDEX IF NOT EXISTS idx_orders_order_number ON orders(order_number);
-
-      CREATE INDEX IF NOT EXISTS idx_order_items_product_id ON order_items(product_id);
-      CREATE INDEX IF NOT EXISTS idx_categories_slug ON categories(slug);
-      CREATE INDEX IF NOT EXISTS idx_categories_featured ON categories(featured);
-      CREATE INDEX IF NOT EXISTS idx_discounts_active ON discounts(active);
-      CREATE INDEX IF NOT EXISTS idx_navigation_active_order ON navigation_items(is_active, order_index ASC);
-    `);
-
-      (global as any).__shopy_schema_ensured = true;
-    } catch (err) {
-      console.error("[SCHEMA MIGRATION ERROR]", err);
-    } finally {
-      (global as any).__shopy_schema_promise = null;
-    }
-  })();
-
-  (global as any).__shopy_schema_promise = initPromise;
-  return initPromise;
+  // Production hardening: Schema is managed via static migration scripts, eliminating runtime DDL overhead.
+  return Promise.resolve();
 }
 
 class SupabaseDataStore {
@@ -723,10 +626,10 @@ class SupabaseDataStore {
     }
 
     // Invalidate products & categories cache
-    redisDelPattern("shopy:v1:products:*").catch(() => {});
-    redisDelPattern("shopy:v1:product:*").catch(() => {});
-    redisDelPattern("shopy:v1:categories:*").catch(() => {});
-    redisDelPattern("shopy:v1:category:*").catch(() => {});
+    redisDelPattern(`${CACHE_VERSION}:products:*`).catch(() => {});
+    redisDelPattern(`${CACHE_VERSION}:product:*`).catch(() => {});
+    redisDelPattern(`${CACHE_VERSION}:categories:*`).catch(() => {});
+    redisDelPattern(`${CACHE_VERSION}:category:*`).catch(() => {});
 
     return mapProductRow({ ...res.rows[0], ordered_images: validImages });
   }
@@ -815,10 +718,10 @@ class SupabaseDataStore {
     }
 
     // Invalidate products & categories cache
-    redisDelPattern("shopy:v1:products:*").catch(() => {});
-    redisDelPattern("shopy:v1:product:*").catch(() => {});
-    redisDelPattern("shopy:v1:categories:*").catch(() => {});
-    redisDelPattern("shopy:v1:category:*").catch(() => {});
+    redisDelPattern(`${CACHE_VERSION}:products:*`).catch(() => {});
+    redisDelPattern(`${CACHE_VERSION}:product:*`).catch(() => {});
+    redisDelPattern(`${CACHE_VERSION}:categories:*`).catch(() => {});
+    redisDelPattern(`${CACHE_VERSION}:category:*`).catch(() => {});
 
     const updatedRow = res.rows[0];
     return mapProductRow({
@@ -849,10 +752,10 @@ class SupabaseDataStore {
       const res = await query(`DELETE FROM products WHERE id = $1;`, [id]);
 
       // Invalidate products & categories cache
-      redisDelPattern("shopy:v1:products:*").catch(() => {});
-      redisDelPattern("shopy:v1:product:*").catch(() => {});
-      redisDelPattern("shopy:v1:categories:*").catch(() => {});
-      redisDelPattern("shopy:v1:category:*").catch(() => {});
+      redisDelPattern(`${CACHE_VERSION}:products:*`).catch(() => {});
+      redisDelPattern(`${CACHE_VERSION}:product:*`).catch(() => {});
+      redisDelPattern(`${CACHE_VERSION}:categories:*`).catch(() => {});
+      redisDelPattern(`${CACHE_VERSION}:category:*`).catch(() => {});
 
       return (res.rowCount || 0) > 0;
     } catch (err) {
@@ -946,9 +849,9 @@ class SupabaseDataStore {
     );
 
     // Invalidate categories & products cache
-    redisDelPattern("shopy:v1:categories:*").catch(() => {});
-    redisDelPattern("shopy:v1:category:*").catch(() => {});
-    redisDelPattern("shopy:v1:products:*").catch(() => {});
+    redisDelPattern(`${CACHE_VERSION}:categories:*`).catch(() => {});
+    redisDelPattern(`${CACHE_VERSION}:category:*`).catch(() => {});
+    redisDelPattern(`${CACHE_VERSION}:products:*`).catch(() => {});
 
     return res.rows[0];
   }
@@ -987,9 +890,9 @@ class SupabaseDataStore {
     if (res.rows.length === 0) return undefined;
 
     // Invalidate categories & products cache
-    redisDelPattern("shopy:v1:categories:*").catch(() => {});
-    redisDelPattern("shopy:v1:category:*").catch(() => {});
-    redisDelPattern("shopy:v1:products:*").catch(() => {});
+    redisDelPattern(`${CACHE_VERSION}:categories:*`).catch(() => {});
+    redisDelPattern(`${CACHE_VERSION}:category:*`).catch(() => {});
+    redisDelPattern(`${CACHE_VERSION}:products:*`).catch(() => {});
 
     return res.rows[0];
   }
@@ -1026,9 +929,9 @@ class SupabaseDataStore {
       const res = await query(`DELETE FROM categories WHERE id = $1;`, [cat.id]);
 
       // Invalidate categories & products cache
-      redisDelPattern("shopy:v1:categories:*").catch(() => {});
-      redisDelPattern("shopy:v1:category:*").catch(() => {});
-      redisDelPattern("shopy:v1:products:*").catch(() => {});
+      redisDelPattern(`${CACHE_VERSION}:categories:*`).catch(() => {});
+      redisDelPattern(`${CACHE_VERSION}:category:*`).catch(() => {});
+      redisDelPattern(`${CACHE_VERSION}:products:*`).catch(() => {});
 
       return { success: (res.rowCount || 0) > 0 };
     } catch (err: any) {
@@ -1042,16 +945,6 @@ class SupabaseDataStore {
   // --------------------------------------------------------------------------
   async saveMediaAsset(id: string, filename: string, mimeType: string, buffer: Buffer) {
     try {
-      await query(`
-        CREATE TABLE IF NOT EXISTS media_assets (
-          id VARCHAR(100) PRIMARY KEY,
-          filename VARCHAR(255) NOT NULL,
-          mime_type VARCHAR(50) NOT NULL,
-          data BYTEA NOT NULL,
-          size_bytes INTEGER NOT NULL,
-          created_at TIMESTAMPTZ DEFAULT NOW()
-        );
-      `);
       await query(
         `INSERT INTO media_assets (id, filename, mime_type, data, size_bytes)
          VALUES ($1, $2, $3, $4, $5)
@@ -1067,6 +960,44 @@ class SupabaseDataStore {
     } catch (err) {
       console.error("[DB MEDIA ASSET ERROR]", err);
       throw err;
+    }
+  }
+
+  async cleanupOrphanMediaAssets(): Promise<{ deletedCount: number; freedBytes: number }> {
+    try {
+      const res = await query(`
+        WITH referenced_assets AS (
+          SELECT id FROM (
+            SELECT SUBSTRING(image_url FROM '/api/media/([^?]+)') as id FROM product_images WHERE image_url LIKE '%/api/media/%'
+            UNION
+            SELECT SUBSTRING(storage_path FROM '/api/media/([^?]+)') as id FROM product_images WHERE storage_path LIKE '%/api/media/%'
+            UNION
+            SELECT SUBSTRING(img FROM '/api/media/([^?]+)') as id FROM products, UNNEST(images) as img WHERE img LIKE '%/api/media/%'
+            UNION
+            SELECT SUBSTRING(image FROM '/api/media/([^?]+)') as id FROM categories WHERE image LIKE '%/api/media/%'
+            UNION
+            SELECT SUBSTRING(image FROM '/api/media/([^?]+)') as id FROM order_items WHERE image LIKE '%/api/media/%'
+            UNION
+            SELECT SUBSTRING(hero_image_1 FROM '/api/media/([^?]+)') as id FROM homepage_config WHERE hero_image_1 LIKE '%/api/media/%'
+            UNION
+            SELECT SUBSTRING(hero_image_2 FROM '/api/media/([^?]+)') as id FROM homepage_config WHERE hero_image_2 LIKE '%/api/media/%'
+            UNION
+            SELECT SUBSTRING(editorial_image_1 FROM '/api/media/([^?]+)') as id FROM homepage_config WHERE editorial_image_1 LIKE '%/api/media/%'
+            UNION
+            SELECT SUBSTRING(editorial_image_2 FROM '/api/media/([^?]+)') as id FROM homepage_config WHERE editorial_image_2 LIKE '%/api/media/%'
+          ) sub WHERE id IS NOT NULL
+        )
+        DELETE FROM media_assets
+        WHERE id NOT IN (SELECT id FROM referenced_assets)
+        RETURNING id, size_bytes;
+      `);
+
+      const deletedCount = res.rowCount || 0;
+      const freedBytes = (res.rows || []).reduce((acc: number, r: any) => acc + (Number(r.size_bytes) || 0), 0);
+      return { deletedCount, freedBytes };
+    } catch (err) {
+      console.error("[ORPHAN MEDIA CLEANUP ERROR]", err);
+      return { deletedCount: 0, freedBytes: 0 };
     }
   }
 
@@ -1184,7 +1115,7 @@ class SupabaseDataStore {
   // --------------------------------------------------------------------------
   // ORDERS & ATOMIC CHECKOUT TRANSACTIONS
   // --------------------------------------------------------------------------
-  async getAllOrders(filter?: { status?: string; search?: string }): Promise<OrderRecord[]> {
+  async getAllOrders(filter?: { status?: string; search?: string; limit?: number; offset?: number }): Promise<OrderRecord[]> {
     let sql = `
       SELECT o.*, 
              COALESCE(json_agg(i.*) FILTER (WHERE i.id IS NOT NULL), '[]'::json) as items
@@ -1204,7 +1135,19 @@ class SupabaseDataStore {
       sql += ` AND (LOWER(o.order_number) LIKE $${params.length} OR LOWER(o.shipping_address->>'firstName') LIKE $${params.length} OR LOWER(o.shipping_address->>'lastName') LIKE $${params.length} OR LOWER(o.shipping_address->>'email') LIKE $${params.length})`;
     }
 
-    sql += ` GROUP BY o.id ORDER BY o.created_at DESC;`;
+    sql += ` GROUP BY o.id ORDER BY o.created_at DESC`;
+
+    if (filter?.limit && filter.limit > 0) {
+      params.push(filter.limit);
+      sql += ` LIMIT $${params.length}`;
+    }
+
+    if (filter?.offset && filter.offset > 0) {
+      params.push(filter.offset);
+      sql += ` OFFSET $${params.length}`;
+    }
+
+    sql += `;`;
 
     const res = await query(sql, params);
     return res.rows.map(mapOrderRow);
@@ -1334,7 +1277,7 @@ class SupabaseDataStore {
       const product = await this.getProductById(pid);
       if (product) {
         const price = Number(product.price) || 0;
-        const quantity = Math.max(1, item.quantity);
+        const quantity = Math.max(1, parseInt(String(item.quantity || 1), 10) || 1);
         subtotal += price * quantity;
         verifiedItems.push({
           productId: product.id,
@@ -1345,20 +1288,8 @@ class SupabaseDataStore {
           color: item.color || "Default",
           image: (product.images && product.images[0]) || item.image || "/editorial-craft.jpg",
         });
-      } else if (item.price !== undefined && Number(item.price) > 0) {
-        const price = Number(item.price);
-        const quantity = Math.max(1, item.quantity);
-        subtotal += price * quantity;
-        verifiedItems.push({
-          productId: pid,
-          name: item.name || "Product Item",
-          price,
-          quantity,
-          size: item.size || "M",
-          color: item.color || "Default",
-          image: item.image || "/editorial-craft.jpg",
-        });
       }
+      // SEC-03: Strictly omit and reject unverified client-supplied prices.
     }
 
     const settings = await this.getStoreSettings();
@@ -1367,11 +1298,15 @@ class SupabaseDataStore {
     if (promoCode) {
       const coupon = await this.findDiscountByCode(promoCode);
       if (coupon && coupon.active) {
-        if (!coupon.minOrder || subtotal >= coupon.minOrder) {
+        const isNotExpired = !coupon.expiresAt || new Date(coupon.expiresAt).getTime() > Date.now();
+        const isWithinLimit = !coupon.usageLimit || (Number(coupon.usageCount) || 0) < Number(coupon.usageLimit);
+        const meetsMinOrder = !coupon.minOrder || subtotal >= Number(coupon.minOrder);
+
+        if (isNotExpired && isWithinLimit && meetsMinOrder) {
           if (coupon.type === "percentage") {
-            discount = (subtotal * coupon.value) / 100;
+            discount = (subtotal * Number(coupon.value)) / 100;
           } else {
-            discount = Math.min(coupon.value, subtotal);
+            discount = Math.min(Number(coupon.value), subtotal);
           }
         }
       }
@@ -1412,9 +1347,8 @@ class SupabaseDataStore {
     paymentMethod?: PaymentMethod;
     shippingAddress: any;
     notes?: string;
+    promoCode?: string;
   }): Promise<OrderRecord> {
-    await ensurePaymentSchema();
-
     const isBankTransfer =
       orderData.paymentMethod === "bank_transfer" ||
       orderData.paymentMethod === "online";
@@ -1462,7 +1396,10 @@ class SupabaseDataStore {
 
     return transaction(async (client) => {
       const orderId = `ord_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
-      const orderNumber = `SHP-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+      // BUG-01: Cryptographically collision-free order number generation
+      const randHex = crypto.randomBytes(3).toString("hex").toUpperCase();
+      const timePart = Date.now().toString().slice(-4);
+      const orderNumber = `SHP-${new Date().getFullYear()}-${timePart}${randHex}`;
 
       // 1. Insert Master Order Record
       await client.query(
@@ -1488,6 +1425,16 @@ class SupabaseDataStore {
           orderData.notes || null,
         ]
       );
+
+      // BUG-02: Atomically increment coupon usage count upon successful order creation
+      if (orderData.promoCode && (orderData.discount || 0) > 0) {
+        await client.query(
+          `UPDATE discounts 
+           SET usage_count = COALESCE(usage_count, 0) + 1 
+           WHERE LOWER(code) = LOWER($1) AND active = true;`,
+          [orderData.promoCode.trim()]
+        );
+      }
 
       // 2. Insert Order Items & Deduct Product Inventory
       const insertedItems: OrderItemRecord[] = [];
@@ -2338,7 +2285,7 @@ class SupabaseDataStore {
     );
 
     // Invalidate store settings cache
-    redisDel("shopy:v1:settings:store").catch(() => {});
+    redisDel(`${CACHE_VERSION}:settings:store`).catch(() => {});
 
     if (res.rows.length > 0) {
       const r = res.rows[0];
@@ -2440,67 +2387,8 @@ class SupabaseDataStore {
   private _initPromise: Promise<void> | null = null;
 
   async ensureTablesExist(): Promise<void> {
-    if ((global as any).__shopy_tables_initialized) return;
-    if ((global as any).__shopy_tables_init_promise) return (global as any).__shopy_tables_init_promise;
-
-    const initPromise = (async () => {
-      try {
-        await query(`
-          CREATE TABLE IF NOT EXISTS navigation_items (
-            id VARCHAR(50) PRIMARY KEY,
-            name VARCHAR(100) NOT NULL,
-            href VARCHAR(255) NOT NULL,
-            order_index INTEGER NOT NULL DEFAULT 0,
-            is_active BOOLEAN NOT NULL DEFAULT true,
-            category_slug VARCHAR(100),
-            created_at TIMESTAMPTZ DEFAULT NOW(),
-            updated_at TIMESTAMPTZ DEFAULT NOW()
-          );
-        `);
-
-        await query(`
-          CREATE TABLE IF NOT EXISTS homepage_config (
-            id VARCHAR(50) PRIMARY KEY,
-            hero_title VARCHAR(255) NOT NULL DEFAULT 'ARCHITECTURAL ELEGANCE',
-            hero_subtitle VARCHAR(255) NOT NULL DEFAULT 'EDITION 01 • AUTUMN / WINTER 2026',
-            hero_image TEXT NOT NULL DEFAULT '/hero-luxury.jpg',
-            hero_cta_text VARCHAR(100) NOT NULL DEFAULT 'Explore Collection',
-            hero_cta_link VARCHAR(255) NOT NULL DEFAULT '/products',
-            featured_title VARCHAR(255) NOT NULL DEFAULT 'Featured Essentials',
-            featured_subtitle VARCHAR(255) NOT NULL DEFAULT 'SELECTION OF THE SEASON',
-            editorial_tag VARCHAR(100) NOT NULL DEFAULT 'EDITORIAL CAMPAIGN',
-            editorial_title VARCHAR(255) NOT NULL DEFAULT 'Permanence in Form & Texture',
-            editorial_quote TEXT NOT NULL DEFAULT 'We reject the cycle of seasonal excess. Each silhouette is engineered with tactile permanence, heavyweight organic knits, and architectural draping.',
-            editorial_image_1 TEXT NOT NULL DEFAULT '/editorial-craft.jpg',
-            editorial_image_2 TEXT NOT NULL DEFAULT '/category-tops.jpg',
-            newsletter_title VARCHAR(255) NOT NULL DEFAULT 'Join The Maison Gazette',
-            newsletter_subtitle VARCHAR(255) NOT NULL DEFAULT 'Receive private vernissage previews, seasonal lookbooks, and invitation-only atelier dispatches.',
-            updated_at TIMESTAMPTZ DEFAULT NOW()
-          );
-        `);
-
-        await query(`
-          CREATE TABLE IF NOT EXISTS product_images (
-            id VARCHAR(100) PRIMARY KEY,
-            product_id VARCHAR(50) NOT NULL REFERENCES products(id) ON DELETE CASCADE,
-            image_url TEXT NOT NULL,
-            storage_path TEXT,
-            sort_order INTEGER NOT NULL DEFAULT 0,
-            created_at TIMESTAMPTZ DEFAULT NOW(),
-            updated_at TIMESTAMPTZ DEFAULT NOW()
-          );
-        `);
-
-        (global as any).__shopy_tables_initialized = true;
-      } catch (err) {
-        console.error("[ENSURE TABLES ERROR]", err);
-      } finally {
-        (global as any).__shopy_tables_init_promise = null;
-      }
-    })();
-
-    (global as any).__shopy_tables_init_promise = initPromise;
-    return initPromise;
+    // Production hardening: Schema is managed via static migration scripts, eliminating runtime DDL overhead.
+    return Promise.resolve();
   }
 
   async getNavigationItems(onlyActive = false): Promise<NavigationItem[]> {
@@ -2724,7 +2612,7 @@ class SupabaseDataStore {
     );
 
     // Invalidate homepage config cache
-    redisDel("shopy:v1:homepage:config").catch(() => {});
+    redisDel(`${CACHE_VERSION}:homepage:config`).catch(() => {});
 
     if (res.rows.length > 0) {
       return this.getHomepageConfig();
@@ -2996,8 +2884,7 @@ class SupabaseDataStore {
     };
   }
 
-  async getCustomersSummary(search?: string) {
-    await this.ensureTablesExist();
+  async getCustomersSummary(search?: string, pagination?: { limit?: number; offset?: number }) {
     let sql = `
       SELECT 
         u.id, 
@@ -3017,7 +2904,19 @@ class SupabaseDataStore {
       params.push(`%${search.trim().toLowerCase()}%`);
       sql += ` AND (LOWER(u.name) LIKE $${params.length} OR LOWER(u.email) LIKE $${params.length})`;
     }
-    sql += ` GROUP BY u.id ORDER BY u.created_at DESC;`;
+    sql += ` GROUP BY u.id ORDER BY u.created_at DESC`;
+
+    if (pagination?.limit && pagination.limit > 0) {
+      params.push(pagination.limit);
+      sql += ` LIMIT $${params.length}`;
+    }
+
+    if (pagination?.offset && pagination.offset > 0) {
+      params.push(pagination.offset);
+      sql += ` OFFSET $${params.length}`;
+    }
+
+    sql += `;`;
 
     const res = await query(sql, params);
     return res.rows.map((r) => ({

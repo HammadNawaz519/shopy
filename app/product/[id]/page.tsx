@@ -54,11 +54,13 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
 
   let ratingSummary: { averageRating: number; reviewCount: number } = { averageRating: 0, reviewCount: 0 };
   let relatedProducts: any[] = [];
+  let initialReviews: any[] = [];
 
   try {
-    const [summary, dbRelated] = await Promise.all([
+    const [summary, dbRelated, reviewsRes] = await Promise.all([
       getCachedProductRatingSummary(product.id).catch(() => null),
       db.getProducts({ category: product.category }).catch(() => []),
+      db.getReviews({ productId: product.id, status: "approved", limit: 20 }).catch(() => []),
     ]);
 
     if (summary) {
@@ -67,6 +69,8 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
         reviewCount: summary.reviewCount,
       };
     }
+
+    initialReviews = reviewsRes || [];
 
     relatedProducts = (dbRelated || [])
       .filter((p) => p.id !== product.id)
@@ -82,6 +86,7 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
       product={product}
       relatedProducts={relatedProducts}
       initialRatingSummary={ratingSummary}
+      initialReviews={initialReviews}
     />
   );
 }

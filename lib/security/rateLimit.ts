@@ -1,4 +1,4 @@
-import { getRedisClient } from "@/lib/redis";
+import { getRedisClient, CACHE_VERSION } from "@/lib/redis";
 
 export interface RateLimitOptions {
   limit: number;      // Maximum requests allowed in window
@@ -18,24 +18,24 @@ interface RateLimitRecord {
   resetTime: number;
 }
 
-const localRateLimitStore = new Map<string, RateLimitRecord>();
+const memoryStore = new Map<string, RateLimitRecord>();
 
 // Cleanup stale in-memory records periodically
 if (typeof setInterval !== "undefined") {
   setInterval(() => {
     const now = Date.now();
-    for (const [key, record] of localRateLimitStore.entries()) {
+    for (const [key, record] of memoryStore.entries()) {
       if (now > record.resetTime) {
-        localRateLimitStore.delete(key);
+        memoryStore.delete(key);
       }
     }
   }, 60000);
 }
 
 /**
- * Universal Rate Limiter
- * Checks rate limit via Upstash Redis distributed store first;
- * automatically falls back to in-memory sliding window on Redis connection failure.
+ * Checks and increments rate limit counter for a given identifier (e.g. IP or User ID).
+ * Uses Upstash Redis pipeline for atomic sliding-window increment,
+ * and falls back seamlessly to in-memory sliding window if Redis is offline.
  */
 export async function checkRateLimit(
   identifier: string,
@@ -46,7 +46,7 @@ export async function checkRateLimit(
 
   if (redis) {
     try {
-      const key = `shopy:v1:ratelimit:${identifier}`;
+      const key = `${CACHE_VERSION}:ratelimit:${identifier}`;
       const pipeline = redis.pipeline();
       pipeline.incr(key);
       pipeline.expire(key, windowSec);
@@ -70,10 +70,10 @@ export async function checkRateLimit(
 
   // In-memory sliding window fallback
   const now = Date.now();
-  const record = localRateLimitStore.get(identifier);
+  const record = memoryStore.get(identifier);
 
   if (!record || now > record.resetTime) {
-    localRateLimitStore.set(identifier, {
+    memoryStore.set(identifier, {
       count: 1,
       resetTime: now + options.windowMs,
     });

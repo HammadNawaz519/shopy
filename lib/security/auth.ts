@@ -1,7 +1,8 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
-const JWT_SECRET = process.env.JWT_SECRET || "shopy_jwt_fallback_secret_for_dev_mode_only_987654321";
+import { getJwtSecret } from "./session";
+
 const SALT_ROUNDS = 12;
 
 export interface TokenPayload {
@@ -20,12 +21,14 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
 }
 
 export function signToken(payload: TokenPayload, expiresIn: string = "7d"): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn } as jwt.SignOptions);
+  const secret = getJwtSecret();
+  return jwt.sign(payload, secret, { expiresIn } as jwt.SignOptions);
 }
 
 export function verifyToken(token: string): TokenPayload | null {
   try {
-    return jwt.verify(token, JWT_SECRET) as TokenPayload;
+    const secret = getJwtSecret();
+    return jwt.verify(token, secret) as TokenPayload;
   } catch {
     return null;
   }

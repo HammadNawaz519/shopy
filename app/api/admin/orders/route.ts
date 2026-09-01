@@ -16,9 +16,24 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const status = searchParams.get("status") || undefined;
   const search = searchParams.get("search")?.trim() || undefined;
+  const limitParam = searchParams.get("limit");
+  const pageParam = searchParams.get("page");
+  const offsetParam = searchParams.get("offset");
 
-  const orders = await db.getAllOrders({ status, search });
-  return NextResponse.json({ orders });
+  const limit = limitParam ? Math.min(200, Math.max(1, parseInt(limitParam, 10))) : undefined;
+  const page = pageParam ? Math.max(1, parseInt(pageParam, 10)) : 1;
+  const offset = offsetParam ? Math.max(0, parseInt(offsetParam, 10)) : limit ? (page - 1) * limit : undefined;
+
+  const orders = await db.getAllOrders({ status, search, limit, offset });
+  return NextResponse.json({
+    orders,
+    pagination: {
+      page,
+      limit: limit || orders.length,
+      totalReturned: orders.length,
+      hasMore: limit ? orders.length === limit : false,
+    },
+  });
 }
 
 export async function PATCH(req: Request) {

@@ -4,7 +4,16 @@ import { cookies } from "next/headers";
 import { UserRecord, ADMIN_EMAIL } from "../db/store";
 
 export const SESSION_COOKIE_NAME = "shopy_session_id";
-const JWT_SECRET = process.env.JWT_SECRET || "shopy_jwt_super_secret_key_change_in_production_2026_fashion";
+
+export function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET?.trim() || process.env.SESSION_SECRET?.trim();
+  if (secret) return secret;
+  if (process.env.NODE_ENV === "production") {
+    console.error("[SECURITY ALERT] JWT_SECRET or SESSION_SECRET is missing in production!");
+    throw new Error("FATAL: JWT_SECRET or SESSION_SECRET environment variable is required in production.");
+  }
+  return "shopy_dev_local_secret_key_never_in_production";
+}
 
 export interface SessionData {
   id: string;
@@ -53,7 +62,8 @@ export function createSession(user: UserRecord): SessionData {
   };
 
   // Sign JWT token for cross-instance serverless resilience
-  const token = jwt.sign(sessionPayload, JWT_SECRET, { expiresIn: `${SESSION_TTL_SECONDS}s` });
+  const secret = getJwtSecret();
+  const token = jwt.sign(sessionPayload, secret, { expiresIn: `${SESSION_TTL_SECONDS}s` });
 
   const sessionData: SessionData = {
     id: token,
@@ -78,7 +88,8 @@ export function getSession(sessionToken: string | undefined): SessionData | null
 
   // 1. Try decoding as cryptographically signed JWT token
   try {
-    const decoded = jwt.verify(sessionToken, JWT_SECRET) as any;
+    const secret = getJwtSecret();
+    const decoded = jwt.verify(sessionToken, secret) as any;
     if (decoded && decoded.userId && decoded.email) {
       const now = Date.now();
       const expiresAt = decoded.expiresAt || (decoded.exp ? decoded.exp * 1000 : now + SESSION_TTL_MS);

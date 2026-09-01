@@ -193,12 +193,12 @@ export function AdminOrderNotificationProvider({ children }: { children: React.R
     // Initial fetch
     fetchUnseenOrders();
 
-    // Background interval check every 15 seconds (down from 8s — 47% fewer polling requests)
+    // Background interval check every 60 seconds (PERF-05: reduced from 15s)
     const interval = setInterval(() => {
       if (typeof document !== "undefined" && document.visibilityState === "visible") {
         fetchUnseenOrders();
       }
-    }, 15000);
+    }, 60000);
 
     // Focus listener: immediate check when admin returns to tab
     const handleFocus = () => {

@@ -3,7 +3,7 @@ import { CheckoutSchema } from "@/lib/security/validation";
 import { db } from "@/lib/db/store";
 import { getCurrentUser } from "@/lib/security/session";
 import { checkOrderRateLimit, getClientIp } from "@/lib/security/rateLimit";
-import { acquireDistributedLock, buildCacheKey, redisGet, redisSet, redisDelPattern, CACHE_TTL } from "@/lib/redis";
+import { acquireDistributedLock, buildCacheKey, redisGet, redisSet, redisDelPattern, CACHE_TTL, CACHE_VERSION } from "@/lib/redis";
 import { sendOrderConfirmationEmail, sendAdminNewOrderNotification } from "@/lib/email/mailer";
 import { syncOrderCreated } from "@/lib/sheets/service";
 
@@ -111,6 +111,7 @@ export async function POST(req: Request) {
       total: recalculated.total,
       paymentMethod,
       shippingAddress,
+      promoCode: promoCode || undefined,
     });
 
     // Save completed order state in idempotency cache for duplicate request replays
@@ -135,8 +136,8 @@ export async function POST(req: Request) {
     const authoritativeOrder = (await db.getOrderById(order.id)) || order;
 
     // Invalidate product catalog cache because stock changed
-    redisDelPattern("shopy:v1:products:*").catch(() => {});
-    redisDelPattern("shopy:v1:product:*").catch(() => {});
+    redisDelPattern(`${CACHE_VERSION}:products:*`).catch(() => {});
+    redisDelPattern(`${CACHE_VERSION}:product:*`).catch(() => {});
 
     // Non-blocking async post-commit dispatch (Email, Google Sheets)
     try {
@@ -149,7 +150,7 @@ export async function POST(req: Request) {
       console.error("[ORDER DISPATCH ERROR]", dispatchErr);
     }
 
-    return NextResponse.json(
+    const response = NextResponse.json(
       {
         success: true,
         orderId: order.id,
@@ -158,6 +159,19 @@ export async function POST(req: Request) {
       },
       { status: 201 }
     );
+
+    // If guest checkout, set a secure temporary cookie for seamless confirmation view
+    if (!userId) {
+      response.cookies.set(`shopy_guest_order_${order.id}`, "1", {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/",
+        maxAge: 24 * 60 * 60, // 24 hours
+      });
+    }
+
+    return response;
   } catch (err: any) {
     console.error("[ORDER CREATION ERROR]", err);
     return NextResponse.json(

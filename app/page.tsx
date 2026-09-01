@@ -4,14 +4,16 @@ import FeaturedProducts from "@/components/home/FeaturedProducts";
 import EditorialSection from "@/components/home/EditorialSection";
 import Newsletter from "@/components/home/Newsletter";
 import { db, getCachedHomepageConfig, getCachedCategories } from "@/lib/db/store";
+import { fetchEditorialMotivationQuote } from "@/lib/groq";
 
 export const revalidate = 60; // 60s ISR edge cache with on-demand admin revalidation
 
 export default async function HomePage() {
-  const [config, categories, featuredProducts] = await Promise.all([
+  const [config, categories, featuredProducts, editorialQuote] = await Promise.all([
     getCachedHomepageConfig().catch(() => null),
     getCachedCategories().catch(() => []),
     db.getProducts({ featured: true }).catch(() => []),
+    fetchEditorialMotivationQuote().catch(() => undefined),
   ]);
 
   return (
@@ -19,7 +21,7 @@ export default async function HomePage() {
       <Hero initialConfig={config || undefined} />
       <CollectionGrid initialCategories={categories} />
       <FeaturedProducts initialProducts={featuredProducts} initialConfig={config || undefined} />
-      <EditorialSection />
+      <EditorialSection initialQuote={editorialQuote} />
       <Newsletter />
     </>
   );

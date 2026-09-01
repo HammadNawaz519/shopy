@@ -24,12 +24,14 @@ interface ProductDetailClientViewProps {
   product: any;
   relatedProducts: any[];
   initialRatingSummary?: { averageRating: number; reviewCount: number };
+  initialReviews?: any[];
 }
 
 export default function ProductDetailClientView({
   product,
   relatedProducts,
   initialRatingSummary,
+  initialReviews,
 }: ProductDetailClientViewProps) {
   const [selectedImageIdx, setSelectedImageIdx] = useState(0);
   const [selectedSize, setSelectedSize] = useState(product?.sizes?.[0] || "M");
@@ -383,6 +385,8 @@ export default function ProductDetailClientView({
           productId={product.id}
           productName={product.name}
           productImage={currentImage}
+          initialReviews={initialReviews}
+          initialSummary={ratingSummary}
         />
 
         {/* Related Pieces Section */}

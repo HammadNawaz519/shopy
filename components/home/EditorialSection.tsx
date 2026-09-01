@@ -16,32 +16,18 @@ const DEFAULT_QUOTE: EditorialQuote = {
   ctaText: "Claim Your Signature Silhouette"
 };
 
-export default function EditorialSection() {
-  const [quoteData, setQuoteData] = useState<EditorialQuote>(DEFAULT_QUOTE);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+interface EditorialSectionProps {
+  initialQuote?: EditorialQuote;
+}
+
+export default function EditorialSection({ initialQuote }: EditorialSectionProps) {
+  const [quoteData, setQuoteData] = useState<EditorialQuote>(initialQuote || DEFAULT_QUOTE);
 
   useEffect(() => {
-    let isMounted = true;
-    const fetchQuote = async () => {
-      try {
-        const res = await fetch(`/api/editorial/quote`, {
-          next: { revalidate: 3600 },
-        });
-        if (res.ok) {
-          const json = await res.json();
-          if (isMounted && json?.data?.quote && json?.data?.headline) {
-            setQuoteData(json.data);
-          }
-        }
-      } catch {
-        // Silently use DEFAULT_QUOTE
-      }
-    };
-    fetchQuote();
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+    if (initialQuote) {
+      setQuoteData(initialQuote);
+    }
+  }, [initialQuote]);
 
   return (
     <section className="py-16 sm:py-20 lg:py-24 bg-[#E8E8E8] text-[#495464] overflow-hidden select-none border-t border-[#BBBFCA]/40">
@@ -61,9 +47,7 @@ export default function EditorialSection() {
 
             {/* Dynamic Psychological & Magnetic Headline */}
             <h2
-              className={`font-serif text-[#181a1d] leading-[1.12] tracking-tight font-light transition-opacity duration-500 text-2xl sm:text-3xl lg:text-[2.2rem] ${
-                isLoading ? "opacity-40" : "opacity-100"
-              }`}
+              className="font-serif text-[#181a1d] leading-[1.12] tracking-tight font-light transition-opacity duration-500 text-2xl sm:text-3xl lg:text-[2.2rem] opacity-100"
             >
               {quoteData.headline}
               {quoteData.subHeadline && (
@@ -75,9 +59,7 @@ export default function EditorialSection() {
             </h2>
 
             {/* Dynamic AI Psychological Pull-Quote */}
-            <blockquote className={`font-serif text-sm sm:text-base text-[#2B3542] italic font-normal leading-relaxed transition-opacity duration-500 ${
-              isLoading ? "opacity-40" : "opacity-100"
-            }`}>
+            <blockquote className="font-serif text-sm sm:text-base text-[#2B3542] italic font-normal leading-relaxed transition-opacity duration-500 opacity-100">
               &ldquo;{quoteData.quote}&rdquo;
             </blockquote>
 

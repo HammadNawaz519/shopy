@@ -68,41 +68,45 @@ export function formatSheetsDateTime(dateInput?: string | Date | number | null):
  * Formats order data into standard tabular row values for the Orders worksheet.
  */
 function formatOrderRow(order: OrderRecord): any[] {
-  const customerName = `${order.shippingAddress.firstName} ${order.shippingAddress.lastName}`.trim();
-  const productsSummary = order.items
-    .map((item) => `${item.name} (${item.quantity})`)
+  const customerName = `${order.shippingAddress?.firstName || ""} ${order.shippingAddress?.lastName || ""}`.trim() || "Guest Customer";
+  const rawItems = Array.isArray(order.items) ? order.items : [];
+  
+  const productsSummary = rawItems
+    .map((item) => `${item.name || "Item"} (${parseInt(String(item.quantity || 1), 10) || 1})`)
     .join(", ");
-  const totalQuantity = order.items.reduce((acc, item) => acc + item.quantity, 0);
+    
+  const totalQuantity = rawItems.reduce((acc, item) => acc + (parseInt(String(item.quantity || 1), 10) || 1), 0);
+  
   const paymentMethod =
     order.paymentMethod === "bank_transfer" || order.paymentMethod === "online"
       ? "BANK"
       : "COD";
 
   const trackingNumber = (order as any).trackingNumber || (order.paymentDetails as any)?.trackingNumber || "-";
-  const address = `${order.shippingAddress.address}${
-    order.shippingAddress.province ? `, ${order.shippingAddress.province}` : ""
+  const address = `${order.shippingAddress?.address || ""}${
+    order.shippingAddress?.province ? `, ${order.shippingAddress.province}` : ""
   }`;
 
-  const rawPhone = (order.shippingAddress.phone || "").trim();
+  const rawPhone = (order.shippingAddress?.phone || "").trim();
   const phone = rawPhone.startsWith("+") ? `'${rawPhone}` : rawPhone || "-";
 
   return [
     order.orderNumber,
     customerName,
-    order.shippingAddress.email,
+    order.shippingAddress?.email || "-",
     phone,
-    productsSummary,
+    productsSummary || "-",
     totalQuantity,
-    order.subtotal,
-    order.discount || 0,
-    order.shipping || 0,
-    order.total,
+    Number(order.subtotal) || 0,
+    Number(order.discount) || 0,
+    Number(order.shipping) || 0,
+    Number(order.total) || 0,
     paymentMethod,
-    order.paymentStatus,
-    order.status,
+    order.paymentStatus || "PENDING",
+    order.status || "CONFIRMED",
     trackingNumber,
-    address,
-    order.shippingAddress.city,
+    address || "-",
+    order.shippingAddress?.city || "-",
     formatSheetsDateTime(order.createdAt),
     formatSheetsDateTime(order.updatedAt || order.createdAt),
   ];
@@ -114,21 +118,25 @@ function formatOrderRow(order: OrderRecord): any[] {
 async function findOrderRowIndex(orderNumber: string): Promise<number | null> {
   const clientInfo = getSheetsClient();
   if (!clientInfo) return null;
-
   const { sheets, spreadsheetId } = clientInfo;
-  const res = await sheets.spreadsheets.values.get({
-    spreadsheetId,
-    range: `'${SHEET_NAMES.ORDERS}'!A:A`,
-  });
 
-  const rows = res.data.values || [];
-  for (let i = 0; i < rows.length; i++) {
-    if (rows[i] && rows[i][0] === orderNumber) {
-      return i + 1; // 1-indexed row number
+  try {
+    const res = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `'${SHEET_NAMES.ORDERS}'!A:A`,
+    });
+
+    const rows = res.data.values || [];
+    for (let i = 0; i < rows.length; i++) {
+      if (rows[i][0] && String(rows[i][0]).trim() === orderNumber.trim()) {
+        return i + 1; // 1-indexed row number
+      }
     }
+    return null;
+  } catch (err) {
+    console.error("[SHEETS FIND ROW ERROR]", err);
+    return null;
   }
-
-  return null;
 }
 
 /**
@@ -144,10 +152,21 @@ export async function syncOrderCreated(order: OrderRecord): Promise<SyncResult> 
   const clientInfo = getSheetsClient()!;
   const { sheets, spreadsheetId } = clientInfo;
 
+  // Ensure full order items are populated for accurate line items & total quantity
+  let fullOrder = order;
+  if (!fullOrder.items || !Array.isArray(fullOrder.items) || fullOrder.items.length === 0) {
+    try {
+      const fetched = await db.getOrderById(order.id || order.orderNumber);
+      if (fetched && Array.isArray(fetched.items) && fetched.items.length > 0) {
+        fullOrder = fetched;
+      }
+    } catch {}
+  }
+
   const syncOp = await executeWithRetry("syncOrderCreated", async () => {
     // 1. Check if order row already exists
-    const existingRow = await findOrderRowIndex(order.orderNumber);
-    const orderRowValues = formatOrderRow(order);
+    const existingRow = await findOrderRowIndex(fullOrder.orderNumber);
+    const orderRowValues = formatOrderRow(fullOrder);
 
     if (existingRow) {
       // Update in-place
@@ -173,19 +192,24 @@ export async function syncOrderCreated(order: OrderRecord): Promise<SyncResult> 
       range: `'${SHEET_NAMES.ORDER_ITEMS}'!A:A`,
     });
     const existingItemRows = existingItemsRes.data.values || [];
-    const hasExistingItems = existingItemRows.some((r) => r[0] === order.orderNumber);
+    const hasExistingItems = existingItemRows.some((r) => r[0] === fullOrder.orderNumber);
 
-    if (!hasExistingItems && order.items.length > 0) {
-      const itemRows = order.items.map((item) => [
-        order.orderNumber,
-        item.name,
-        [item.size, item.color].filter(Boolean).join(" / ") || "Standard",
-        item.size || "-",
-        item.color || "-",
-        item.quantity,
-        item.price,
-        item.price * item.quantity,
-      ]);
+    const validItems = Array.isArray(fullOrder.items) ? fullOrder.items : [];
+    if (!hasExistingItems && validItems.length > 0) {
+      const itemRows = validItems.map((item) => {
+        const qty = parseInt(String(item.quantity || 1), 10) || 1;
+        const unitPrice = Number(item.price) || 0;
+        return [
+          fullOrder.orderNumber,
+          item.name || "Product Item",
+          [item.size, item.color].filter(Boolean).join(" / ") || "Standard",
+          item.size || "-",
+          item.color || "-",
+          qty,
+          unitPrice,
+          unitPrice * qty,
+        ];
+      });
 
       await sheets.spreadsheets.values.append({
         spreadsheetId,
@@ -239,12 +263,23 @@ export async function syncOrderStatusUpdated(
   const clientInfo = getSheetsClient()!;
   const { sheets, spreadsheetId } = clientInfo;
 
+  // Ensure full order items are populated for accurate line items & total quantity
+  let fullOrder = order;
+  if (!fullOrder.items || !Array.isArray(fullOrder.items) || fullOrder.items.length === 0) {
+    try {
+      const fetched = await db.getOrderById(order.id || order.orderNumber);
+      if (fetched && Array.isArray(fetched.items) && fetched.items.length > 0) {
+        fullOrder = fetched;
+      }
+    } catch {}
+  }
+
   const syncOp = await executeWithRetry("syncOrderStatusUpdated", async () => {
-    const existingRow = await findOrderRowIndex(order.orderNumber);
+    const existingRow = await findOrderRowIndex(fullOrder.orderNumber);
 
     if (existingRow) {
       // Update the entire row with authoritative state
-      const orderRowValues = formatOrderRow(order);
+      const orderRowValues = formatOrderRow(fullOrder);
       await sheets.spreadsheets.values.update({
         spreadsheetId,
         range: `'${SHEET_NAMES.ORDERS}'!A${existingRow}:R${existingRow}`,
@@ -253,7 +288,7 @@ export async function syncOrderStatusUpdated(
       });
     } else {
       // Fallback: create complete row if not found
-      return syncOrderCreated(order);
+      return syncOrderCreated(fullOrder);
     }
 
     return true;

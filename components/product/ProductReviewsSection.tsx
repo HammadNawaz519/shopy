@@ -10,21 +10,30 @@ interface ProductReviewsSectionProps {
   productId: string;
   productName: string;
   productImage?: string;
+  initialReviews?: ProductReview[];
+  initialSummary?: {
+    averageRating: number;
+    reviewCount: number;
+    distribution?: { 5: number; 4: number; 3: number; 2: number; 1: number };
+  };
 }
 
 export default function ProductReviewsSection({
   productId,
   productName,
   productImage,
+  initialReviews,
+  initialSummary,
 }: ProductReviewsSectionProps) {
-  const [reviews, setReviews] = useState<ProductReview[]>([]);
+  const [reviews, setReviews] = useState<ProductReview[]>(initialReviews || []);
   const [summary, setSummary] = useState<ProductRatingSummary>({
-    averageRating: 0,
-    reviewCount: 0,
-    distribution: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 },
+    averageRating: initialSummary?.averageRating || 0,
+    reviewCount: initialSummary?.reviewCount || initialReviews?.length || 0,
+    distribution: initialSummary?.distribution || { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 },
   });
   const [sort, setSort] = useState<"newest" | "highest" | "lowest">("newest");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const isFirstMount = React.useRef(true);
 
   // Review eligibility for currently logged in customer
   const [eligibility, setEligibility] = useState<{
@@ -74,6 +83,12 @@ export default function ProductReviewsSection({
   };
 
   useEffect(() => {
+    if (isFirstMount.current) {
+      isFirstMount.current = false;
+      if (initialReviews && initialReviews.length > 0) {
+        return;
+      }
+    }
     fetchReviewsData();
   }, [productId, sort]);
 

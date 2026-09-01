@@ -149,28 +149,24 @@ export async function POST(req: Request) {
     let user = await db.findUserByEmail(normalizedEmail);
 
     if (user) {
-      // If user exists, update password and set OTP
-      const updated = await db.updateUser(user.id, {
-        name: name || user.name,
-        passwordHash,
-        role: isAdminAccount ? "admin" : user.role,
-        resetToken: generatedOtp,
-        resetTokenExpiry,
-      });
-      user = updated || user;
-    } else {
-      // Create new customer account in PostgreSQL with pending verification OTP
-      user = await db.createUser({
-        name: name || "SHOPY Client",
-        email: normalizedEmail,
-        passwordHash,
-        role: isAdminAccount ? "admin" : "user",
-      });
-      await db.updateUser(user.id, {
-        resetToken: generatedOtp,
-        resetTokenExpiry,
-      });
+      // SEC-02: Account already exists. Prohibit overwriting existing password.
+      return NextResponse.json(
+        { error: "An account with this email address already exists. Please sign in or use password reset." },
+        { status: 409 }
+      );
     }
+
+    // Create new customer account in PostgreSQL with pending verification OTP
+    user = await db.createUser({
+      name: name || "SHOPY Client",
+      email: normalizedEmail,
+      passwordHash,
+      role: isAdminAccount ? "admin" : "user",
+    });
+    await db.updateUser(user.id, {
+      resetToken: generatedOtp,
+      resetTokenExpiry,
+    });
 
     // Dispatch real verification OTP email via SMTP
     try {

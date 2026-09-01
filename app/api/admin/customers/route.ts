@@ -13,10 +13,25 @@ export async function GET(req: Request) {
 
   const { searchParams } = new URL(req.url);
   const search = searchParams.get("search")?.trim() || undefined;
+  const limitParam = searchParams.get("limit");
+  const pageParam = searchParams.get("page");
+  const offsetParam = searchParams.get("offset");
+
+  const limit = limitParam ? Math.min(200, Math.max(1, parseInt(limitParam, 10))) : undefined;
+  const page = pageParam ? Math.max(1, parseInt(pageParam, 10)) : 1;
+  const offset = offsetParam ? Math.max(0, parseInt(offsetParam, 10)) : limit ? (page - 1) * limit : undefined;
 
   try {
-    const customers = await db.getCustomersSummary(search);
-    return NextResponse.json({ customers });
+    const customers = await db.getCustomersSummary(search, { limit, offset });
+    return NextResponse.json({
+      customers,
+      pagination: {
+        page,
+        limit: limit || customers.length,
+        totalReturned: customers.length,
+        hasMore: limit ? customers.length === limit : false,
+      },
+    });
   } catch (error: any) {
     console.error("[ADMIN CUSTOMERS API ERROR]", error);
     return NextResponse.json(
