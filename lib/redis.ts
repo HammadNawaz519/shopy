@@ -23,7 +23,7 @@ import crypto from "crypto";
  *    Never logs customer credentials, OTPs, or API secrets.
  */
 
-export const CACHE_VERSION = "shopy:v1";
+export const CACHE_VERSION = "shopy:v3";
 
 export const CACHE_TTL = {
   PRODUCTS_LIST: 600,      // 10 minutes

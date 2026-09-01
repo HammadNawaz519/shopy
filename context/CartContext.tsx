@@ -55,12 +55,41 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const isSyncingWithServer = React.useRef(false);
   const initialUserSyncRef = React.useRef<string | null>(null);
 
-  // 1. Hydrate from localStorage on initial boot
+  // 1. Hydrate and sanitize from localStorage on initial boot
   useEffect(() => {
     try {
       const saved = localStorage.getItem(CART_STORAGE_KEY);
       if (saved) {
-        setItems(JSON.parse(saved));
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          const sanitized = parsed
+            .filter(
+              (i: any) =>
+                i &&
+                typeof i === "object" &&
+                typeof i.productId === "string" &&
+                i.productId.trim() !== "" &&
+                typeof i.name === "string" &&
+                i.name.trim() !== "" &&
+                typeof i.price === "number" &&
+                !isNaN(i.price) &&
+                typeof i.quantity === "number" &&
+                i.quantity > 0
+            )
+            .map((i: any) => ({
+              productId: i.productId.trim(),
+              name: i.name.trim(),
+              price: Number(i.price),
+              quantity: Math.max(1, Number(i.quantity)),
+              size: i.size || "M",
+              color: i.color || "Default",
+              image:
+                typeof i.image === "string" && i.image.trim() !== ""
+                  ? i.image
+                  : "/editorial-craft.jpg",
+            }));
+          setItems(sanitized);
+        }
       }
     } catch {
       // ignore
@@ -195,25 +224,34 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const closeCart = () => setIsOpen(false);
 
   const addItem = (product: Product, size: string, color: string, quantity = 1) => {
+    if (!product || !product.id || !product.name) return;
+    const resolvedImage =
+      Array.isArray(product.images) && product.images.length > 0 && typeof product.images[0] === "string" && product.images[0].trim() !== ""
+        ? product.images[0]
+        : "/editorial-craft.jpg";
+
     setItems((prev) => {
-      const existingIdx = prev.findIndex(
+      const sanitized = prev.filter(
+        (i) => Boolean(i && i.productId && i.name && typeof i.price === "number" && i.quantity > 0)
+      );
+      const existingIdx = sanitized.findIndex(
         (i) => i.productId === product.id && i.size === size && i.color === color
       );
       if (existingIdx > -1) {
-        const next = [...prev];
-        next[existingIdx].quantity += quantity;
+        const next = [...sanitized];
+        next[existingIdx].quantity += Math.max(1, quantity);
         return next;
       }
       return [
-        ...prev,
+        ...sanitized,
         {
           productId: product.id,
           name: product.name,
-          price: product.price,
-          quantity,
-          size,
-          color,
-          image: product.images[0],
+          price: Number(product.price) || 0,
+          quantity: Math.max(1, quantity),
+          size: size || "M",
+          color: color || "Default",
+          image: resolvedImage,
         },
       ];
     });

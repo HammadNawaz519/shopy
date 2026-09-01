@@ -92,7 +92,7 @@ export function renderOrderConfirmationEmail({
       return `
         <tr>
           <td style="padding: 14px 0; border-bottom: 1px solid #E8E8E8; text-align: left; vertical-align: top;">
-            <table border="0" cellpadding="0" cellspacing="0" width="100%">
+            <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
               <tr>
                 ${
                   itemImage
@@ -130,7 +130,7 @@ export function renderOrderConfirmationEmail({
   const safePhone = escapeEmailHtml(address.phone);
 
   const bodyContent = `
-    <table border="0" cellpadding="0" cellspacing="0" width="100%">
+    <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
       <!-- HEADER -->
       <tr>
         <td align="center" style="padding: 0 16px 20px 16px; text-align: center;">
@@ -146,7 +146,7 @@ export function renderOrderConfirmationEmail({
       <!-- ORDER META & BADGES -->
       <tr>
         <td style="padding: 6px 0 20px 0;">
-          <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #E8E8E8; border: 1px solid #BBBFCA; padding: 14px 16px; border-radius: 2px;">
+          <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #E8E8E8; border: 1px solid #BBBFCA; padding: 14px 16px; border-radius: 2px;">
             <tr>
               <td style="text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: #495464;">
                 Order: <strong style="font-family: monospace; font-size: 12px;">#${safeOrderNumber}</strong>
@@ -168,7 +168,7 @@ export function renderOrderConfirmationEmail({
           <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.15em; color: #717D8F; font-weight: 600; padding-bottom: 8px; border-bottom: 1px solid #BBBFCA;">
             Products Ordered (${order.items.length})
           </div>
-          <table border="0" cellpadding="0" cellspacing="0" width="100%">
+          <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
             <tbody>
               ${itemsHtml}
             </tbody>
@@ -179,7 +179,7 @@ export function renderOrderConfirmationEmail({
       <!-- TOTALS BREAKDOWN -->
       <tr>
         <td style="padding: 0 0 20px 0;">
-          <table border="0" cellpadding="0" cellspacing="0" width="100%" style="font-size: 12px; color: #495464; line-height: 1.8;">
+          <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="font-size: 12px; color: #495464; line-height: 1.8;">
             <tr>
               <td style="text-align: left; opacity: 0.85;">Subtotal</td>
               <td style="text-align: right; font-weight: 500;">${formatCurrency(order.subtotal)}</td>
@@ -208,7 +208,7 @@ export function renderOrderConfirmationEmail({
       <!-- PAYMENT INFORMATION CARD -->
       <tr>
         <td style="padding: 0 0 20px 0;">
-          <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #E8E8E8; border: 1px solid #BBBFCA; padding: 14px 16px; border-radius: 2px;">
+          <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #E8E8E8; border: 1px solid #BBBFCA; padding: 14px 16px; border-radius: 2px;">
             <tr>
               <td style="text-align: left;">
                 <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; color: #717D8F; font-weight: 600; margin-bottom: 4px;">
@@ -225,7 +225,7 @@ export function renderOrderConfirmationEmail({
       <!-- DESTINATION ADDRESS -->
       <tr>
         <td style="padding: 0 0 8px 0;">
-          <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #FFFFFF; border: 1px solid #E8E8E8; padding: 16px 18px; border-radius: 2px;">
+          <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #FFFFFF; border: 1px solid #E8E8E8; padding: 16px 18px; border-radius: 2px;">
             <tr>
               <td>
                 <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.15em; color: #717D8F; margin-bottom: 6px; font-weight: 600;">
@@ -405,7 +405,7 @@ export function renderOrderStatusUpdateEmail({
       return `
         <tr>
           <td style="padding: 12px 0; border-bottom: 1px solid #E8E8E8; text-align: left; vertical-align: top;">
-            <table border="0" cellpadding="0" cellspacing="0" width="100%">
+            <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
               <tr>
                 ${
                   itemImage
@@ -437,7 +437,7 @@ export function renderOrderStatusUpdateEmail({
     .join("");
 
   const bodyContent = `
-    <table border="0" cellpadding="0" cellspacing="0" width="100%">
+    <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
       <!-- HEADING -->
       <tr>
         <td align="center" style="padding: 0 16px 20px 16px; text-align: center;">
@@ -453,7 +453,7 @@ export function renderOrderStatusUpdateEmail({
       <!-- STATUS BADGE BLOCK -->
       <tr>
         <td align="center" style="padding: 6px 0 20px 0; text-align: center;">
-          <table border="0" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
+          <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
             <tr>
               <td align="center" style="background-color: #495464; color: #F4F4F2; padding: 10px 28px; font-size: 11px; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase; border-radius: 2px;">
                 ${badgeLabel}
@@ -467,7 +467,7 @@ export function renderOrderStatusUpdateEmail({
       <!-- ORDER META CARD -->
       <tr>
         <td style="padding: 0 0 20px 0;">
-          <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #E8E8E8; border: 1px solid #BBBFCA; padding: 14px 16px; border-radius: 2px;">
+          <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #E8E8E8; border: 1px solid #BBBFCA; padding: 14px 16px; border-radius: 2px;">
             <tr>
               <td style="text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: #495464;">
                 Order Reference: <strong style="font-family: monospace;">#${safeOrderNumber}</strong>
@@ -488,7 +488,7 @@ export function renderOrderStatusUpdateEmail({
           <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.15em; color: #717D8F; font-weight: 600; padding-bottom: 8px; border-bottom: 1px solid #BBBFCA;">
             Items in Order (${order.items.length})
           </div>
-          <table border="0" cellpadding="0" cellspacing="0" width="100%">
+          <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
             <tbody>
               ${itemsHtml}
             </tbody>
@@ -499,7 +499,7 @@ export function renderOrderStatusUpdateEmail({
       <!-- FINANCIAL TOTAL -->
       <tr>
         <td style="padding: 0 0 24px 0;">
-          <table border="0" cellpadding="0" cellspacing="0" width="100%" style="font-size: 12px; color: #495464; line-height: 1.8; border-top: 1px solid #BBBFCA; padding-top: 8px;">
+          <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="font-size: 12px; color: #495464; line-height: 1.8; border-top: 1px solid #BBBFCA; padding-top: 8px;">
             <tr>
               <td style="text-align: left; font-size: 13px; font-weight: 600; color: #495464;">Total Amount</td>
               <td style="text-align: right; font-size: 14px; font-weight: 700; color: #495464;">${formatCurrency(order.total)}</td>
@@ -553,7 +553,7 @@ export function renderPaymentReceivedEmail({
   const subject = `SHOPY — Payment Confirmed · #${safeOrderNumber}`;
 
   const bodyContent = `
-    <table border="0" cellpadding="0" cellspacing="0" width="100%">
+    <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
       <tr>
         <td align="center" style="padding: 0 16px 20px 16px; text-align: center;">
           <h1 style="font-family: 'Cormorant Garamond', 'Georgia', serif; font-size: 22px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: #495464; margin: 0 0 10px 0;">
@@ -567,7 +567,7 @@ export function renderPaymentReceivedEmail({
 
       <tr>
         <td align="center" style="padding: 6px 0 24px 0;">
-          <table border="0" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
+          <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
             <tr>
               <td align="center" style="background-color: #065F46; color: #FFFFFF; padding: 10px 28px; font-size: 11px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; border-radius: 2px;">
                 ✓ PAYMENT RECEIVED
@@ -579,7 +579,7 @@ export function renderPaymentReceivedEmail({
 
       <tr>
         <td style="padding: 0 0 24px 0;">
-          <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #FFFFFF; border: 1px solid #E8E8E8; padding: 16px 20px; text-align: left; border-radius: 2px;">
+          <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #FFFFFF; border: 1px solid #E8E8E8; padding: 16px 20px; text-align: left; border-radius: 2px;">
             <tr>
               <td>
                 <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.15em; color: #717D8F; margin-bottom: 4px; font-weight: 600;">
@@ -645,7 +645,7 @@ export function renderAdminNewOrderNotification({
     .join("");
 
   const bodyContent = `
-    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="text-align: left;">
+    <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="text-align: left;">
       <tr>
         <td style="padding: 0 16px 20px 16px; text-align: center;">
           <h1 style="font-family: 'Cormorant Garamond', 'Georgia', serif; font-size: 22px; font-weight: 400; letter-spacing: 0.2em; text-transform: uppercase; color: #495464; margin: 0 0 10px 0;">

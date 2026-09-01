@@ -11,10 +11,16 @@ export interface EmailLayoutProps {
 }
 
 export function renderEmailLayout({ title, preheader, bodyContent }: EmailLayoutProps): string {
+  // Deliverability-compliant preheader without font-color-matches-background spam heuristics
   const cleanPreheader = preheader
-    ? `<div style="display: none; max-height: 0px; overflow: hidden; font-size: 1px; line-height: 1px; color: #F4F4F2; opacity: 0;">
+    ? `
+      <div style="display: none; font-size: 1px; color: #666666; line-height: 1px; max-height: 0px; max-width: 0px; opacity: 0; overflow: hidden; mso-hide: all; visibility: hidden;">
         ${preheader}
-      </div>`
+      </div>
+      <div style="display: none; font-size: 1px; line-height: 1px; max-height: 0px; max-width: 0px; opacity: 0; overflow: hidden; mso-hide: all;">
+        &zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;
+      </div>
+    `
     : "";
 
   return `
@@ -23,6 +29,11 @@ export function renderEmailLayout({ title, preheader, bodyContent }: EmailLayout
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="x-apple-disable-message-reformatting" />
+  <meta name="format-detection" content="telephone=no, date=no, address=no, email=no" />
+  <meta name="color-scheme" content="light" />
+  <meta name="supported-color-schemes" content="light" />
   <title>${title}</title>
   <style type="text/css">
     body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
@@ -39,16 +50,16 @@ export function renderEmailLayout({ title, preheader, bodyContent }: EmailLayout
 <body style="margin: 0; padding: 0; background-color: #F4F4F2; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; -webkit-text-size-adjust: none;">
   ${cleanPreheader}
   
-  <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #F4F4F2; padding: 40px 12px;">
+  <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #F4F4F2; padding: 40px 12px;">
     <tr>
       <td align="center">
         <!-- Main Email Container (max-width 560px) -->
-        <table border="0" cellpadding="0" cellspacing="0" width="100%" class="email-container" style="max-width: 560px; background-color: #F4F4F2; text-align: center;">
+        <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" class="email-container" style="max-width: 560px; background-color: #F4F4F2; text-align: center;">
           
           <!-- BRAND LOGO BADGE -->
           <tr>
             <td align="center" style="padding-bottom: 28px;">
-              <table border="0" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
+              <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
                 <tr>
                   <td align="center" style="background-color: #495464; padding: 10px 32px; border-radius: 2px;">
                     <span style="font-family: 'Cormorant Garamond', 'Georgia', serif; font-size: 18px; font-weight: 300; letter-spacing: 0.35em; color: #F4F4F2; display: block; margin-left: 0.35em; text-transform: uppercase;">SHOPY</span>
@@ -61,7 +72,7 @@ export function renderEmailLayout({ title, preheader, bodyContent }: EmailLayout
           <!-- TOP DIVIDER -->
           <tr>
             <td style="padding: 0 0 28px 0;">
-              <table border="0" cellpadding="0" cellspacing="0" width="100%">
+              <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
                 <tr>
                   <td style="border-top: 1px solid #E8E8E8; font-size: 1px; line-height: 1px;">&nbsp;</td>
                 </tr>
@@ -79,7 +90,7 @@ export function renderEmailLayout({ title, preheader, bodyContent }: EmailLayout
           <!-- BOTTOM DIVIDER -->
           <tr>
             <td style="padding: 28px 0;">
-              <table border="0" cellpadding="0" cellspacing="0" width="100%">
+              <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
                 <tr>
                   <td style="border-top: 1px solid #E8E8E8; font-size: 1px; line-height: 1px;">&nbsp;</td>
                 </tr>

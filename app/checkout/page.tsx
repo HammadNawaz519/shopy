@@ -33,12 +33,14 @@ export default function CheckoutPage() {
     instructions: "Please transfer the exact total order amount to the bank account above and share screenshot on WhatsApp with your Order ID for instant payment verification.",
   });
 
-  const CHECKOUT_STORAGE_KEY = "shopy_checkout_shipping_v1";
+  const getShippingStorageKey = (u?: typeof user) => {
+    return u && u.id ? `shopy_shipping_user_${u.id}` : `shopy_shipping_guest`;
+  };
 
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
-    email: user ? user.email : "",
+    email: "",
     phone: "",
     address: "",
     city: "Lahore",
@@ -47,28 +49,53 @@ export default function CheckoutPage() {
     paymentMethod: "cod" as "cod" | "bank_transfer",
   });
 
-  // Restore saved shipping details on mount
+  // Clean up legacy shared global storage key
   useEffect(() => {
     try {
-      const saved = localStorage.getItem(CHECKOUT_STORAGE_KEY);
+      localStorage.removeItem("shopy_checkout_shipping_v1");
+    } catch {}
+  }, []);
+
+  // Restore saved shipping details specifically for the current authenticated user or guest
+  useEffect(() => {
+    const key = getShippingStorageKey(user);
+    const names = user?.name ? user.name.split(" ") : [];
+    const defaultFirstName = names[0] || "";
+    const defaultLastName = names.slice(1).join(" ") || "";
+    const defaultEmail = user?.email || "";
+
+    try {
+      const saved = localStorage.getItem(key);
       if (saved) {
         const parsed = JSON.parse(saved);
-        setFormData((prev) => ({
-          ...prev,
-          firstName: parsed.firstName || prev.firstName,
-          lastName: parsed.lastName || prev.lastName,
-          email: parsed.email || prev.email,
-          phone: parsed.phone || prev.phone,
-          address: parsed.address || prev.address,
-          city: parsed.city || prev.city,
-          postalCode: parsed.postalCode || prev.postalCode,
-          province: parsed.province || prev.province,
-          paymentMethod: parsed.paymentMethod || prev.paymentMethod,
-        }));
+        setFormData({
+          firstName: parsed.firstName || defaultFirstName,
+          lastName: parsed.lastName || defaultLastName,
+          email: defaultEmail || parsed.email || "",
+          phone: parsed.phone || "",
+          address: parsed.address || "",
+          city: parsed.city || "Lahore",
+          postalCode: parsed.postalCode || "",
+          province: parsed.province || "Punjab",
+          paymentMethod: parsed.paymentMethod || "cod",
+        });
+        return;
       }
     } catch {}
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+
+    // Fresh account state if no prior saved shipping address for this user
+    setFormData({
+      firstName: defaultFirstName,
+      lastName: defaultLastName,
+      email: defaultEmail,
+      phone: "",
+      address: "",
+      city: "Lahore",
+      postalCode: "",
+      province: "Punjab",
+      paymentMethod: "cod",
+    });
+  }, [user]);
 
   useEffect(() => {
     document.title = "Checkout | SHOPY";
@@ -98,15 +125,17 @@ export default function CheckoutPage() {
     fetchPaymentConfig();
   }, []);
 
-  // Save a single shipping field and persist all fields to localStorage
+  // Save a single shipping field and persist only to this user's scoped storage
   const handleFieldChange = (field: keyof typeof formData, value: string) => {
     setFormData((prev) => {
       const next = { ...prev, [field]: value };
-      try { localStorage.setItem(CHECKOUT_STORAGE_KEY, JSON.stringify(next)); } catch {}
+      try {
+        const key = getShippingStorageKey(user);
+        localStorage.setItem(key, JSON.stringify(next));
+      } catch {}
       return next;
     });
   };
-
   const handleCopy = (text: string, label: string) => {
     if (!text) return;
     navigator.clipboard.writeText(text);
@@ -114,21 +143,6 @@ export default function CheckoutPage() {
     showToast(`${label} copied to clipboard`, "info");
     setTimeout(() => setCopiedField(null), 2000);
   };
-
-  // Pre-fill from user session if form still empty
-  useEffect(() => {
-    if (user) {
-      setFormData((prev) => {
-        const names = user.name.split(" ");
-        return {
-          ...prev,
-          firstName: prev.firstName || names[0] || "",
-          lastName: prev.lastName || names.slice(1).join(" ") || "",
-          email: prev.email || user.email,
-        };
-      });
-    }
-  }, [user]);
 
   useEffect(() => {
     validateWithServer();
@@ -191,7 +205,7 @@ export default function CheckoutPage() {
         clearCart();
         // Permanently persist the customer's shipping info for all future checkouts
         try {
-          localStorage.setItem(CHECKOUT_STORAGE_KEY, JSON.stringify(formData));
+          localStorage.setItem(getShippingStorageKey(user), JSON.stringify(formData));
         } catch {}
         showToast("Order placed successfully!", "success");
         router.push(`/order-confirmation/${data.orderId}`);
@@ -581,8 +595,8 @@ export default function CheckoutPage() {
                   >
                     <div className="relative w-14 h-16 bg-[#E8E8E8] flex-shrink-0 overflow-hidden">
                       <Image
-                        src={item.image}
-                        alt={item.name}
+                        src={item.image || "/editorial-craft.jpg"}
+                        alt={item.name || "Product"}
                         fill
                         sizes="56px"
                         className="object-cover"

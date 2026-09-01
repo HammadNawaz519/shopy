@@ -15,10 +15,10 @@ export function renderVerificationOtpEmail({
   expiresInMinutes = 10,
 }: VerificationOtpProps): { subject: string; text: string; html: string } {
   const safeName = name ? escapeEmailHtml(name) : "Client";
-  const subject = "Verification Code";
+  const subject = `SHOPY — Your Verification Code is ${otpCode}`;
 
   const bodyContent = `
-    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="text-align: center;">
+    <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="text-align: center;">
       <!-- HEADING -->
       <tr>
         <td align="center" style="padding: 0 16px 20px 16px;">
@@ -34,7 +34,7 @@ export function renderVerificationOtpEmail({
       <!-- OTP CODE CONTAINER (STRICT SINGLE LINE ON MOBILE) -->
       <tr>
         <td align="center" style="padding: 10px 16px 24px 16px;">
-          <table border="0" cellpadding="0" cellspacing="0" style="margin: 0 auto; width: 100%; max-width: 280px;">
+          <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin: 0 auto; width: 100%; max-width: 280px;">
             <tr>
               <td align="center" style="background-color: #E8E8E8; border: 1px solid #BBBFCA; padding: 18px 12px; border-radius: 2px; white-space: nowrap;">
                 <div class="otp-text" style="font-family: 'Courier New', Courier, monospace; font-size: 26px; font-weight: 700; letter-spacing: 6px; color: #495464; line-height: 1.2; white-space: nowrap !important; word-break: keep-all !important; display: inline-block !important; text-align: center;">
@@ -95,10 +95,10 @@ export function renderLoginOtpEmail({
   expiresInMinutes = 10,
 }: VerificationOtpProps): { subject: string; text: string; html: string } {
   const safeName = name ? escapeEmailHtml(name) : "Client";
-  const subject = "Verification Code";
+  const subject = `SHOPY — Your Login Code is ${otpCode}`;
 
   const bodyContent = `
-    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="text-align: center;">
+    <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="text-align: center;">
       <tr>
         <td align="center" style="padding: 0 16px 20px 16px;">
           <h1 style="font-family: 'Cormorant Garamond', 'Georgia', serif; font-size: 22px; font-weight: 400; letter-spacing: 0.2em; text-transform: uppercase; color: #495464; margin: 0 0 10px 0;">
@@ -112,7 +112,7 @@ export function renderLoginOtpEmail({
 
       <tr>
         <td align="center" style="padding: 10px 16px 24px 16px;">
-          <table border="0" cellpadding="0" cellspacing="0" style="margin: 0 auto; width: 100%; max-width: 280px;">
+          <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin: 0 auto; width: 100%; max-width: 280px;">
             <tr>
               <td align="center" style="background-color: #E8E8E8; border: 1px solid #BBBFCA; padding: 18px 12px; border-radius: 2px; white-space: nowrap;">
                 <div class="otp-text" style="font-family: 'Courier New', Courier, monospace; font-size: 26px; font-weight: 700; letter-spacing: 6px; color: #495464; line-height: 1.2; white-space: nowrap !important; word-break: keep-all !important; display: inline-block !important; text-align: center;">
@@ -181,13 +181,15 @@ export function renderPasswordResetEmail({
   expiresInMinutes = 10,
 }: PasswordResetProps): { subject: string; text: string; html: string } {
   const safeName = name ? escapeEmailHtml(name) : "Client";
-  const subject = otpCode ? "Verification Code" : "Password Recovery Request";
+  const subject = otpCode
+    ? `SHOPY — Your Password Reset Code is ${otpCode}`
+    : "SHOPY — Reset Your Password";
 
   const codeSection = otpCode
     ? `
       <tr>
         <td align="center" style="padding: 10px 16px 24px 16px;">
-          <table border="0" cellpadding="0" cellspacing="0" style="margin: 0 auto; width: 100%; max-width: 280px;">
+          <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin: 0 auto; width: 100%; max-width: 280px;">
             <tr>
               <td align="center" style="background-color: #E8E8E8; border: 1px solid #BBBFCA; padding: 18px 12px; border-radius: 2px; white-space: nowrap;">
                 <div class="otp-text" style="font-family: 'Courier New', Courier, monospace; font-size: 26px; font-weight: 700; letter-spacing: 6px; color: #495464; line-height: 1.2; white-space: nowrap !important; word-break: keep-all !important; display: inline-block !important; text-align: center;">
@@ -214,7 +216,7 @@ export function renderPasswordResetEmail({
     : "";
 
   const bodyContent = `
-    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="text-align: center;">
+    <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="text-align: center;">
       <tr>
         <td align="center" style="padding: 0 16px 20px 16px;">
           <h1 style="font-family: 'Cormorant Garamond', 'Georgia', serif; font-size: 22px; font-weight: 400; letter-spacing: 0.2em; text-transform: uppercase; color: #495464; margin: 0 0 10px 0;">
@@ -244,7 +246,7 @@ export function renderPasswordResetEmail({
 
   const html = renderEmailLayout({
     title: subject,
-    preheader: otpCode ? `Your verification code is ${otpCode}.` : `Reset your SHOPY password.`,
+    preheader: otpCode ? `Your password reset code is ${otpCode}. Valid for ${expiresInMinutes} minutes.` : `Reset your SHOPY password. Valid for ${expiresInMinutes} minutes.`,
     bodyContent,
   });
 
@@ -281,7 +283,7 @@ export function renderWelcomeEmail({
   const subject = "Welcome to SHOPY Atelier";
 
   const bodyContent = `
-    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="text-align: center;">
+    <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="text-align: center;">
       <tr>
         <td align="center" style="padding: 0 16px 20px 16px;">
           <h1 style="font-family: 'Cormorant Garamond', 'Georgia', serif; font-size: 22px; font-weight: 400; letter-spacing: 0.2em; text-transform: uppercase; color: #495464; margin: 0 0 12px 0;">
@@ -321,3 +323,4 @@ Refined presence.
 
   return { subject, text, html };
 }
+

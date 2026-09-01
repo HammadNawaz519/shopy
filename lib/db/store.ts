@@ -410,11 +410,12 @@ function mapUserRow(row: any): UserRecord {
   };
 }
 
-let schemaEnsured = false;
-
 export async function ensurePaymentSchema(): Promise<void> {
-  if (schemaEnsured) return;
-  try {
+  if ((global as any).__shopy_schema_ensured) return;
+  if ((global as any).__shopy_schema_promise) return (global as any).__shopy_schema_promise;
+
+  const initPromise = (async () => {
+    try {
     // 1. Add bank payment and toggle columns to store_settings
     await query(`
       ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS cod_enabled BOOLEAN DEFAULT true;
@@ -500,10 +501,16 @@ export async function ensurePaymentSchema(): Promise<void> {
       CREATE INDEX IF NOT EXISTS idx_navigation_active_order ON navigation_items(is_active, order_index ASC);
     `);
 
-    schemaEnsured = true;
-  } catch (err) {
-    console.error("[SCHEMA MIGRATION ERROR]", err);
-  }
+      (global as any).__shopy_schema_ensured = true;
+    } catch (err) {
+      console.error("[SCHEMA MIGRATION ERROR]", err);
+    } finally {
+      (global as any).__shopy_schema_promise = null;
+    }
+  })();
+
+  (global as any).__shopy_schema_promise = initPromise;
+  return initPromise;
 }
 
 class SupabaseDataStore {
@@ -2433,10 +2440,10 @@ class SupabaseDataStore {
   private _initPromise: Promise<void> | null = null;
 
   async ensureTablesExist(): Promise<void> {
-    if (this._tablesInitialized) return;
-    if (this._initPromise) return this._initPromise;
+    if ((global as any).__shopy_tables_initialized) return;
+    if ((global as any).__shopy_tables_init_promise) return (global as any).__shopy_tables_init_promise;
 
-    this._initPromise = (async () => {
+    const initPromise = (async () => {
       try {
         await query(`
           CREATE TABLE IF NOT EXISTS navigation_items (
@@ -2450,9 +2457,7 @@ class SupabaseDataStore {
             updated_at TIMESTAMPTZ DEFAULT NOW()
           );
         `);
-      } catch {}
 
-      try {
         await query(`
           CREATE TABLE IF NOT EXISTS homepage_config (
             id VARCHAR(50) PRIMARY KEY,
@@ -2473,29 +2478,7 @@ class SupabaseDataStore {
             updated_at TIMESTAMPTZ DEFAULT NOW()
           );
         `);
-      } catch {}
 
-      try {
-        // Seed default navigation if empty
-        const navCount = await query(`SELECT COUNT(*)::int as count FROM navigation_items;`);
-        if (navCount.rows[0]?.count === 0) {
-          await query(`
-            INSERT INTO navigation_items (id, name, href, order_index, is_active, category_slug)
-            VALUES
-              ('nav_1', 'home', '/', 0, true, null),
-              ('nav_2', 'view all', '/products', 1, true, null),
-              ('nav_3', 'tops', '/collections/tops', 2, true, 'tops'),
-              ('nav_4', 'bottoms', '/collections/bottoms', 3, true, 'bottoms'),
-              ('nav_5', 'co-ord sets', '/collections/co-ord-sets', 4, true, 'co-ord-sets'),
-              ('nav_6', 'footwear', '/collections/footwear', 5, true, 'footwear'),
-              ('nav_7', 'fragrances', '/collections/fragrances', 6, true, 'fragrances'),
-              ('nav_8', 'collections', '/collections', 7, true, null)
-            ON CONFLICT (id) DO NOTHING;
-          `);
-        }
-      } catch {}
-
-      try {
         await query(`
           CREATE TABLE IF NOT EXISTS product_images (
             id VARCHAR(100) PRIMARY KEY,
@@ -2507,36 +2490,17 @@ class SupabaseDataStore {
             updated_at TIMESTAMPTZ DEFAULT NOW()
           );
         `);
-        await query(`CREATE INDEX IF NOT EXISTS idx_product_images_product_id ON product_images(product_id);`);
-        await query(`CREATE INDEX IF NOT EXISTS idx_product_images_sort_order ON product_images(product_id, sort_order);`);
 
-        // Safe auto-migration: if product_images is empty, migrate existing products.images array into product_images
-        const imgCountRes = await query(`SELECT COUNT(*)::int as count FROM product_images;`);
-        if (imgCountRes.rows[0]?.count === 0) {
-          const prodRows = await query(`SELECT id, images FROM products WHERE images IS NOT NULL;`);
-          for (const p of prodRows.rows) {
-            if (Array.isArray(p.images) && p.images.length > 0) {
-              for (let i = 0; i < p.images.length; i++) {
-                const url = p.images[i];
-                if (url) {
-                  await query(
-                    `INSERT INTO product_images (id, product_id, image_url, sort_order)
-                     VALUES ($1, $2, $3, $4)
-                     ON CONFLICT (id) DO NOTHING;`,
-                    [`img_${p.id}_${i}`, p.id, url, i]
-                  );
-                }
-              }
-            }
-          }
-        }
-      } catch {}
-
-      this._tablesInitialized = true;
-      this._initPromise = null;
+        (global as any).__shopy_tables_initialized = true;
+      } catch (err) {
+        console.error("[ENSURE TABLES ERROR]", err);
+      } finally {
+        (global as any).__shopy_tables_init_promise = null;
+      }
     })();
 
-    return this._initPromise;
+    (global as any).__shopy_tables_init_promise = initPromise;
+    return initPromise;
   }
 
   async getNavigationItems(onlyActive = false): Promise<NavigationItem[]> {

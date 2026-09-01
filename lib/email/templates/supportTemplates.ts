@@ -35,10 +35,10 @@ export function renderContactFormAdminEmail({
     </p>
 
     <!-- INQUIRY CARD -->
-    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #E8E8E8; border: 1px solid #BBBFCA; text-align: left; margin: 0 0 24px 0;">
+    <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #E8E8E8; border: 1px solid #BBBFCA; text-align: left; margin: 0 0 24px 0;">
       <tr>
         <td style="padding: 20px 24px;">
-          <table border="0" cellpadding="0" cellspacing="0" width="100%" style="font-size: 12px; line-height: 1.8; color: #495464;">
+          <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="font-size: 12px; line-height: 1.8; color: #495464;">
             <tr>
               <td style="padding: 4px 0; width: 100px; font-weight: 600; text-transform: uppercase; font-size: 10px; letter-spacing: 0.1em; color: #495464;">From:</td>
               <td style="padding: 4px 0; font-weight: 500;">${safeName}</td>
@@ -67,7 +67,7 @@ export function renderContactFormAdminEmail({
     </table>
 
     <!-- ACTION BUTTON -->
-    <table border="0" cellpadding="0" cellspacing="0" style="margin: 0 auto 20px auto;">
+    <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin: 0 auto 20px auto;">
       <tr>
         <td align="center" style="background-color: #495464; border-radius: 2px;">
           <a href="mailto:${safeEmail}?subject=Re: ${encodeURIComponent(subject)}" style="font-size: 11px; font-weight: 500; letter-spacing: 0.2em; text-transform: uppercase; color: #F4F4F2; text-decoration: none; padding: 12px 28px; display: inline-block;">
@@ -112,7 +112,7 @@ export function renderContactFormAcknowledgmentEmail({
   const safeName = escapeEmailHtml(name);
   const safeSubject = escapeEmailHtml(subject);
 
-  const emailSubject = `We have received your message | SHOPY Support`;
+  const emailSubject = `SHOPY Support — Message Received: ${safeSubject}`;
   const preheader = `Thank you for contacting SHOPY. Our support team will assist you shortly.`;
 
   const bodyContent = `
@@ -128,7 +128,7 @@ export function renderContactFormAcknowledgmentEmail({
     </p>
 
     <!-- ASSISTANCE CARD -->
-    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #E8E8E8; border: 1px solid #BBBFCA; text-align: center; margin: 0 0 24px 0; padding: 20px;">
+    <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #E8E8E8; border: 1px solid #BBBFCA; text-align: center; margin: 0 0 24px 0; padding: 20px;">
       <tr>
         <td>
           <p style="font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase; color: #495464; margin: 0 0 6px 0; font-weight: 600;">

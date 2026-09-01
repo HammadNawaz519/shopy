@@ -77,6 +77,8 @@ export interface SendEmailOptions {
   html: string;
   replyTo?: string;
   from?: string;
+  headers?: Record<string, string>;
+  messageId?: string;
 }
 
 export interface SendEmailResult {

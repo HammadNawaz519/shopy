@@ -136,8 +136,8 @@ export default function CartDrawer() {
               >
                 <div className="relative w-20 h-24 bg-[#E8E8E8] flex-shrink-0 overflow-hidden">
                   <Image
-                    src={item.image}
-                    alt={item.name}
+                    src={item.image || "/editorial-craft.jpg"}
+                    alt={item.name || "Product"}
                     fill
                     sizes="80px"
                     className="object-cover"
