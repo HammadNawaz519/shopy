@@ -1,17 +1,19 @@
 "use client";
 
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect } from "react";
 import Link from "next/link";
 import { X, Search, User, ArrowRight } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { deduplicateNavLinks, NavItem } from "./Navbar";
 
 interface MobileMenuProps {
   isOpen: boolean;
   onClose: () => void;
-  navLinks: NavItem[];
+  navLinks: Array<{ name: string; href: string }>;
   onOpenSearch: () => void;
 }
+
+const EXCLUDED_NAMES = new Set(["about", "contact", "accessories"]);
+const EXCLUDED_HREFS = new Set(["/about", "/contact", "/collections/accessories"]);
 
 export default function MobileMenu({
   isOpen,
@@ -21,7 +23,12 @@ export default function MobileMenu({
 }: MobileMenuProps) {
   const { user } = useAuth();
 
-  const cleanLinks = useMemo(() => deduplicateNavLinks(navLinks), [navLinks]);
+  const filteredLinks = (navLinks || []).filter(
+    (link) =>
+      link &&
+      !EXCLUDED_NAMES.has((link.name || "").trim().toLowerCase()) &&
+      !EXCLUDED_HREFS.has((link.href || "").trim().toLowerCase().replace(/\/+$/, "") || "/")
+  );
 
   useEffect(() => {
     if (isOpen) {
@@ -77,7 +84,7 @@ export default function MobileMenu({
 
           {/* Nav List */}
           <nav className="mt-8 flex flex-col space-y-2">
-            {cleanLinks.map((link) => (
+            {filteredLinks.map((link) => (
               <Link
                 key={`${link.name}-${link.href}`}
                 href={link.href}

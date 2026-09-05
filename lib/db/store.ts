@@ -2442,16 +2442,14 @@ class SupabaseDataStore {
     }
 
     return [
-      { id: "nav-products", name: "Shop All", href: "/products", orderIndex: 0, isActive: true },
-      { id: "nav-tops", name: "Tops", href: "/collections/tops", orderIndex: 1, isActive: true, categorySlug: "tops" },
-      { id: "nav-bottoms", name: "Bottoms", href: "/collections/bottoms", orderIndex: 2, isActive: true, categorySlug: "bottoms" },
-      { id: "nav-coord", name: "Co-Ord Sets", href: "/collections/co-ord-sets", orderIndex: 3, isActive: true, categorySlug: "co-ord-sets" },
-      { id: "nav-footwear", name: "Footwear", href: "/collections/footwear", orderIndex: 4, isActive: true, categorySlug: "footwear" },
-      { id: "nav-fragrances", name: "Fragrances", href: "/collections/fragrances", orderIndex: 5, isActive: true, categorySlug: "fragrances" },
-      { id: "nav-accessories", name: "Accessories", href: "/collections/accessories", orderIndex: 6, isActive: true, categorySlug: "accessories" },
-      { id: "nav-collections", name: "Collections", href: "/collections", orderIndex: 7, isActive: true },
-      { id: "nav-about", name: "About", href: "/about", orderIndex: 8, isActive: true },
-      { id: "nav-contact", name: "Contact", href: "/contact", orderIndex: 9, isActive: true },
+      { id: "nav_1", name: "home", href: "/", orderIndex: 0, isActive: true },
+      { id: "nav_2", name: "view all", href: "/products", orderIndex: 1, isActive: true },
+      { id: "nav_3", name: "tops", href: "/collections/tops", orderIndex: 2, isActive: true, categorySlug: "tops" },
+      { id: "nav_4", name: "bottoms", href: "/collections/bottoms", orderIndex: 3, isActive: true, categorySlug: "bottoms" },
+      { id: "nav_5", name: "co-ord sets", href: "/collections/co-ord-sets", orderIndex: 4, isActive: true, categorySlug: "co-ord-sets" },
+      { id: "nav_6", name: "footwear", href: "/collections/footwear", orderIndex: 5, isActive: true, categorySlug: "footwear" },
+      { id: "nav_7", name: "fragrances", href: "/collections/fragrances", orderIndex: 6, isActive: true, categorySlug: "fragrances" },
+      { id: "nav_8", name: "collections", href: "/collections", orderIndex: 7, isActive: true },
     ];
   }
 
