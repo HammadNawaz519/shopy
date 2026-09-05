@@ -2401,7 +2401,7 @@ class SupabaseDataStore {
       sql += ` ORDER BY order_index ASC, name ASC;`;
       const res = await query(sql);
       if (res.rows.length > 0) {
-        return res.rows.map((r) => ({
+        const rawItems: NavigationItem[] = res.rows.map((r) => ({
           id: r.id,
           name: r.name,
           href: r.href,
@@ -2411,25 +2411,78 @@ class SupabaseDataStore {
           createdAt: r.created_at ? new Date(r.created_at).toISOString() : undefined,
           updatedAt: r.updated_at ? new Date(r.updated_at).toISOString() : undefined,
         }));
+
+        // Deduplicate items by normalized href, normalized name, and category_slug
+        const seenHrefs = new Set<string>();
+        const seenNames = new Set<string>();
+        const seenSlugs = new Set<string>();
+        const deduplicated: NavigationItem[] = [];
+
+        for (const item of rawItems) {
+          if (!item.name || !item.href) continue;
+          const normHref = item.href.trim().toLowerCase().replace(/\/+$/, "") || "/";
+          const normName = item.name.trim().toLowerCase();
+          const normSlug = item.categorySlug ? item.categorySlug.trim().toLowerCase() : "";
+
+          // Skip if duplicate href, duplicate name, or duplicate category slug
+          if (seenHrefs.has(normHref) || seenNames.has(normName) || (normSlug && seenSlugs.has(normSlug))) {
+            continue;
+          }
+
+          seenHrefs.add(normHref);
+          seenNames.add(normName);
+          if (normSlug) seenSlugs.add(normSlug);
+          deduplicated.push(item);
+        }
+
+        return deduplicated;
       }
     } catch (err) {
       console.error("[GET NAV ITEMS ERROR]", err);
     }
 
     return [
-      { id: "nav_1", name: "home", href: "/", orderIndex: 0, isActive: true },
-      { id: "nav_2", name: "view all", href: "/products", orderIndex: 1, isActive: true },
-      { id: "nav_3", name: "tops", href: "/collections/tops", orderIndex: 2, isActive: true, categorySlug: "tops" },
-      { id: "nav_4", name: "bottoms", href: "/collections/bottoms", orderIndex: 3, isActive: true, categorySlug: "bottoms" },
-      { id: "nav_5", name: "co-ord sets", href: "/collections/co-ord-sets", orderIndex: 4, isActive: true, categorySlug: "co-ord-sets" },
-      { id: "nav_6", name: "footwear", href: "/collections/footwear", orderIndex: 5, isActive: true, categorySlug: "footwear" },
-      { id: "nav_7", name: "fragrances", href: "/collections/fragrances", orderIndex: 6, isActive: true, categorySlug: "fragrances" },
-      { id: "nav_8", name: "collections", href: "/collections", orderIndex: 7, isActive: true },
+      { id: "nav-products", name: "Shop All", href: "/products", orderIndex: 0, isActive: true },
+      { id: "nav-tops", name: "Tops", href: "/collections/tops", orderIndex: 1, isActive: true, categorySlug: "tops" },
+      { id: "nav-bottoms", name: "Bottoms", href: "/collections/bottoms", orderIndex: 2, isActive: true, categorySlug: "bottoms" },
+      { id: "nav-coord", name: "Co-Ord Sets", href: "/collections/co-ord-sets", orderIndex: 3, isActive: true, categorySlug: "co-ord-sets" },
+      { id: "nav-footwear", name: "Footwear", href: "/collections/footwear", orderIndex: 4, isActive: true, categorySlug: "footwear" },
+      { id: "nav-fragrances", name: "Fragrances", href: "/collections/fragrances", orderIndex: 5, isActive: true, categorySlug: "fragrances" },
+      { id: "nav-accessories", name: "Accessories", href: "/collections/accessories", orderIndex: 6, isActive: true, categorySlug: "accessories" },
+      { id: "nav-collections", name: "Collections", href: "/collections", orderIndex: 7, isActive: true },
+      { id: "nav-about", name: "About", href: "/about", orderIndex: 8, isActive: true },
+      { id: "nav-contact", name: "Contact", href: "/contact", orderIndex: 9, isActive: true },
     ];
   }
 
   async addNavigationItem(item: { name: string; href: string; orderIndex?: number; isActive?: boolean; categorySlug?: string }): Promise<NavigationItem> {
     await this.ensureTablesExist();
+    const cleanName = item.name.trim();
+    const cleanHref = item.href.trim();
+    const cleanSlug = item.categorySlug ? item.categorySlug.trim() : null;
+
+    // Check if duplicate already exists
+    const existing = await query(
+      `SELECT * FROM navigation_items 
+       WHERE LOWER(href) = LOWER($1) 
+          OR (category_slug IS NOT NULL AND LOWER(category_slug) = LOWER($2))
+          OR LOWER(name) = LOWER($3)
+       LIMIT 1;`,
+      [cleanHref, cleanSlug || "", cleanName]
+    );
+
+    if (existing.rows.length > 0) {
+      const existingId = existing.rows[0].id;
+      const updated = await this.updateNavigationItem(existingId, {
+        name: cleanName,
+        href: cleanHref,
+        orderIndex: item.orderIndex !== undefined ? item.orderIndex : existing.rows[0].order_index,
+        isActive: item.isActive !== undefined ? item.isActive : existing.rows[0].is_active,
+        categorySlug: cleanSlug || undefined,
+      });
+      return updated!;
+    }
+
     const id = `nav_${Date.now()}`;
     const res = await query(
       `INSERT INTO navigation_items (id, name, href, order_index, is_active, category_slug)
@@ -2437,11 +2490,11 @@ class SupabaseDataStore {
        RETURNING *;`,
       [
         id,
-        item.name.toLowerCase().trim(),
-        item.href.trim(),
+        cleanName,
+        cleanHref,
         item.orderIndex !== undefined ? item.orderIndex : 99,
         item.isActive !== undefined ? item.isActive : true,
-        item.categorySlug || null,
+        cleanSlug,
       ]
     );
     const r = res.rows[0];

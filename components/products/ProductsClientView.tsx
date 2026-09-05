@@ -49,6 +49,16 @@ export default function ProductsClientView({
     return list;
   }, [productsList, selectedCategory, selectedSort, priceRange]);
 
+  const uniqueCategories = useMemo(() => {
+    const seen = new Set<string>();
+    return categoriesList.filter((cat) => {
+      const slug = (cat.slug || cat.name || "").toLowerCase().trim();
+      if (!slug || seen.has(slug)) return false;
+      seen.add(slug);
+      return true;
+    });
+  }, [categoriesList]);
+
   return (
     <div className="pt-20 pb-20 bg-[#F4F4F2] text-[#495464]">
       <div className="max-w-[1720px] mx-auto px-6 lg:px-12">
@@ -79,9 +89,9 @@ export default function ProductsClientView({
             >
               All
             </button>
-            {categoriesList.map((cat) => (
+            {uniqueCategories.map((cat) => (
               <button
-                key={cat.id}
+                key={cat.id || cat.slug}
                 onClick={() => setSelectedCategory(cat.slug)}
                 className={`px-4 py-2 text-xs uppercase tracking-widest transition-all ${
                   selectedCategory === cat.slug

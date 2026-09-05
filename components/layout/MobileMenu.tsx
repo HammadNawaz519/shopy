@@ -1,14 +1,15 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
 import Link from "next/link";
 import { X, Search, User, ArrowRight } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { deduplicateNavLinks, NavItem } from "./Navbar";
 
 interface MobileMenuProps {
   isOpen: boolean;
   onClose: () => void;
-  navLinks: Array<{ name: string; href: string }>;
+  navLinks: NavItem[];
   onOpenSearch: () => void;
 }
 
@@ -19,6 +20,8 @@ export default function MobileMenu({
   onOpenSearch,
 }: MobileMenuProps) {
   const { user } = useAuth();
+
+  const cleanLinks = useMemo(() => deduplicateNavLinks(navLinks), [navLinks]);
 
   useEffect(() => {
     if (isOpen) {
@@ -74,9 +77,9 @@ export default function MobileMenu({
 
           {/* Nav List */}
           <nav className="mt-8 flex flex-col space-y-2">
-            {navLinks.map((link) => (
+            {cleanLinks.map((link) => (
               <Link
-                key={link.name}
+                key={`${link.name}-${link.href}`}
                 href={link.href}
                 prefetch={false}
                 onClick={onClose}
