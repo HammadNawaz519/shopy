@@ -19,18 +19,37 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasBeenHovered, setHasBeenHovered] = useState(false);
+  const [activeColorImage, setActiveColorImage] = useState<string | null>(null);
+  const [activeColorName, setActiveColorName] = useState<string | null>(null);
   const { addItem } = useCart();
   const { showToast } = useToast();
 
   const hasSecondImage = Array.isArray(product.images) && product.images.length > 1;
 
+  const handleColorSelect = (e: React.MouseEvent, c: any) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setActiveColorName(c.name);
+    if (c.imageUrl) {
+      setActiveColorImage(c.imageUrl);
+    } else {
+      const idx = product.colors?.findIndex((item: any) => item.name === c.name);
+      if (idx !== undefined && idx !== -1 && product.images?.[idx]) {
+        setActiveColorImage(product.images[idx]);
+      }
+    }
+  };
+
   const handleQuickAdd = (e: React.MouseEvent, size: string) => {
     e.preventDefault();
     e.stopPropagation();
-    addItem(product, size, product.colors?.[0]?.name || "Default", 1);
-    showToast(`Added ${product.name} (${size}) to bag`, "success");
+    const chosenColor = activeColorName || product.colors?.[0]?.name || "Default";
+    addItem(product, size, chosenColor, 1, activeColorImage || undefined);
+    showToast(`Added ${product.name} (${size} - ${chosenColor}) to bag`, "success");
     setShowQuickAdd(false);
   };
+
+  const primaryImageSrc = activeColorImage || product.images?.[0] || "/editorial-craft.jpg";
 
   return (
     <div
@@ -55,7 +74,8 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
         >
           {/* Primary Image with Crisp Retina Delivery & Fade-in */}
           <Image
-            src={product.images?.[0] || "/editorial-craft.jpg"}
+            key={primaryImageSrc}
+            src={primaryImageSrc}
             alt={product.name}
             fill
             priority={priority}
@@ -63,7 +83,7 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
             onLoad={() => setIsLoaded(true)}
             className={`object-cover object-center transition-all duration-700 ${
               isLoaded ? "opacity-100 scale-100" : "opacity-0 scale-[1.02]"
-            } ${hasSecondImage && isHovered && hasBeenHovered ? "!opacity-0" : ""}`}
+            } ${hasSecondImage && isHovered && hasBeenHovered && !activeColorImage ? "!opacity-0" : ""}`}
           />
 
           {/* Secondary Hover Image — Loaded On-Demand upon first hover */}
@@ -140,13 +160,21 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
             <span>{product.categoryLabel}</span>
             {/* Color Swatch Dots */}
             {product.colors && product.colors.length > 0 && (
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1.5 z-10" onClick={(e) => e.stopPropagation()}>
                 {product.colors.map((c) => (
-                  <span
+                  <button
+                    type="button"
                     key={c.name}
                     title={c.name}
-                    className="w-2.5 h-2.5 rounded-full border border-black/10"
+                    onMouseEnter={(e) => handleColorSelect(e, c)}
+                    onClick={(e) => handleColorSelect(e, c)}
+                    className={`w-2.5 h-2.5 rounded-full border transition-all cursor-pointer ${
+                      activeColorName === c.name
+                        ? "scale-125 border-[#495464] ring-1 ring-[#495464]/50"
+                        : "border-black/15 hover:scale-115"
+                    }`}
                     style={{ backgroundColor: c.hex }}
+                    aria-label={c.name}
                   />
                 ))}
               </div>

@@ -28,7 +28,7 @@ interface CartContextType {
   isOpen: boolean;
   openCart: () => void;
   closeCart: () => void;
-  addItem: (product: Product, size: string, color: string, quantity?: number) => void;
+  addItem: (product: Product, size: string, color: string, quantity?: number, customImage?: string) => void;
   removeItem: (productId: string, size: string, color: string) => void;
   updateQuantity: (productId: string, size: string, color: string, quantity: number) => void;
   clearCart: () => void;
@@ -223,12 +223,23 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   };
   const closeCart = () => setIsOpen(false);
 
-  const addItem = (product: Product, size: string, color: string, quantity = 1) => {
+  const addItem = (
+    product: Product,
+    size: string,
+    color: string,
+    quantity = 1,
+    customImage?: string
+  ) => {
     if (!product || !product.id || !product.name) return;
+    const matchedColor = Array.isArray(product.colors)
+      ? product.colors.find((c: any) => c && c.name === color)
+      : null;
     const resolvedImage =
-      Array.isArray(product.images) && product.images.length > 0 && typeof product.images[0] === "string" && product.images[0].trim() !== ""
+      customImage ||
+      matchedColor?.imageUrl ||
+      (Array.isArray(product.images) && product.images.length > 0 && typeof product.images[0] === "string" && product.images[0].trim() !== ""
         ? product.images[0]
-        : "/editorial-craft.jpg";
+        : "/editorial-craft.jpg");
 
     setItems((prev) => {
       const sanitized = prev.filter(

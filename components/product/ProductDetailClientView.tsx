@@ -48,22 +48,55 @@ export default function ProductDetailClientView({
   const { addItem, openCart } = useCart();
   const { showToast } = useToast();
 
+  const imageList: string[] = Array.isArray(product?.images) && product.images.length > 0 ? product.images : ["/editorial-craft.jpg"];
+  const currentImage = imageList[selectedImageIdx] || imageList[0];
+
+  const handleColorSelect = (colorObj: any) => {
+    if (!colorObj || !colorObj.name) return;
+    setSelectedColor(colorObj.name);
+
+    // 1. Direct match with colorObj.imageUrl
+    if (colorObj.imageUrl) {
+      const directIdx = imageList.findIndex((img) => img === colorObj.imageUrl);
+      if (directIdx !== -1) {
+        setSelectedImageIdx(directIdx);
+        return;
+      }
+    }
+
+    // 2. Heuristic fallback: if colors count matches images or has index
+    const colorIdx = product.colors?.findIndex((c: any) => c.name === colorObj.name);
+    if (colorIdx !== undefined && colorIdx !== -1 && colorIdx < imageList.length) {
+      setSelectedImageIdx(colorIdx);
+    }
+  };
+
+  const handleThumbnailSelect = (idx: number) => {
+    setSelectedImageIdx(idx);
+    const clickedUrl = imageList[idx];
+    if (clickedUrl && Array.isArray(product.colors)) {
+      const matchedColor = product.colors.find((c: any) => c && c.imageUrl === clickedUrl);
+      if (matchedColor) {
+        setSelectedColor(matchedColor.name);
+      } else if (product.colors[idx]) {
+        setSelectedColor(product.colors[idx].name);
+      }
+    }
+  };
+
   const handleAddToCart = () => {
-    addItem(product, selectedSize, selectedColor, quantity);
-    showToast(`Added ${product.name} (${selectedSize}) to bag`, "success");
+    addItem(product, selectedSize, selectedColor, quantity, currentImage);
+    showToast(`Added ${product.name} (${selectedSize} - ${selectedColor}) to bag`, "success");
   };
 
   const handleBuyNow = () => {
-    addItem(product, selectedSize, selectedColor, quantity);
+    addItem(product, selectedSize, selectedColor, quantity, currentImage);
     openCart();
   };
 
   const toggleAccordion = (key: string) => {
     setOpenAccordion((prev) => (prev === key ? null : key));
   };
-
-  const imageList = Array.isArray(product?.images) && product.images.length > 0 ? product.images : ["/editorial-craft.jpg"];
-  const currentImage = imageList[selectedImageIdx] || imageList[0];
 
   return (
     <div className="pt-24 sm:pt-28 lg:pt-32 pb-20 bg-[#F4F4F2] text-[#495464]">
@@ -94,7 +127,7 @@ export default function ProductDetailClientView({
                 {imageList.map((img: string, idx: number) => (
                   <button
                     key={idx}
-                    onClick={() => setSelectedImageIdx(idx)}
+                    onClick={() => handleThumbnailSelect(idx)}
                     className={`relative w-16 sm:w-full aspect-[3/4] bg-[#E8E8E8] overflow-hidden border transition-all ${
                       selectedImageIdx === idx
                         ? "border-[#495464] opacity-100 shadow-sm"
@@ -184,7 +217,7 @@ export default function ProductDetailClientView({
                     {product.colors.map((c: any) => (
                       <button
                         key={c.name}
-                        onClick={() => setSelectedColor(c.name)}
+                        onClick={() => handleColorSelect(c)}
                         className={`group relative flex items-center justify-center p-0.5 rounded-full border transition-all ${
                           selectedColor === c.name
                             ? "border-[#495464]"

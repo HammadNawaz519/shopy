@@ -1,3 +1,9 @@
+export interface ProductColor {
+  name: string;
+  hex: string;
+  imageUrl?: string;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -9,7 +15,7 @@ export interface Product {
   description: string;
   tag?: "NEW" | "SALE" | "LIMITED" | "ARCHIVE";
   images: string[];
-  colors: { name: string; hex: string }[];
+  colors: ProductColor[];
   sizes: string[];
   composition: string[];
   careInstructions: string[];
@@ -35,9 +41,9 @@ export const PRODUCTS: Product[] = [
       "/product-linen-overshirt.jpg",
     ],
     colors: [
-      { name: "Raw Ecru", hex: "#F4F4F2" },
-      { name: "Obsidian Slate", hex: "#495464" },
-      { name: "Muted Bone", hex: "#E8E8E8" },
+      { name: "Raw Ecru", hex: "#F4F4F2", imageUrl: "/category-tops.jpg" },
+      { name: "Obsidian Slate", hex: "#495464", imageUrl: "/product-linen-overshirt.jpg" },
+      { name: "Muted Bone", hex: "#E8E8E8", imageUrl: "/category-tops.jpg" },
     ],
     sizes: ["XS", "S", "M", "L", "XL"],
     composition: ["100% Organic Heavyweight Cotton", "Pre-shrunk 280 GSM fabric"],
@@ -67,8 +73,8 @@ export const PRODUCTS: Product[] = [
       "/product-linen-pants.jpg",
     ],
     colors: [
-      { name: "Charcoal Slate", hex: "#495464" },
-      { name: "Pebble Grey", hex: "#BBBFCA" },
+      { name: "Charcoal Slate", hex: "#495464", imageUrl: "/category-bottoms.jpg" },
+      { name: "Pebble Grey", hex: "#BBBFCA", imageUrl: "/product-linen-pants.jpg" },
     ],
     sizes: ["28", "30", "32", "34", "36"],
     composition: ["70% Virgin Tropical Wool", "30% Sustainable Viscose", "Viscose lining"],
@@ -240,10 +246,11 @@ export const PRODUCTS: Product[] = [
     tag: "SALE",
     images: [
       "/product-linen-pants.jpg",
+      "/category-bottoms.jpg",
     ],
     colors: [
-      { name: "Bleached Sand", hex: "#E8E8E8" },
-      { name: "Dark Slate", hex: "#495464" },
+      { name: "Bleached Sand", hex: "#E8E8E8", imageUrl: "/product-linen-pants.jpg" },
+      { name: "Dark Slate", hex: "#495464", imageUrl: "/category-bottoms.jpg" },
     ],
     sizes: ["S", "M", "L", "XL"],
     composition: ["100% Normandy Flax Linen (Garment Washed)"],
@@ -272,8 +279,8 @@ export const PRODUCTS: Product[] = [
       "/category-tops.jpg",
     ],
     colors: [
-      { name: "Natural Flax", hex: "#E8E8E8" },
-      { name: "Charcoal Slate", hex: "#495464" },
+      { name: "Natural Flax", hex: "#E8E8E8", imageUrl: "/product-linen-overshirt.jpg" },
+      { name: "Charcoal Slate", hex: "#495464", imageUrl: "/category-tops.jpg" },
     ],
     sizes: ["S", "M", "L", "XL"],
     composition: ["100% Belgian Heavyweight Linen (320 GSM)"],
@@ -301,7 +308,7 @@ export const PRODUCTS: Product[] = [
       "/category-fragrances.jpg",
     ],
     colors: [
-      { name: "Frosted Flacon (50ml)", hex: "#F4F4F2" },
+      { name: "Frosted Flacon (50ml)", hex: "#F4F4F2", imageUrl: "/atelier-still-life.jpg" },
     ],
     sizes: ["50ml", "100ml"],
     composition: ["30% Pure Perfume Extrait Concentration", "Organic Alcohol"],

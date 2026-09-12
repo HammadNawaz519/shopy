@@ -53,6 +53,7 @@ export default function AdminProductsPage() {
     stockCount: "15",
     description: "",
     images: [] as string[],
+    colors: [] as { name: string; hex: string; imageUrl?: string }[],
     tag: "NEW",
     featured: false,
   });
@@ -65,6 +66,7 @@ export default function AdminProductsPage() {
     let successCount = 0;
 
     try {
+      const uploadedUrls: string[] = [];
       for (const file of files) {
         const uploadData = new FormData();
         uploadData.append("file", file);
@@ -76,14 +78,29 @@ export default function AdminProductsPage() {
 
         const data = await res.json();
         if (res.ok && data.success && data.url) {
-          setFormData((prev) => ({
-            ...prev,
-            images: [...prev.images, data.url],
-          }));
+          uploadedUrls.push(data.url);
           successCount++;
         } else {
           showToast(data.error || `Failed to upload ${file.name}.`, "error");
         }
+      }
+
+      if (uploadedUrls.length > 0) {
+        setFormData((prev) => {
+          const newImages = [...prev.images, ...uploadedUrls];
+          // Intelligently auto-link unlinked colors to new images in sequence
+          const updatedColors = prev.colors.map((c, i) => {
+            if (!c.imageUrl && newImages[i]) {
+              return { ...c, imageUrl: newImages[i] };
+            }
+            return c;
+          });
+          return {
+            ...prev,
+            images: newImages,
+            colors: updatedColors,
+          };
+        });
       }
 
       if (successCount > 0) {
@@ -108,17 +125,29 @@ export default function AdminProductsPage() {
     if (e) e.preventDefault();
     const trimmed = customUrlInput.trim();
     if (!trimmed) return;
-    setFormData((prev) => ({
-      ...prev,
-      images: [...prev.images, trimmed],
-    }));
+    setFormData((prev) => {
+      const newImages = [...prev.images, trimmed];
+      const updatedColors = prev.colors.map((c, i) => {
+        if (!c.imageUrl && newImages[i]) {
+          return { ...c, imageUrl: newImages[i] };
+        }
+        return c;
+      });
+      return {
+        ...prev,
+        images: newImages,
+        colors: updatedColors,
+      };
+    });
     setCustomUrlInput("");
   };
 
   const handleRemoveImage = (index: number) => {
+    const removedUrl = formData.images[index];
     setFormData((prev) => ({
       ...prev,
       images: prev.images.filter((_, i) => i !== index),
+      colors: prev.colors.map((c) => (c.imageUrl === removedUrl ? { ...c, imageUrl: "" } : c)),
     }));
   };
 
@@ -132,6 +161,55 @@ export default function AdminProductsPage() {
       updated[targetIndex] = temp;
       return { ...prev, images: updated };
     });
+  };
+
+  const handleAssignColorToImage = (colorName: string, imgUrl: string) => {
+    setFormData((prev) => {
+      if (!colorName) {
+        return {
+          ...prev,
+          colors: prev.colors.map((c) => (c.imageUrl === imgUrl ? { ...c, imageUrl: "" } : c)),
+        };
+      }
+      return {
+        ...prev,
+        colors: prev.colors.map((c) => {
+          if (c.name === colorName) {
+            return { ...c, imageUrl: imgUrl };
+          }
+          return c;
+        }),
+      };
+    });
+  };
+
+  const handleAddColor = () => {
+    setFormData((prev) => ({
+      ...prev,
+      colors: [
+        ...prev.colors,
+        {
+          name: `Variant ${prev.colors.length + 1}`,
+          hex: prev.colors.length === 0 ? "#F4F4F2" : prev.colors.length === 1 ? "#222831" : "#8E8D8A",
+          imageUrl: prev.images[prev.colors.length] || "",
+        },
+      ],
+    }));
+  };
+
+  const handleUpdateColor = (index: number, field: "name" | "hex" | "imageUrl", value: string) => {
+    setFormData((prev) => {
+      const updated = [...prev.colors];
+      updated[index] = { ...updated[index], [field]: value };
+      return { ...prev, colors: updated };
+    });
+  };
+
+  const handleRemoveColor = (index: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      colors: prev.colors.filter((_, i) => i !== index),
+    }));
   };
 
   const [categories, setCategories] = useState<any[]>([]);
@@ -190,6 +268,10 @@ export default function AdminProductsPage() {
       stockCount: "15",
       description: "",
       images: [],
+      colors: [
+        { name: "Light", hex: "#E8E8E8", imageUrl: "" },
+        { name: "Dark", hex: "#222831", imageUrl: "" },
+      ],
       tag: "NEW",
       featured: false,
     });
@@ -200,6 +282,20 @@ export default function AdminProductsPage() {
 
   const handleOpenEdit = (prod: any) => {
     setEditingProduct(prod);
+    const existingColors = Array.isArray(prod.colors) && prod.colors.length > 0
+      ? prod.colors.map((c: any) => {
+          if (typeof c === "string") return { name: c, hex: "#495464", imageUrl: "" };
+          return {
+            name: c.name || "Default",
+            hex: c.hex || "#495464",
+            imageUrl: c.imageUrl || "",
+          };
+        })
+      : [
+          { name: "Light", hex: "#E8E8E8", imageUrl: "" },
+          { name: "Dark", hex: "#222831", imageUrl: "" },
+        ];
+
     setFormData({
       name: prod.name,
       category: prod.category,
@@ -209,6 +305,7 @@ export default function AdminProductsPage() {
       stockCount: String(prod.stockCount),
       description: prod.description || "",
       images: Array.isArray(prod.images) ? [...prod.images] : [],
+      colors: existingColors,
       tag: prod.tag || "NEW",
       featured: Boolean(prod.featured),
     });
@@ -235,6 +332,13 @@ export default function AdminProductsPage() {
       const catLabel = matchedCat ? matchedCat.name : (formData.category ? formData.category.charAt(0).toUpperCase() + formData.category.slice(1) : "General");
       const validImages = formData.images.filter(Boolean);
       const productImages = validImages.length > 0 ? validImages : ["/editorial-craft.jpg"];
+      const validColors = formData.colors
+        .filter((c) => c.name && c.name.trim().length > 0)
+        .map((c) => ({
+          name: c.name.trim(),
+          hex: c.hex || "#495464",
+          imageUrl: c.imageUrl || undefined,
+        }));
 
       if (editingProduct) {
         // Edit existing product
@@ -251,6 +355,7 @@ export default function AdminProductsPage() {
             stockCount: Number(formData.stockCount || 0),
             description: formData.description.trim(),
             images: productImages,
+            colors: validColors,
             tag: formData.tag,
             featured: formData.featured,
           }),
@@ -278,6 +383,7 @@ export default function AdminProductsPage() {
             stockCount: Number(formData.stockCount || 0),
             description: formData.description.trim(),
             images: productImages,
+            colors: validColors,
             tag: formData.tag,
             featured: formData.featured,
           }),
@@ -461,6 +567,21 @@ export default function AdminProductsPage() {
                             {p.name}
                           </p>
                           <p className="text-[10px] text-[#495464]/60">SKU: {p.id}</p>
+                          {Array.isArray(p.colors) && p.colors.length > 0 && (
+                            <div className="flex items-center gap-1 mt-1">
+                              {p.colors.map((c: any, cIdx: number) => (
+                                <span
+                                  key={cIdx}
+                                  title={`${c.name || "Color"}${c.imageUrl ? " (Linked to photo)" : ""}`}
+                                  className="w-2.5 h-2.5 rounded-full border border-black/20 inline-block"
+                                  style={{ backgroundColor: c.hex || "#495464" }}
+                                />
+                              ))}
+                              <span className="text-[9px] text-[#495464]/60 ml-0.5 font-mono">
+                                {p.colors.length} {p.colors.length === 1 ? "color" : "colors"}
+                              </span>
+                            </div>
+                          )}
                         </div>
                       </td>
                       <td className="p-4 uppercase text-[10px] font-semibold text-[#495464]/80">
@@ -702,75 +823,217 @@ export default function AdminProductsPage() {
                     </div>
                   </div>
 
-                  {/* Multi-Image List with Primary Tag, Reordering, and Removal */}
+                  {/* Multi-Image List with Primary Tag, Color Assignment, Reordering, and Removal */}
                   {formData.images.length > 0 && (
-                    <div className="space-y-2 pt-1 max-h-56 overflow-y-auto pr-1">
-                      {formData.images.map((imgUrl, idx) => (
-                        <div
-                          key={`${imgUrl}-${idx}`}
-                          className="flex items-center justify-between gap-3 p-2 bg-[#E8E8E8] border border-[#BBBFCA] shadow-xs"
-                        >
-                          <div className="flex items-center gap-3 min-w-0">
-                            <div className="relative w-12 h-12 bg-[#BBBFCA]/40 flex-shrink-0 overflow-hidden border border-[#BBBFCA]">
+                    <div className="space-y-2 pt-1 max-h-60 overflow-y-auto pr-1">
+                      {formData.images.map((imgUrl, idx) => {
+                        const assignedColors = formData.colors.filter((c) => c.imageUrl === imgUrl);
+                        const primaryAssignedColor = assignedColors[0]?.name || "";
+
+                        return (
+                          <div
+                            key={`${imgUrl}-${idx}`}
+                            className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-2 bg-[#E8E8E8] border border-[#BBBFCA] shadow-xs"
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="relative w-12 h-12 bg-[#BBBFCA]/40 flex-shrink-0 overflow-hidden border border-[#BBBFCA]">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={imgUrl}
+                                  alt={`Product Photo ${idx + 1}`}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
+                                  {idx === 0 ? (
+                                    <span className="bg-[#495464] text-[#F4F4F2] text-[8px] uppercase tracking-widest font-semibold px-1.5 py-0.5">
+                                      Primary / Cover
+                                    </span>
+                                  ) : (
+                                    <span className="text-[9px] uppercase tracking-wider text-[#495464]/60 font-semibold font-mono">
+                                      Photo #{idx + 1}
+                                    </span>
+                                  )}
+
+                                  {/* Assigned Color Badges */}
+                                  {assignedColors.map((ac) => (
+                                    <span
+                                      key={ac.name}
+                                      className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-[#BBBFCA]/50 text-[8px] uppercase tracking-wider font-semibold text-[#495464] border border-[#BBBFCA]"
+                                    >
+                                      <span
+                                        className="w-2 h-2 rounded-full border border-black/20"
+                                        style={{ backgroundColor: ac.hex }}
+                                      />
+                                      {ac.name}
+                                    </span>
+                                  ))}
+                                </div>
+                                <p className="text-[10px] text-[#495464]/70 truncate font-mono max-w-[180px] sm:max-w-[220px]">
+                                  {imgUrl}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap justify-between sm:justify-end">
+                              {/* Direct Color Assignment Dropdown */}
+                              {formData.colors.length > 0 && (
+                                <div className="flex items-center gap-1">
+                                  <span className="text-[9px] uppercase tracking-wider text-[#495464]/70 font-semibold whitespace-nowrap">
+                                    Assign:
+                                  </span>
+                                  <select
+                                    value={primaryAssignedColor}
+                                    onChange={(e) => handleAssignColorToImage(e.target.value, imgUrl)}
+                                    className="h-7 bg-[#F4F4F2] border border-[#BBBFCA] px-1.5 text-[10px] text-[#495464] uppercase font-medium focus:outline-none focus:border-[#495464]"
+                                  >
+                                    <option value="">(None / General)</option>
+                                    {formData.colors.map((c) => (
+                                      <option key={c.name} value={c.name}>
+                                        {c.name}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                              )}
+
+                              <div className="flex items-center gap-1 flex-shrink-0">
+                                {/* Move Left / Up */}
+                                <button
+                                  type="button"
+                                  disabled={idx === 0}
+                                  onClick={() => handleMoveImage(idx, "left")}
+                                  title="Move left (make primary)"
+                                  className="p-1.5 text-[#495464] hover:bg-[#BBBFCA]/60 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                                >
+                                  <ArrowLeft className="w-3.5 h-3.5" />
+                                </button>
+                                {/* Move Right / Down */}
+                                <button
+                                  type="button"
+                                  disabled={idx === formData.images.length - 1}
+                                  onClick={() => handleMoveImage(idx, "right")}
+                                  title="Move right"
+                                  className="p-1.5 text-[#495464] hover:bg-[#BBBFCA]/60 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                                >
+                                  <ArrowRight className="w-3.5 h-3.5" />
+                                </button>
+                                {/* Delete specific image */}
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveImage(idx)}
+                                  className="text-[10px] uppercase tracking-wider text-[#495464] hover:text-black px-2.5 py-1 bg-[#BBBFCA]/40 hover:bg-[#BBBFCA]/70 transition-colors font-medium ml-1 cursor-pointer"
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* 5. Color Swatches & Photo Assignment */}
+                <div className="space-y-2 pt-2 border-t border-[#BBBFCA]/30">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <label className="block text-[10px] uppercase tracking-widest font-semibold text-[#495464]">
+                        Color Swatches & Image Assignment ({formData.colors.length} {formData.colors.length === 1 ? "Variant" : "Variants"})
+                      </label>
+                      <span className="text-[9px] uppercase tracking-wider text-[#495464]/60 font-mono">
+                        Assign which photo displays when customer clicks each color
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleAddColor}
+                      className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-semibold text-[#495464] hover:text-black px-2.5 py-1 bg-[#BBBFCA]/40 hover:bg-[#BBBFCA]/70 transition-colors cursor-pointer"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>Add Color</span>
+                    </button>
+                  </div>
+
+                  <div className="space-y-2">
+                    {formData.colors.map((col, cIdx) => (
+                      <div
+                        key={cIdx}
+                        className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 p-2 bg-[#E8E8E8] border border-[#BBBFCA]"
+                      >
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          {/* Hex Color Picker */}
+                          <input
+                            type="color"
+                            value={col.hex && col.hex.startsWith("#") && col.hex.length === 7 ? col.hex : "#495464"}
+                            onChange={(e) => handleUpdateColor(cIdx, "hex", e.target.value)}
+                            className="w-7 h-7 p-0 border border-[#BBBFCA] rounded-none cursor-pointer bg-transparent flex-shrink-0"
+                            title="Pick swatch hex color"
+                          />
+
+                          {/* Color Name */}
+                          <input
+                            type="text"
+                            value={col.name}
+                            onChange={(e) => handleUpdateColor(cIdx, "name", e.target.value)}
+                            placeholder="Color Name (e.g. Light or Dark)"
+                            className="h-8 flex-1 bg-[#F4F4F2] border border-[#BBBFCA] px-2.5 text-xs text-[#495464] focus:outline-none focus:border-[#495464]"
+                          />
+
+                          {/* Hex String */}
+                          <input
+                            type="text"
+                            value={col.hex}
+                            onChange={(e) => handleUpdateColor(cIdx, "hex", e.target.value)}
+                            placeholder="#495464"
+                            className="h-8 w-20 bg-[#F4F4F2] border border-[#BBBFCA] px-2 text-[10px] font-mono text-[#495464] uppercase focus:outline-none focus:border-[#495464]"
+                          />
+                        </div>
+
+                        <div className="flex items-center gap-2 flex-shrink-0 justify-between sm:justify-end">
+                          <span className="text-[9px] uppercase tracking-wider text-[#495464]/70 font-semibold whitespace-nowrap">
+                            Assigned Photo:
+                          </span>
+                          <select
+                            value={col.imageUrl || ""}
+                            onChange={(e) => handleUpdateColor(cIdx, "imageUrl", e.target.value)}
+                            className="h-8 bg-[#F4F4F2] border border-[#BBBFCA] px-2 text-[10px] text-[#495464] font-medium focus:outline-none focus:border-[#495464] max-w-[160px] sm:max-w-[200px]"
+                          >
+                            <option value="">None (Uses Primary Photo)</option>
+                            {formData.images.map((img, imgIdx) => (
+                              <option key={`${img}-${imgIdx}`} value={img}>
+                                Photo #{imgIdx + 1} {imgIdx === 0 ? "(Cover)" : ""}
+                              </option>
+                            ))}
+                          </select>
+
+                          {col.imageUrl && (
+                            <div className="relative w-8 h-8 bg-[#BBBFCA]/40 flex-shrink-0 border border-[#BBBFCA] overflow-hidden" title="Assigned Photo Preview">
                               {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img
-                                src={imgUrl}
-                                alt={`Product Photo ${idx + 1}`}
+                                src={col.imageUrl}
+                                alt={col.name}
                                 className="w-full h-full object-cover"
                               />
                             </div>
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-1.5 mb-0.5">
-                                {idx === 0 ? (
-                                  <span className="bg-[#495464] text-[#F4F4F2] text-[8px] uppercase tracking-widest font-semibold px-1.5 py-0.5">
-                                    Primary / Cover
-                                  </span>
-                                ) : (
-                                  <span className="text-[9px] uppercase tracking-wider text-[#495464]/60 font-semibold font-mono">
-                                    Photo #{idx + 1}
-                                  </span>
-                                )}
-                              </div>
-                              <p className="text-[10px] text-[#495464]/70 truncate font-mono max-w-[180px] sm:max-w-[280px]">
-                                {imgUrl}
-                              </p>
-                            </div>
-                          </div>
+                          )}
 
-                          <div className="flex items-center gap-1 flex-shrink-0">
-                            {/* Move Left / Up (reorder priority) */}
+                          {formData.colors.length > 1 && (
                             <button
                               type="button"
-                              disabled={idx === 0}
-                              onClick={() => handleMoveImage(idx, "left")}
-                              title="Move left (make primary)"
-                              className="p-1.5 text-[#495464] hover:bg-[#BBBFCA]/60 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                              onClick={() => handleRemoveColor(cIdx)}
+                              className="p-1.5 text-[#495464] hover:text-red-700 hover:bg-[#BBBFCA]/40 transition-colors cursor-pointer"
+                              title="Remove color variant"
                             >
-                              <ArrowLeft className="w-3.5 h-3.5" />
+                              <X className="w-3.5 h-3.5" />
                             </button>
-                            {/* Move Right / Down */}
-                            <button
-                              type="button"
-                              disabled={idx === formData.images.length - 1}
-                              onClick={() => handleMoveImage(idx, "right")}
-                              title="Move right"
-                              className="p-1.5 text-[#495464] hover:bg-[#BBBFCA]/60 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                            >
-                              <ArrowRight className="w-3.5 h-3.5" />
-                            </button>
-                            {/* Delete specific image */}
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveImage(idx)}
-                              className="text-[10px] uppercase tracking-wider text-[#495464] hover:text-black px-2.5 py-1 bg-[#BBBFCA]/40 hover:bg-[#BBBFCA]/70 transition-colors font-medium ml-1"
-                            >
-                              Remove
-                            </button>
-                          </div>
+                          )}
                         </div>
-                      ))}
-                    </div>
-                  )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
 
                 {/* 5. Description */}
