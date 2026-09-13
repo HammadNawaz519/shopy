@@ -10,7 +10,7 @@ interface CollectionGridProps {
 }
 
 export default function CollectionGrid({ initialCategories }: CollectionGridProps) {
-  const [categories] = useState<any[]>(initialCategories || []);
+  const categories: any[] = initialCategories || [];
 
   const featuredCategories = categories.filter((c) => Boolean(c.featured));
   const displayedCategories = featuredCategories.length > 0 ? featuredCategories : categories;

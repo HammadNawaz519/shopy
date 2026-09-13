@@ -97,6 +97,10 @@ export async function redisGet<T>(key: string): Promise<T | null> {
     const data = await redis.get<T>(key);
     return data ?? null;
   } catch (err: any) {
+    if (err?.message?.includes("WRONGPASS") || err?.message?.includes("unauthorized") || err?.message?.includes("NOPERM")) {
+      redisAvailable = false;
+      redisInstance = null;
+    }
     console.warn(`[REDIS GET ERROR] Key "${key}":`, err?.message || err);
     return null;
   }

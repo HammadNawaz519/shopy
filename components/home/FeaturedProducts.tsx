@@ -15,11 +15,11 @@ export default function FeaturedProducts({
   initialProducts = [],
   initialConfig,
 }: FeaturedProductsProps) {
-  const [products] = useState<Product[]>(initialProducts.slice(0, 4));
-  const [headline] = useState({
+  const products: Product[] = (initialProducts || []).slice(0, 4);
+  const headline = {
     title: initialConfig?.featuredTitle || "Featured Essentials",
     subtitle: initialConfig?.featuredSubtitle || "SELECTION OF THE SEASON",
-  });
+  };
 
   if (products.length === 0) {
     return null;

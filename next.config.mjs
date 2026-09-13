@@ -6,7 +6,7 @@ const nextConfig = {
     formats: ['image/avif', 'image/webp'],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
-    minimumCacheTTL: 2592000, // 30 days CDN edge cache
+    minimumCacheTTL: 0, // Never lock images in edge cache; allow immediate updates on refresh
     remotePatterns: [
       {
         protocol: 'https',
@@ -17,6 +17,13 @@ const nextConfig = {
         hostname: '**.supabase.co',
       },
     ],
+  },
+  experimental: {
+    // Disable client-side Next.js in-memory router cache so soft refreshes and navigations always fetch fresh data
+    staleTimes: {
+      dynamic: 0,
+      static: 0,
+    },
   },
   async headers() {
     return [
@@ -65,11 +72,22 @@ const nextConfig = {
         ],
       },
       {
-        source: '/:all*(svg|jpg|png|webp|avif|ico|woff2)',
+        // Fonts never change during runtime - safe to cache immutably
+        source: '/:all*(woff2)',
         headers: [
           {
             key: 'Cache-Control',
             value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+      {
+        // Images: must revalidate on simple refresh (no hard refresh required on mobile or desktop)
+        source: '/:all*(svg|jpg|jpeg|png|webp|avif|ico)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=0, must-revalidate',
           },
         ],
       },

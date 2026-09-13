@@ -24,18 +24,9 @@ export async function generateMetadata({ params }: CategoryPageProps) {
   return { title: params.category.toUpperCase() };
 }
 
+export const dynamic = "force-dynamic";
 export const dynamicParams = true;
-export const revalidate = 300; // 5-minute ISR Edge CDN cache
-
-export async function generateStaticParams() {
-  try {
-    const categories = await db.getCategories();
-    if (categories && categories.length > 0) {
-      return categories.map((c) => ({ category: c.slug }));
-    }
-  } catch {}
-  return CATEGORIES.map((c) => ({ category: c.slug }));
-}
+export const revalidate = 0;
 
 export default async function CategoryPage({ params }: CategoryPageProps) {
   let category: any = null;

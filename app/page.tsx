@@ -6,7 +6,8 @@ import Newsletter from "@/components/home/Newsletter";
 import { db, getCachedHomepageConfig, getCachedCategories } from "@/lib/db/store";
 import { fetchEditorialMotivationQuote } from "@/lib/groq";
 
-export const revalidate = 60; // 60s ISR edge cache with on-demand admin revalidation
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function HomePage() {
   const [config, categories, featuredProducts, editorialQuote] = await Promise.all([

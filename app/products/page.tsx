@@ -6,7 +6,8 @@ export const metadata = {
   title: "Products",
 };
 
-export const revalidate = 60; // 60s ISR edge cache with on-demand admin revalidation
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function ProductsPage() {
   const [products, categories] = await Promise.all([

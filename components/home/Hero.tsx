@@ -16,17 +16,15 @@ interface HeroProps {
 }
 
 export default function Hero({ initialConfig }: HeroProps) {
-  const [hero] = useState({
+  const hero = {
     heroImage: initialConfig?.heroImage || "/hero-beige.jpg",
     heroSubtitle: initialConfig?.heroSubtitle || "EDITION 01 • AUTUMN / WINTER 2026",
     heroTitle: initialConfig?.heroTitle || "ARCHITECTURAL ELEGANCE",
     heroCtaText: initialConfig?.heroCtaText || "Explore Collection",
     heroCtaLink: initialConfig?.heroCtaLink || "/products",
-  });
+  };
 
-  const heroImgSrc = hero.heroImage.startsWith("/") && !hero.heroImage.includes("?")
-    ? `${hero.heroImage}?v=ultrasharp`
-    : hero.heroImage;
+  const heroImgSrc = hero.heroImage;
 
   return (
     <section className="relative w-full h-[94vh] min-h-[620px] max-h-[1100px] flex items-center justify-center overflow-hidden bg-[#181a1d] select-none">

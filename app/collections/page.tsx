@@ -8,7 +8,8 @@ export const metadata = {
   title: "Collections",
 };
 
-export const revalidate = 60; // 60s ISR edge cache with on-demand admin revalidation
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function CollectionsOverviewPage() {
   let categories: any[] = [];

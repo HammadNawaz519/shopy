@@ -14,8 +14,8 @@ export default function ProductsClientView({
   initialProducts,
   initialCategories,
 }: ProductsClientViewProps) {
-  const [productsList] = useState<Product[]>(initialProducts);
-  const [categoriesList] = useState<any[]>(initialCategories);
+  const productsList: Product[] = initialProducts || [];
+  const categoriesList: any[] = initialCategories || [];
 
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedSort, setSelectedSort] = useState<string>("featured");

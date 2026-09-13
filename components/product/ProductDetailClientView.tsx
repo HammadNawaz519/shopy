@@ -45,6 +45,13 @@ export default function ProductDetailClientView({
     }
   );
 
+  React.useEffect(() => {
+    setSelectedImageIdx(0);
+    if (product?.sizes?.[0]) setSelectedSize(product.sizes[0]);
+    if (product?.colors?.[0]?.name) setSelectedColor(product.colors[0].name);
+    if (initialRatingSummary) setRatingSummary(initialRatingSummary);
+  }, [product?.id, initialRatingSummary]);
+
   const { addItem, openCart } = useCart();
   const { showToast } = useToast();
 
