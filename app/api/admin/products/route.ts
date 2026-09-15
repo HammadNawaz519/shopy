@@ -58,6 +58,7 @@ export async function POST(req: Request) {
     });
 
     try {
+      revalidatePath("/", "layout");
       revalidatePath("/");
       revalidatePath("/products");
       revalidatePath("/collections");
@@ -90,6 +91,7 @@ export async function PATCH(req: Request) {
     }
 
     try {
+      revalidatePath("/", "layout");
       revalidatePath("/");
       revalidatePath("/products");
       revalidatePath("/collections");
@@ -121,6 +123,7 @@ export async function DELETE(req: Request) {
     const result = await db.safeDeleteProduct(id);
 
     try {
+      revalidatePath("/", "layout");
       revalidatePath("/");
       revalidatePath("/products");
       revalidatePath("/collections");

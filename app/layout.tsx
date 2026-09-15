@@ -7,6 +7,7 @@ import { ToastProvider } from "@/context/ToastContext";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import CartDrawer from "@/components/layout/CartDrawer";
+import ClientCacheRevalidator from "@/components/common/ClientCacheRevalidator";
 
 const cormorant = Cormorant_Garamond({
   subsets: ["latin"],
@@ -60,6 +61,7 @@ export default function RootLayout({
         <AuthProvider>
           <CartProvider>
             <ToastProvider>
+              <ClientCacheRevalidator />
               <Navbar />
               <CartDrawer />
               <main className="flex-1">{children}</main>

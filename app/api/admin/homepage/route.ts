@@ -28,7 +28,10 @@ export async function PATCH(req: Request) {
     const updated = await db.updateHomepageConfig(body);
 
     try {
+      revalidatePath("/", "layout");
       revalidatePath("/");
+      revalidatePath("/products");
+      revalidatePath("/collections");
     } catch {}
 
     return NextResponse.json({ success: true, config: updated });

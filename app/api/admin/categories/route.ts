@@ -38,6 +38,7 @@ export async function POST(req: Request) {
     });
 
     try {
+      revalidatePath("/", "layout");
       revalidatePath("/");
       revalidatePath("/collections");
       revalidatePath("/products");
@@ -78,6 +79,7 @@ export async function PATCH(req: Request) {
     }
 
     try {
+      revalidatePath("/", "layout");
       revalidatePath("/");
       revalidatePath("/collections");
       revalidatePath("/products");
@@ -109,6 +111,7 @@ export async function DELETE(req: Request) {
     }
 
     try {
+      revalidatePath("/", "layout");
       revalidatePath("/");
       revalidatePath("/collections");
       revalidatePath("/products");

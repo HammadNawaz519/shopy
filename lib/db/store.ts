@@ -2662,8 +2662,10 @@ class SupabaseDataStore {
       ]
     );
 
-    // Invalidate homepage config cache
+    // Invalidate homepage config cache across all versions and keys
+    redisDel(buildCacheKey("homepage", "config")).catch(() => {});
     redisDel(`${CACHE_VERSION}:homepage:config`).catch(() => {});
+    redisDelPattern(`${CACHE_VERSION}:homepage:*`).catch(() => {});
 
     if (res.rows.length > 0) {
       return this.getHomepageConfig();

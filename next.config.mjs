@@ -28,6 +28,7 @@ const nextConfig = {
   async headers() {
     return [
       {
+        // 1. All dynamic pages and routes: Security headers and anti-caching for HTML documents
         source: '/:path*',
         headers: [
           {
@@ -55,6 +56,22 @@ const nextConfig = {
             value: 'camera=(), microphone=(), geolocation=(), browsing-topics=()',
           },
           {
+            key: 'Cache-Control',
+            value: 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+          },
+          {
+            key: 'Pragma',
+            value: 'no-cache',
+          },
+          {
+            key: 'Expires',
+            value: '0',
+          },
+          {
+            key: 'Surrogate-Control',
+            value: 'no-store',
+          },
+          {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
@@ -72,7 +89,17 @@ const nextConfig = {
         ],
       },
       {
-        // Fonts never change during runtime - safe to cache immutably
+        // 2. Next.js static hashed JS/CSS chunks: safe to cache immutably because filename contains unique hash
+        source: '/_next/static/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+      {
+        // 3. Fonts never change during runtime - safe to cache immutably
         source: '/:all*(woff2)',
         headers: [
           {
@@ -82,12 +109,74 @@ const nextConfig = {
         ],
       },
       {
-        // Images: must revalidate on simple refresh (no hard refresh required on mobile or desktop)
+        // 4. Next.js image optimization endpoint: strictly never cache stale images on client
+        source: '/_next/image(.*)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+          },
+          {
+            key: 'Pragma',
+            value: 'no-cache',
+          },
+          {
+            key: 'Expires',
+            value: '0',
+          },
+        ],
+      },
+      {
+        // 5. Database media assets endpoint: strictly fresh delivery
+        source: '/api/media/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+          },
+          {
+            key: 'Pragma',
+            value: 'no-cache',
+          },
+          {
+            key: 'Expires',
+            value: '0',
+          },
+        ],
+      },
+      {
+        // 6. Uploads directory: strictly fresh delivery
+        source: '/uploads/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+          },
+          {
+            key: 'Pragma',
+            value: 'no-cache',
+          },
+          {
+            key: 'Expires',
+            value: '0',
+          },
+        ],
+      },
+      {
+        // 7. Static image assets: strictly fresh delivery without hard refresh
         source: '/:all*(svg|jpg|jpeg|png|webp|avif|ico)',
         headers: [
           {
             key: 'Cache-Control',
-            value: 'public, max-age=0, must-revalidate',
+            value: 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+          },
+          {
+            key: 'Pragma',
+            value: 'no-cache',
+          },
+          {
+            key: 'Expires',
+            value: '0',
           },
         ],
       },
