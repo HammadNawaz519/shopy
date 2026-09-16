@@ -2991,6 +2991,10 @@ export const db = new SupabaseDataStore();
 import * as React from "react";
 const serverCache = typeof (React as any).cache === "function" ? (React as any).cache : (<T extends (...args: any[]) => any>(fn: T) => fn);
 
+export const getCachedProducts = serverCache(async (filter?: { category?: string; featured?: boolean; search?: string; sort?: string }) => {
+  return db.getProducts(filter);
+});
+
 export const getCachedProductById = serverCache(async (idOrSlug: string) => {
   return db.getProductById(idOrSlug);
 });

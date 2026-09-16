@@ -24,9 +24,9 @@ export async function generateMetadata({ params }: ProductDetailPageProps) {
   return { title: "Product" };
 }
 
-export const dynamic = "force-dynamic";
 export const dynamicParams = true;
-export const revalidate = 0;
+// Public catalog page: 5-minute ISR. Reviews are SSR-hydrated; no user-specific data in RSC.
+export const revalidate = 300;
 
 export default async function ProductDetailPage({ params }: ProductDetailPageProps) {
   let product: any = null;

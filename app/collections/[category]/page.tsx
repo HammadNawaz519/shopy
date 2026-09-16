@@ -24,27 +24,28 @@ export async function generateMetadata({ params }: CategoryPageProps) {
   return { title: params.category.toUpperCase() };
 }
 
-export const dynamic = "force-dynamic";
 export const dynamicParams = true;
-export const revalidate = 0;
+// Public catalog page: 5-minute ISR. Product data is Redis-cached at db layer.
+export const revalidate = 300;
 
 export default async function CategoryPage({ params }: CategoryPageProps) {
-  let category: any = null;
+  const [categoryRes, dbProductsRes] = await Promise.all([
+    getCachedCategoryBySlug(params.category).catch(() => null),
+    db.getProducts({ category: params.category }).catch(() => []),
+  ]);
 
-  try {
-    const found = await getCachedCategoryBySlug(params.category);
-    if (found) {
-      category = {
-        id: found.id,
-        name: found.name,
-        slug: found.slug,
-        tagline: found.tagline || `Editorial collection of ${found.name.toLowerCase()}`,
-        image: found.image,
-        description: found.description || `Curated ${found.name.toLowerCase()} for the contemporary wardrobe.`,
-        aspectRatio: (found.aspectRatio as any) || "tall",
-      };
-    }
-  } catch {}
+  let category: any = null;
+  if (categoryRes) {
+    category = {
+      id: categoryRes.id,
+      name: categoryRes.name,
+      slug: categoryRes.slug,
+      tagline: categoryRes.tagline || `Editorial collection of ${categoryRes.name.toLowerCase()}`,
+      image: categoryRes.image,
+      description: categoryRes.description || `Curated ${categoryRes.name.toLowerCase()} for the contemporary wardrobe.`,
+      aspectRatio: (categoryRes.aspectRatio as any) || "tall",
+    };
+  }
 
   if (!category) {
     const staticFound = CATEGORIES.find(
@@ -59,11 +60,8 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
     notFound();
   }
 
-  let categoryProducts: any[] = [];
-  try {
-    const dbProducts = await db.getProducts({ category: category.slug });
-    categoryProducts = dbProducts || [];
-  } catch {
+  let categoryProducts: any[] = dbProductsRes || [];
+  if (categoryProducts.length === 0) {
     categoryProducts = PRODUCTS.filter(
       (p) => p.category.toLowerCase() === category.slug.toLowerCase()
     );
@@ -116,8 +114,8 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
 
         {categoryProducts.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 lg:gap-10">
-            {categoryProducts.map((product) => (
-              <ProductCard key={product.id} product={product} />
+            {categoryProducts.map((product, idx) => (
+              <ProductCard key={product.id} product={product} priority={idx < 4} />
             ))}
           </div>
         ) : (

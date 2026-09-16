@@ -8,8 +8,8 @@ export const metadata = {
   title: "Collections",
 };
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+// Public catalog page: 10-minute ISR. Categories change rarely.
+export const revalidate = 600;
 
 export default async function CollectionsOverviewPage() {
   let categories: any[] = [];
@@ -42,7 +42,6 @@ export default async function CollectionsOverviewPage() {
               <Link
                 key={category.id}
                 href={`/collections/${category.slug}`}
-                prefetch={false}
                 className="group flex flex-col bg-[#E8E8E8] overflow-hidden"
               >
                 <div className="relative aspect-[4/5] overflow-hidden">

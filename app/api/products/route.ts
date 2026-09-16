@@ -23,7 +23,8 @@ export async function GET(req: Request) {
       {
         status: 200,
         headers: {
-          "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+          // Public catalog data; 5-min CDN cache matches ISR revalidation window.
+          "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
         },
       }
     );

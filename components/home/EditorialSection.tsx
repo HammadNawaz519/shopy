@@ -82,7 +82,7 @@ export default function EditorialSection({ initialQuote }: EditorialSectionProps
               src="/atelier-still-life.jpg?v=2"
               alt="SHOPY Tactile Material & High-Precision Wool Weave Craftsmanship"
               fill
-              priority
+              loading="lazy"
               sizes="(max-width: 1024px) 100vw, 55vw"
               className="object-cover object-center transform group-hover:scale-102 transition-transform duration-700 ease-out"
             />

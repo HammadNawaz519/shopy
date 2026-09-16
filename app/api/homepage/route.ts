@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db/store";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+// Public homepage configuration: 5-min CDN cache, 10-min stale-while-revalidate
+export const revalidate = 300;
 
 export async function GET() {
   try {
@@ -11,7 +11,7 @@ export async function GET() {
       { config },
       {
         headers: {
-          "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+          "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
         },
       }
     );

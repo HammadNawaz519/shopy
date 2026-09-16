@@ -6,7 +6,7 @@ const nextConfig = {
     formats: ['image/avif', 'image/webp'],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
-    minimumCacheTTL: 60, // Cache optimized images on the server for at least 60s; client headers govern browser TTL
+    minimumCacheTTL: 31536000, // Cache optimized images for 1 year; immutable content-addressed keys
     remotePatterns: [
       {
         protocol: 'https',
@@ -20,8 +20,6 @@ const nextConfig = {
   },
   experimental: {
     // Use Next.js default router cache (30s dynamic, 5min static).
-    // Do NOT set staleTimes to 0 — that forces a full network refetch on every
-    // back-navigation and causes images to reload from scratch every time.
   },
   async headers() {
     return [
@@ -54,29 +52,13 @@ const nextConfig = {
             value: 'camera=(), microphone=(), geolocation=(), browsing-topics=()',
           },
           {
-            key: 'Cache-Control',
-            value: 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
-          },
-          {
-            key: 'Pragma',
-            value: 'no-cache',
-          },
-          {
-            key: 'Expires',
-            value: '0',
-          },
-          {
-            key: 'Surrogate-Control',
-            value: 'no-store',
-          },
-          {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
               "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://vercel.live https://*.vercel.live",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://vercel.live",
               "font-src 'self' https://fonts.gstatic.com https://vercel.live https://*.vercel.live data:",
-              "img-src 'self' data: https://images.unsplash.com https://vercel.live https://*.vercel.live blob:",
+              "img-src 'self' data: https://images.unsplash.com https://*.supabase.co https://vercel.live https://*.vercel.live blob:",
               "connect-src 'self' https://vercel.live https://*.vercel.live wss://*.pusher.com https://*.supabase.co",
               "frame-src 'self' https://vercel.live https://*.vercel.live",
               "frame-ancestors 'self' https://vercel.live",
@@ -107,12 +89,7 @@ const nextConfig = {
         ],
       },
       {
-        // 4. Next.js image optimization endpoint: cache aggressively on the browser.
-        // The optimizer appends a ?url=...&w=...&q=... query string that acts as a
-        // content-addressable key — stale images are never served for a different source URL.
-        // max-age=86400  → browser caches for 24 h (instant re-paint on navigation)
-        // s-maxage=31536000 → CDN/Vercel edge caches for 1 year (content-addressed)
-        // stale-while-revalidate=604800 → serve stale for up to 7 d while refreshing in background
+        // 4. Next.js image optimization endpoint: cache aggressively on the browser and CDN
         source: '/_next/image(.*)',
         headers: [
           {
@@ -122,56 +99,32 @@ const nextConfig = {
         ],
       },
       {
-        // 5. Database media assets endpoint: strictly fresh delivery
+        // 5. Database media assets endpoint: content-addressed immutable assets
         source: '/api/media/:path*',
         headers: [
           {
             key: 'Cache-Control',
-            value: 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
-          },
-          {
-            key: 'Pragma',
-            value: 'no-cache',
-          },
-          {
-            key: 'Expires',
-            value: '0',
+            value: 'public, max-age=31536000, s-maxage=31536000, stale-while-revalidate=86400, immutable',
           },
         ],
       },
       {
-        // 6. Uploads directory: strictly fresh delivery
+        // 6. Uploads directory: cached public media
         source: '/uploads/:path*',
         headers: [
           {
             key: 'Cache-Control',
-            value: 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
-          },
-          {
-            key: 'Pragma',
-            value: 'no-cache',
-          },
-          {
-            key: 'Expires',
-            value: '0',
+            value: 'public, max-age=86400, stale-while-revalidate=604800',
           },
         ],
       },
       {
-        // 7. Static image assets: strictly fresh delivery without hard refresh
+        // 7. Static image assets: browser and CDN caching
         source: '/:all*(svg|jpg|jpeg|png|webp|avif|ico)',
         headers: [
           {
             key: 'Cache-Control',
-            value: 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
-          },
-          {
-            key: 'Pragma',
-            value: 'no-cache',
-          },
-          {
-            key: 'Expires',
-            value: '0',
+            value: 'public, max-age=86400, stale-while-revalidate=604800',
           },
         ],
       },

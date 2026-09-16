@@ -47,7 +47,6 @@ export default function CollectionGrid({ initialCategories }: CollectionGridProp
             <Link
               key={category.id}
               href={`/collections/${category.slug}`}
-              prefetch={false}
               className="group relative overflow-hidden bg-[#E8E8E8] aspect-[3/4] select-none"
             >
               {/* Category Photography */}

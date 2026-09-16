@@ -161,7 +161,6 @@ export default function Navbar() {
             </button>
             <Link
               href="/"
-              prefetch={false}
               className={`font-serif tracking-[0.3em] text-lg font-light ${
                 isTransparent ? "text-white" : "text-[#495464]"
               }`}
@@ -174,7 +173,6 @@ export default function Navbar() {
           <div className="hidden lg:flex items-center gap-8 xl:gap-10">
             <Link
               href="/"
-              prefetch={false}
               className={`font-serif tracking-[0.35em] text-xl lg:text-2xl font-light transition-colors whitespace-nowrap ${
                 isTransparent ? "text-white" : "text-[#495464]"
               }`}
@@ -190,7 +188,6 @@ export default function Navbar() {
                   <Link
                     key={`${link.name}-${link.href}`}
                     href={link.href}
-                    prefetch={false}
                     className={`text-[12px] font-normal tracking-wider lowercase whitespace-nowrap transition-all duration-300 relative py-1 ${
                       isActive
                         ? isTransparent
@@ -223,7 +220,6 @@ export default function Navbar() {
             {/* Account */}
             <Link
               href={user ? (user.role === "admin" ? "/admin" : "/account") : "/login"}
-              prefetch={false}
               className="flex items-center gap-1.5 text-[12px] font-normal tracking-wide lowercase hover:opacity-60 transition-opacity whitespace-nowrap"
               aria-label="Account"
             >

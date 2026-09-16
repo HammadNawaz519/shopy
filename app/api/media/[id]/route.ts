@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db/store";
 
+// Images are keyed by a UUID that is content-addressed — the same ID always
+// returns the same bytes. Safe to cache immutably in the browser and CDN.
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
@@ -26,9 +28,11 @@ export async function GET(
       headers: {
         "Content-Type": asset.mime_type || "image/webp",
         "Content-Length": String(buffer.length),
-        "Cache-Control": "no-cache, no-store, must-revalidate, max-age=0",
-        "Pragma": "no-cache",
-        "Expires": "0",
+        // UUID-keyed assets are content-addressed: same id = same bytes, forever.
+        // 1-year browser + CDN cache; stale-while-revalidate as safety net.
+        "Cache-Control": "public, max-age=31536000, s-maxage=31536000, stale-while-revalidate=86400, immutable",
+        "ETag": `"${id}"`,
+        "Vary": "Accept",
       },
     });
   } catch (error: any) {

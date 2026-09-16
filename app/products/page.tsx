@@ -1,17 +1,17 @@
 import React from "react";
-import { db, getCachedCategories } from "@/lib/db/store";
+import { getCachedProducts, getCachedCategories } from "@/lib/db/store";
 import ProductsClientView from "@/components/products/ProductsClientView";
 
 export const metadata = {
   title: "Products",
 };
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+// Public catalog page: 5-minute ISR. No user-specific data rendered.
+export const revalidate = 300;
 
 export default async function ProductsPage() {
   const [products, categories] = await Promise.all([
-    db.getProducts().catch(() => []),
+    getCachedProducts().catch(() => []),
     getCachedCategories().catch(() => []),
   ]);
 

@@ -17,7 +17,6 @@ interface ProductCardProps {
 export default function ProductCard({ product, priority = false }: ProductCardProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [showQuickAdd, setShowQuickAdd] = useState(false);
-  const [isLoaded, setIsLoaded] = useState(false);
   const [hasBeenHovered, setHasBeenHovered] = useState(false);
   const [activeColorImage, setActiveColorImage] = useState<string | null>(null);
   const [activeColorName, setActiveColorName] = useState<string | null>(null);
@@ -72,7 +71,7 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
           prefetch={false}
           className="block w-full h-full"
         >
-          {/* Primary Image with Crisp Retina Delivery & Fade-in */}
+          {/* Primary Image with Crisp Retina Delivery, Blur Placeholder & Instant Rendering */}
           <Image
             key={primaryImageSrc}
             src={primaryImageSrc}
@@ -80,10 +79,11 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
             fill
             priority={priority}
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-            onLoad={() => setIsLoaded(true)}
+            placeholder="blur"
+            blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMSIgaGVpZ2h0PSIxIiB2aWV3Qm94PSIwIDAgMSAxIiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxIiBoZWlnaHQ9IjEiIGZpbGw9IiNFOEU4RTgiLz48L3N2Zz4="
             className={`object-cover object-center transition-all duration-700 ${
-              isLoaded ? "opacity-100 scale-100" : "opacity-0 scale-[1.02]"
-            } ${hasSecondImage && isHovered && hasBeenHovered && !activeColorImage ? "!opacity-0" : ""}`}
+              hasSecondImage && isHovered && hasBeenHovered && !activeColorImage ? "opacity-0" : "opacity-100 scale-100"
+            }`}
           />
 
           {/* Secondary Hover Image — Loaded On-Demand upon first hover */}

@@ -126,6 +126,10 @@ export async function redisSet(
     }
     return true;
   } catch (err: any) {
+    if (err?.message?.includes("WRONGPASS") || err?.message?.includes("unauthorized") || err?.message?.includes("NOPERM")) {
+      redisAvailable = false;
+      redisInstance = null;
+    }
     console.warn(`[REDIS SET ERROR] Key "${key}":`, err?.message || err);
     return false;
   }
@@ -229,6 +233,10 @@ export async function acquireDistributedLock(
 
     return { acquired: false, release: noopRelease };
   } catch (err: any) {
+    if (err?.message?.includes("WRONGPASS") || err?.message?.includes("unauthorized") || err?.message?.includes("NOPERM")) {
+      redisAvailable = false;
+      redisInstance = null;
+    }
     console.warn(`[REDIS LOCK ERROR] Key "${key}":`, err?.message || err);
     // Graceful degradation: allow PostgreSQL to handle transaction
     return { acquired: true, release: noopRelease };
