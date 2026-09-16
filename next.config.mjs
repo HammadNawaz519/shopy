@@ -6,7 +6,7 @@ const nextConfig = {
     formats: ['image/avif', 'image/webp'],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
-    minimumCacheTTL: 0, // Never lock images in edge cache; allow immediate updates on refresh
+    minimumCacheTTL: 60, // Cache optimized images on the server for at least 60s; client headers govern browser TTL
     remotePatterns: [
       {
         protocol: 'https',
@@ -19,11 +19,9 @@ const nextConfig = {
     ],
   },
   experimental: {
-    // Disable client-side Next.js in-memory router cache so soft refreshes and navigations always fetch fresh data
-    staleTimes: {
-      dynamic: 0,
-      static: 0,
-    },
+    // Use Next.js default router cache (30s dynamic, 5min static).
+    // Do NOT set staleTimes to 0 — that forces a full network refetch on every
+    // back-navigation and causes images to reload from scratch every time.
   },
   async headers() {
     return [
@@ -109,20 +107,17 @@ const nextConfig = {
         ],
       },
       {
-        // 4. Next.js image optimization endpoint: strictly never cache stale images on client
+        // 4. Next.js image optimization endpoint: cache aggressively on the browser.
+        // The optimizer appends a ?url=...&w=...&q=... query string that acts as a
+        // content-addressable key — stale images are never served for a different source URL.
+        // max-age=86400  → browser caches for 24 h (instant re-paint on navigation)
+        // s-maxage=31536000 → CDN/Vercel edge caches for 1 year (content-addressed)
+        // stale-while-revalidate=604800 → serve stale for up to 7 d while refreshing in background
         source: '/_next/image(.*)',
         headers: [
           {
             key: 'Cache-Control',
-            value: 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
-          },
-          {
-            key: 'Pragma',
-            value: 'no-cache',
-          },
-          {
-            key: 'Expires',
-            value: '0',
+            value: 'public, max-age=86400, s-maxage=31536000, stale-while-revalidate=604800',
           },
         ],
       },
