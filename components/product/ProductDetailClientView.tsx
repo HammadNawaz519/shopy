@@ -39,10 +39,7 @@ export default function ProductDetailClientView({
   const [quantity, setQuantity] = useState(1);
   const [openAccordion, setOpenAccordion] = useState<string | null>("details");
   const [ratingSummary, setRatingSummary] = useState<{ averageRating: number; reviewCount: number }>(
-    initialRatingSummary || {
-      averageRating: 0,
-      reviewCount: 0,
-    }
+    initialRatingSummary || { averageRating: 0, reviewCount: 0 }
   );
 
   React.useEffect(() => {
@@ -55,26 +52,30 @@ export default function ProductDetailClientView({
   const { addItem, openCart } = useCart();
   const { showToast } = useToast();
 
-  const imageList: string[] = Array.isArray(product?.images) && product.images.length > 0 ? product.images : ["/editorial-craft.jpg"];
+  const imageList: string[] = Array.isArray(product?.images) && product.images.length > 0
+    ? product.images
+    : ["/editorial-craft.jpg"];
+
   const currentImage = imageList[selectedImageIdx] || imageList[0];
 
   const handleColorSelect = (colorObj: any) => {
     if (!colorObj || !colorObj.name) return;
     setSelectedColor(colorObj.name);
 
-    // 1. Direct match with colorObj.imageUrl
-    if (colorObj.imageUrl) {
-      const directIdx = imageList.findIndex((img) => img === colorObj.imageUrl);
-      if (directIdx !== -1) {
-        setSelectedImageIdx(directIdx);
-        return;
-      }
-    }
-
-    // 2. Heuristic fallback: if colors count matches images or has index
     const colorIdx = product.colors?.findIndex((c: any) => c.name === colorObj.name);
+
+    // Primary: use the color's array index to map 1-to-1 with the images array
     if (colorIdx !== undefined && colorIdx !== -1 && colorIdx < imageList.length) {
       setSelectedImageIdx(colorIdx);
+      return;
+    }
+
+    // Fallback: match by explicit imageUrl field if present
+    if (colorObj.imageUrl) {
+      const urlIdx = imageList.findIndex((img) => img === colorObj.imageUrl);
+      if (urlIdx !== -1) {
+        setSelectedImageIdx(urlIdx);
+      }
     }
   };
 
@@ -82,12 +83,11 @@ export default function ProductDetailClientView({
     setSelectedImageIdx(idx);
     const clickedUrl = imageList[idx];
     if (clickedUrl && Array.isArray(product.colors)) {
-      const matchedColor = product.colors.find((c: any) => c && c.imageUrl === clickedUrl);
-      if (matchedColor) {
-        setSelectedColor(matchedColor.name);
-      } else if (product.colors[idx]) {
-        setSelectedColor(product.colors[idx].name);
-      }
+      // Prefer explicit imageUrl match, then fall back to index match
+      const matchedColor =
+        product.colors.find((c: any) => c && c.imageUrl === clickedUrl) ||
+        product.colors[idx];
+      if (matchedColor) setSelectedColor(matchedColor.name);
     }
   };
 
@@ -108,7 +108,6 @@ export default function ProductDetailClientView({
   return (
     <div className="pt-24 sm:pt-28 lg:pt-32 pb-20 bg-[#F4F4F2] text-[#495464]">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Breadcrumb */}
         <div className="mb-6 flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-wider text-[#495464]/60">
           <Link href="/products" className="hover:text-[#495464] flex items-center gap-1">
             <ArrowLeft className="w-3 h-3" />
@@ -124,11 +123,8 @@ export default function ProductDetailClientView({
           </span>
         </div>
 
-        {/* Main Product Layout: 2 Columns */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
-          {/* Left: Gallery (Thumbnails + Main View) */}
           <div className="lg:col-span-7 flex flex-col-reverse sm:flex-row gap-3 lg:gap-4">
-            {/* Thumbnails */}
             {imageList.length > 1 && (
               <div className="flex sm:flex-col gap-2.5 overflow-x-auto sm:overflow-y-auto sm:w-20 lg:w-24 flex-shrink-0">
                 {imageList.map((img: string, idx: number) => (
@@ -143,9 +139,10 @@ export default function ProductDetailClientView({
                   >
                     <Image
                       src={img}
-                      alt={`${product.name} thumb ${idx + 1}`}
+                      alt={`${product.name} view ${idx + 1}`}
                       fill
                       sizes="96px"
+                      loading={idx === 0 ? "eager" : "lazy"}
                       className="object-cover"
                     />
                   </button>
@@ -153,15 +150,17 @@ export default function ProductDetailClientView({
               </div>
             )}
 
-            {/* Main Stage Image */}
             <div className="relative flex-1 aspect-[3/4] max-h-[460px] sm:max-h-[500px] lg:max-h-[540px] bg-[#E8E8E8] overflow-hidden border border-[#BBBFCA]/30">
               <Image
+                key={currentImage}
                 src={currentImage}
                 alt={product.name}
                 fill
                 priority
                 sizes="(max-width: 1024px) 100vw, 45vw"
-                className="object-cover"
+                className="object-cover transition-opacity duration-300"
+                placeholder="blur"
+                blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMSIgaGVpZ2h0PSIxIiB2aWV3Qm94PSIwIDAgMSAxIiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxIiBoZWlnaHQ9IjEiIGZpbGw9IiNFOEU4RTgiLz48L3N2Zz4="
               />
               {product.tag && (
                 <span className="absolute top-3 left-3 bg-[#495464] text-[#F4F4F2] text-[9px] uppercase tracking-widest font-semibold px-2.5 py-1 z-10">
@@ -171,10 +170,8 @@ export default function ProductDetailClientView({
             </div>
           </div>
 
-          {/* Right: Product Purchase Controls & Details */}
           <div className="lg:col-span-5 flex flex-col justify-between space-y-5">
             <div className="space-y-4">
-              {/* Category & Name */}
               <div>
                 <span className="text-[10px] uppercase tracking-[0.2em] text-[#495464]/60 font-medium block mb-1">
                   {product.categoryLabel}
@@ -193,7 +190,6 @@ export default function ProductDetailClientView({
                   )}
                 </div>
 
-                {/* Rating Badge Anchor Link */}
                 {ratingSummary.reviewCount > 0 && (
                   <a
                     href="#ratings-and-reviews"
@@ -214,7 +210,6 @@ export default function ProductDetailClientView({
                 {product.description}
               </p>
 
-              {/* Color Selection */}
               {product.colors && product.colors.length > 0 && (
                 <div className="pt-1">
                   <div className="flex justify-between text-[11px] uppercase tracking-wider text-[#495464] mb-1.5 font-medium">
@@ -231,6 +226,7 @@ export default function ProductDetailClientView({
                             : "border-transparent hover:border-[#BBBFCA]"
                         }`}
                         aria-label={c.name}
+                        title={c.name}
                       >
                         <span
                           className="w-4 h-4 rounded-full border border-black/10 block"
@@ -242,7 +238,6 @@ export default function ProductDetailClientView({
                 </div>
               )}
 
-              {/* Size Selection */}
               <div className="pt-1">
                 <div className="flex justify-between text-[11px] uppercase tracking-wider text-[#495464] mb-1.5 font-medium">
                   <span>Size: {selectedSize}</span>
@@ -270,10 +265,8 @@ export default function ProductDetailClientView({
                 </div>
               </div>
 
-              {/* Quantity & CTA Buttons */}
               <div className="pt-2 space-y-2.5">
                 <div className="flex items-center gap-3">
-                  {/* Quantity selector */}
                   <div className={`flex items-center border border-[#BBBFCA] bg-[#E8E8E8] ${(!product.inStock || product.stockCount <= 0) ? "opacity-50 pointer-events-none" : ""}`}>
                     <button
                       onClick={() => setQuantity(Math.max(1, quantity - 1))}
@@ -296,7 +289,6 @@ export default function ProductDetailClientView({
                     </button>
                   </div>
 
-                  {/* Add to Bag Button */}
                   <button
                     onClick={handleAddToCart}
                     disabled={!product.inStock || product.stockCount <= 0}
@@ -319,7 +311,6 @@ export default function ProductDetailClientView({
                 </button>
               </div>
 
-              {/* Trust Badges */}
               <div className="grid grid-cols-3 gap-2 pt-4 border-t border-[#BBBFCA]/30 text-center">
                 <div className="flex flex-col items-center gap-1">
                   <Truck className="w-3.5 h-3.5 text-[#495464]/80" />
@@ -341,9 +332,7 @@ export default function ProductDetailClientView({
                 </div>
               </div>
 
-              {/* Accordions */}
               <div className="pt-2 border-t border-[#BBBFCA]/30 divide-y divide-[#BBBFCA]/20 text-xs">
-                {/* Details & Fit */}
                 <div className="py-2.5">
                   <button
                     onClick={() => toggleAccordion("details")}
@@ -365,7 +354,6 @@ export default function ProductDetailClientView({
                   )}
                 </div>
 
-                {/* Composition & Care */}
                 <div className="py-2.5">
                   <button
                     onClick={() => toggleAccordion("care")}
@@ -396,7 +384,6 @@ export default function ProductDetailClientView({
                   )}
                 </div>
 
-                {/* Shipping & Delivery */}
                 <div className="py-2.5">
                   <button
                     onClick={() => toggleAccordion("shipping")}
@@ -411,7 +398,7 @@ export default function ProductDetailClientView({
                   </button>
                   {openAccordion === "shipping" && (
                     <p className="mt-2 text-[#495464]/80 tracking-wider text-[11px] leading-relaxed animate-fadeIn">
-                      Orders placed before 2:00 PM PKT are processed the same business day from our Lahore atelier. Standard insured nationwide courier takes 2-4 business days. Complimentary delivery on orders over Rs. 15,000.
+                      Orders placed before 2:00 PM PKT are processed the same business day from our Lahore atelier. Standard insured nationwide courier takes 2–4 business days. Complimentary delivery on orders over Rs. 15,000.
                     </p>
                   )}
                 </div>
@@ -420,7 +407,6 @@ export default function ProductDetailClientView({
           </div>
         </div>
 
-        {/* Client Ratings & Reviews Section */}
         <ProductReviewsSection
           productId={product.id}
           productName={product.name}
@@ -429,7 +415,6 @@ export default function ProductDetailClientView({
           initialSummary={ratingSummary}
         />
 
-        {/* Related Pieces Section */}
         {relatedProducts.length > 0 && (
           <div className="mt-20 pt-10 border-t border-[#BBBFCA]/30">
             <div className="flex items-end justify-between mb-8">
