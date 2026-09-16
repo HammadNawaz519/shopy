@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
 import { formatPrice } from "@/lib/utils";
-import { Lock, ArrowRight, Loader2, CheckCircle2, Building2, Banknote, Copy, Check, Info, LogIn } from "lucide-react";
+import { Lock, ArrowRight, Loader2, CheckCircle2, Building2, Banknote, Copy, Check, Info } from "lucide-react";
 import { useToast } from "@/context/ToastContext";
 
 export default function CheckoutPage() {
@@ -646,36 +646,7 @@ export default function CheckoutPage() {
                 </div>
               </div>
 
-              {/* Auth prompt — shown only when guest is about to place order */}
-              {!authLoading && !user && (
-                <div className="border border-[#BBBFCA]/60 bg-[#E8E8E8]/60 p-4 space-y-3">
-                  <p className="text-[11px] uppercase tracking-widest font-semibold text-[#495464] flex items-center gap-2">
-                    <LogIn className="w-3.5 h-3.5 flex-shrink-0" />
-                    Sign in to complete your order
-                  </p>
-                  <p className="text-[10px] text-[#495464]/70 leading-relaxed tracking-wide">
-                    Your bag is saved. Log in or create a free account — your name and email will be pre-filled automatically.
-                  </p>
-                  <div className="flex flex-col sm:flex-row gap-2 pt-1">
-                    <a
-                      href="/login?redirect=/checkout"
-                      className="flex-1 flex items-center justify-center gap-2 bg-[#495464] text-[#F4F4F2] py-3 px-4 text-[11px] uppercase tracking-widest font-medium hover:bg-[#363E4B] transition-all text-center"
-                    >
-                      <LogIn className="w-3.5 h-3.5" />
-                      Sign In
-                    </a>
-                    <a
-                      href="/register?redirect=/checkout"
-                      className="flex-1 flex items-center justify-center gap-2 border border-[#495464] text-[#495464] py-3 px-4 text-[11px] uppercase tracking-widest font-medium hover:bg-[#495464] hover:text-[#F4F4F2] transition-all text-center"
-                    >
-                      Create Account
-                    </a>
-                  </div>
-                </div>
-              )}
-
-              {/* Confirm & Place Order CTA — only visible when authenticated */}
-              {!authLoading && user && (
+              {user ? (
                 <button
                   type="submit"
                   disabled={loading}
@@ -684,7 +655,7 @@ export default function CheckoutPage() {
                   {loading ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin text-[#F4F4F2]" />
-                      <span className="truncate">Validating &amp; Placing Order...</span>
+                      <span className="truncate">Placing Order...</span>
                     </>
                   ) : (
                     <>
@@ -693,6 +664,14 @@ export default function CheckoutPage() {
                     </>
                   )}
                 </button>
+              ) : (
+                <a
+                  href="/login?redirect=/checkout"
+                  className="w-full flex items-center justify-center gap-2.5 sm:gap-3 bg-[#495464] text-[#F4F4F2] py-3.5 sm:py-4 px-4 text-[11px] sm:text-xs uppercase tracking-wider sm:tracking-widest font-medium hover:bg-[#363E4B] transition-all shadow-md text-center"
+                >
+                  <span className="truncate">Log in or Sign Up to Purchase</span>
+                  <ArrowRight className="w-4 h-4 flex-shrink-0" />
+                </a>
               )}
             </div>
           </div>
