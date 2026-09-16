@@ -1,15 +1,26 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
 import { Lock, Mail, User, KeyRound, ArrowRight, ArrowLeft, Loader2, Check, RefreshCw, CheckCircle2 } from "lucide-react";
 import GoogleButton from "@/components/auth/GoogleButton";
+import { isValidRedirectUrl } from "@/lib/security/sanitize";
 
-export default function RegisterPage() {
+function RegisterForm() {
+  const searchParams = useSearchParams();
+  const redirect = searchParams.get("redirect");
   const { user, loading: authLoading, register, verifyRegisterOtp, resendRegisterOtp } = useAuth();
   const { showToast } = useToast();
+
+  // After auth, go to the redirect target (if safe) or /account
+  const getDestination = (role?: string) => {
+    if (role === "admin") return "/admin";
+    if (isValidRedirectUrl(redirect)) return redirect!;
+    return "/account";
+  };
 
   const [step, setStep] = useState<"details" | "verify" | "complete">("details");
   const [name, setName] = useState("");
@@ -24,15 +35,12 @@ export default function RegisterPage() {
     document.title = "Register | SHOPY";
   }, []);
 
-  // If already authenticated, redirect to account/admin
+  // If already authenticated, redirect
   React.useEffect(() => {
     if (!authLoading && user && step !== "complete") {
-      if (user.role === "admin") {
-        window.location.replace("/admin");
-      } else {
-        window.location.replace("/account");
-      }
+      window.location.replace(getDestination(user.role));
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, authLoading, step]);
 
   const hasUpperCase = /[A-Z]/.test(password);
@@ -61,11 +69,7 @@ export default function RegisterPage() {
         setStep("verify");
       } else {
         showToast("Account created successfully. Welcome to SHOPY.", "success");
-        if (res.user?.role === "admin") {
-          window.location.replace("/admin");
-        } else {
-          window.location.replace("/account");
-        }
+        window.location.replace(getDestination(res.user?.role));
       }
     } else {
       setErrorMessage(res.error || "Registration failed.");
@@ -92,11 +96,7 @@ export default function RegisterPage() {
       showToast("Account verified successfully! Welcome to SHOPY.", "success");
       setStep("complete");
       setTimeout(() => {
-        if (res.user?.role === "admin") {
-          window.location.replace("/admin");
-        } else {
-          window.location.replace("/account");
-        }
+        window.location.replace(getDestination(res.user?.role));
       }, 600);
     } else {
       setErrorMessage(res.error || "Invalid or expired verification code.");
@@ -224,7 +224,7 @@ export default function RegisterPage() {
           <div className="bg-[#E8E8E8]/40 border border-[#BBBFCA]/40 p-8 space-y-6 shadow-sm">
             {/* Google Quick Sign-Up */}
             <div>
-              <GoogleButton text="Sign Up with Google" />
+              <GoogleButton text="Sign Up with Google" redirect={redirect} />
             </div>
 
             {/* Minimalist Divider */}
@@ -329,11 +329,25 @@ export default function RegisterPage() {
 
         <div className="mt-8 text-center text-xs tracking-wider uppercase text-[#495464]/70">
           <span>Already have an account? </span>
-          <Link href="/login" className="text-[#495464] font-semibold underline ml-1">
+          <Link href={redirect ? `/login?redirect=${encodeURIComponent(redirect)}` : "/login"} className="text-[#495464] font-semibold underline ml-1">
             Sign In
           </Link>
         </div>
       </div>
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="pt-20 pb-16 min-h-[calc(100vh-4rem)] bg-[#F4F4F2] flex items-center justify-center">
+          <Loader2 className="w-8 h-8 animate-spin text-[#495464]" />
+        </div>
+      }
+    >
+      <RegisterForm />
+    </Suspense>
   );
 }
