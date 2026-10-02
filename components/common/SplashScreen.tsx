@@ -99,6 +99,14 @@ export default function SplashScreen() {
           className="w-[100px] h-[100px] sm:w-[120px] sm:h-[120px] md:w-[140px] md:h-[140px] object-contain drop-shadow-[0_4px_24px_rgba(73,84,100,0.15)]"
           draggable={false}
         />
+
+        {/* Delicate Atelier Subtitle & Hairline */}
+        <div className="mt-6 flex flex-col items-center">
+          <span className="text-[10px] sm:text-[11px] font-sans uppercase tracking-[0.35em] text-[#495464]/60 font-light">
+            Haute Atelier
+          </span>
+          <div className="mt-3 w-8 h-[1px] bg-[#BBBFCA]/40" />
+        </div>
       </div>
 
       {/* Subtle Bottom Skip Hint */}
