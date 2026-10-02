@@ -26,7 +26,10 @@ const jakarta = Plus_Jakarta_Sans({
 });
 
 export const viewport: Viewport = {
-  themeColor: "#F4F4F2",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#F4F4F2" },
+    { media: "(prefers-color-scheme: dark)", color: "#F4F4F2" },
+  ],
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
@@ -42,7 +45,7 @@ export const metadata: Metadata = {
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
-    statusBarStyle: "default",
+    statusBarStyle: "black-translucent",
     title: "SHOPY",
   },
   formatDetection: {
