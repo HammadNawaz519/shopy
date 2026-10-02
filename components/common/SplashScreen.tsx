@@ -73,20 +73,22 @@ export default function SplashScreen() {
       id="shopy-splash-overlay"
       onClick={handleFastSkip}
       aria-hidden="true"
-      className={`fixed inset-0 z-[99999] flex flex-col items-center justify-center bg-white cursor-pointer select-none transition-transform duration-[800ms] will-change-transform ${
-        isExiting ? "-translate-y-full pointer-events-none" : "translate-y-0"
-      }`}
+      className="fixed inset-0 z-[99999] flex flex-col items-center justify-center bg-white cursor-pointer select-none will-change-transform"
       style={{
-        transitionTimingFunction: "cubic-bezier(0.76, 0, 0.24, 1)",
+        transform: isExiting ? "translateY(-100%)" : "translateY(0)",
+        transition: isExiting
+          ? "transform 850ms cubic-bezier(0.76, 0, 0.24, 1)"
+          : "none",
+        pointerEvents: isExiting ? "none" : "auto",
       }}
     >
       {/* Centered Logo Container */}
       <div
-        className={`relative flex flex-col items-center mt-16 md:mt-0 transition-all duration-[600ms] ${
-          isExiting ? "opacity-0 -translate-y-12 scale-[0.98]" : "opacity-100 scale-100"
-        }`}
+        className="relative flex flex-col items-center mt-16 md:mt-0"
         style={{
-          transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)",
+          opacity: isExiting ? 0 : 1,
+          transform: isExiting ? "translateY(-24px) scale(0.98)" : "translateY(0) scale(1)",
+          transition: "opacity 500ms cubic-bezier(0.16, 1, 0.3, 1), transform 500ms cubic-bezier(0.16, 1, 0.3, 1)",
         }}
       >
         {/* App Icon */}
@@ -111,9 +113,11 @@ export default function SplashScreen() {
 
       {/* Subtle Bottom Skip Hint */}
       <div
-        className={`absolute bottom-8 text-[9px] uppercase tracking-[0.25em] text-[#495464]/30 transition-opacity duration-300 ${
-          isExiting ? "opacity-0" : "opacity-70"
-        }`}
+        className="absolute bottom-8 text-[9px] uppercase tracking-[0.25em] text-[#495464]/30"
+        style={{
+          opacity: isExiting ? 0 : 0.7,
+          transition: "opacity 300ms",
+        }}
       >
         Tap anywhere to enter
       </div>
