@@ -89,12 +89,15 @@ const nextConfig = {
         ],
       },
       {
-        // 4. Next.js image optimization endpoint: cache aggressively on the browser and CDN
+        // 4. Next.js image optimization endpoint:
+        //    Browser: 60s max-age so updated product images appear within 1 minute without a hard refresh.
+        //    CDN: 1-year s-maxage — CDN still serves efficiently; it gets a new URL when images change.
+        //    stale-while-revalidate: 1 day for CDN only (browser re-fetches after 60s naturally).
         source: '/_next/image(.*)',
         headers: [
           {
             key: 'Cache-Control',
-            value: 'public, max-age=86400, s-maxage=31536000, stale-while-revalidate=604800',
+            value: 'public, max-age=60, s-maxage=31536000, stale-while-revalidate=86400',
           },
         ],
       },

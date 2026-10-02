@@ -62,6 +62,7 @@ export async function POST(req: Request) {
       revalidatePath("/");
       revalidatePath("/products");
       revalidatePath("/collections");
+      revalidatePath("/collections/[category]", "page");
     } catch {}
 
     return NextResponse.json({ success: true, product: newProduct }, { status: 201 });
@@ -95,6 +96,7 @@ export async function PATCH(req: Request) {
       revalidatePath("/");
       revalidatePath("/products");
       revalidatePath("/collections");
+      revalidatePath("/collections/[category]", "page");
       revalidatePath(`/product/${id}`);
       if (updated.slug) revalidatePath(`/product/${updated.slug}`);
     } catch {}
@@ -127,6 +129,7 @@ export async function DELETE(req: Request) {
       revalidatePath("/");
       revalidatePath("/products");
       revalidatePath("/collections");
+      revalidatePath("/collections/[category]", "page");
       revalidatePath(`/product/${id}`);
       revalidatePath("/admin/products");
       revalidatePath("/admin/inventory");
