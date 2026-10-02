@@ -82,7 +82,7 @@ export default function SplashScreen() {
     >
       {/* Centered Logo Container */}
       <div
-        className={`relative flex flex-col items-center transition-all duration-[600ms] ${
+        className={`relative flex flex-col items-center mt-16 md:mt-0 transition-all duration-[600ms] ${
           isExiting ? "opacity-0 -translate-y-12 scale-[0.98]" : "opacity-100 scale-100"
         }`}
         style={{
