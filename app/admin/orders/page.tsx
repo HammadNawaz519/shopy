@@ -263,7 +263,7 @@ function OrdersContent() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full table-fixed text-left text-xs tracking-wider">
+              <table className="min-w-[900px] w-full table-fixed text-left text-xs tracking-wider">
                 <thead className="bg-[#E8E8E8]/70 border-b border-[#BBBFCA]/40 text-[#495464] uppercase text-[10px]">
                   <tr>
                     <th className="w-[12%] px-3 py-3 font-semibold whitespace-nowrap">Order ID</th>
