@@ -1,28 +1,11 @@
-const CACHE_NAME = "shopy-atelier-v1";
-const STATIC_ASSETS = [
-  "/",
-  "/favicon.ico",
-  "/favicon-32x32.png",
-  "/favicon-16x16.png",
-  "/apple-touch-icon.png",
-  "/icon-192x192.png",
-  "/icon-512x512.png",
-  "/logo.svg",
-  "/manifest.json",
-];
+const CACHE_NAME = "shopy-atelier-v2";
 
-// Install: precache essential static brand assets
+// Install: immediate activation without blocking on heavy network downloads
 self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches
-      .open(CACHE_NAME)
-      .then((cache) => cache.addAll(STATIC_ASSETS))
-      .then(() => self.skipWaiting())
-      .catch((err) => console.warn("[SW] Precache failed:", err))
-  );
+  self.skipWaiting();
 });
 
-// Activate: clean up outdated caches
+// Activate: claim clients immediately and purge old caches
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches
@@ -40,7 +23,7 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-// Fetch: smart network-first for pages and API exclusion
+// Fetch: runtime caching for assets, network-first for pages
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   const url = new URL(request.url);
@@ -55,49 +38,38 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // 3. Static assets (images, icons, fonts): Stale-While-Revalidate
+  // 3. Static assets (images, icons, fonts, CSS, JS): Cache-first with network fallback
   const isStaticAsset =
     url.pathname.startsWith("/_next/static/") ||
     url.pathname.match(/\.(png|jpg|jpeg|svg|webp|ico|woff2?|css|js)$/);
 
   if (isStaticAsset) {
     event.respondWith(
-      caches.open(CACHE_NAME).then(async (cache) => {
-        const cachedResponse = await cache.match(request);
-        const fetchPromise = fetch(request)
-          .then((networkResponse) => {
-            if (networkResponse && networkResponse.status === 200) {
-              cache.put(request, networkResponse.clone());
-            }
-            return networkResponse;
-          })
-          .catch(() => cachedResponse);
-
-        return cachedResponse || fetchPromise;
-      })
-    );
-    return;
-  }
-
-  // 4. HTML Navigation requests: Network-first with cache fallback
-  if (request.mode === "navigate") {
-    event.respondWith(
-      fetch(request)
-        .then((networkResponse) => {
+      caches.match(request).then((cachedResponse) => {
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+        return fetch(request).then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200) {
             const responseClone = networkResponse.clone();
             caches.open(CACHE_NAME).then((cache) => cache.put(request, responseClone));
           }
           return networkResponse;
-        })
-        .catch(async () => {
-          const cachedResponse = await caches.match(request);
-          if (cachedResponse) return cachedResponse;
-          const fallback = await caches.match("/");
-          return fallback || new Response("Offline - Please reconnect to the internet.", {
-            headers: { "Content-Type": "text/html" },
-          });
-        })
+        });
+      })
+    );
+    return;
+  }
+
+  // 4. HTML Navigation: Network-first
+  if (request.mode === "navigate") {
+    event.respondWith(
+      fetch(request).catch(async () => {
+        const cached = await caches.match(request);
+        return cached || new Response("You are offline. Please reconnect.", {
+          headers: { "Content-Type": "text/html" },
+        });
+      })
     );
   }
 });

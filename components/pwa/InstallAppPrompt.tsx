@@ -98,7 +98,7 @@ export default function InstallAppPrompt() {
         await deferredPrompt.prompt();
         const choice = await deferredPrompt.userChoice;
         if (choice.outcome === "accepted") {
-          showToast("SHOPY Atelier App installed successfully", "success");
+          showToast("Installing SHOPY Atelier to your home screen...", "info");
           setShowBanner(false);
         }
         setDeferredPrompt(null);
