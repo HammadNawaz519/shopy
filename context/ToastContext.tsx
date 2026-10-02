@@ -34,18 +34,20 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <ToastContext.Provider value={{ showToast }}>
       {children}
-      <div className="fixed bottom-6 right-6 z-[9999] flex flex-col gap-2 pointer-events-none">
+      <div className="fixed bottom-6 left-4 right-4 sm:left-auto sm:right-6 z-[9999] flex flex-col items-center sm:items-end gap-2.5 pointer-events-none">
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className="pointer-events-auto flex items-center gap-3 bg-[#495464] text-[#F4F4F2] px-5 py-3.5 shadow-2xl border border-[#BBBFCA]/20 text-sm tracking-wide transition-all animate-slideDown"
+            className="pointer-events-auto w-full sm:w-auto max-w-md flex items-center justify-between gap-3 bg-[#495464]/95 backdrop-blur-md text-[#F4F4F2] px-4 sm:px-5 py-3.5 shadow-2xl border border-[#BBBFCA]/30 text-xs sm:text-sm tracking-wider uppercase font-light transition-all animate-slideDown select-none"
           >
-            {toast.type === "success" && <CheckCircle2 className="w-4 h-4 text-[#BBBFCA]" />}
-            {toast.type === "error" && <AlertCircle className="w-4 h-4 text-red-400" />}
-            <span>{toast.message}</span>
+            <div className="flex items-center gap-2.5 sm:gap-3 flex-1 min-w-0">
+              {toast.type === "success" && <CheckCircle2 className="w-4 h-4 text-[#BBBFCA] flex-shrink-0" />}
+              {toast.type === "error" && <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />}
+              <span className="truncate sm:whitespace-normal">{toast.message}</span>
+            </div>
             <button
               onClick={() => removeToast(toast.id)}
-              className="ml-3 text-[#BBBFCA] hover:text-[#F4F4F2] transition-colors"
+              className="ml-2 text-[#BBBFCA] hover:text-[#F4F4F2] transition-colors p-1 flex-shrink-0"
               aria-label="Dismiss notification"
             >
               <X className="w-3.5 h-3.5" />

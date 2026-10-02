@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
-import { Download, X, Share2, PlusSquare, Smartphone, Check } from "lucide-react";
+import { Download, X, Share2, PlusSquare } from "lucide-react";
+import { useToast } from "@/context/ToastContext";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -10,12 +11,12 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 export default function InstallAppPrompt() {
+  const { showToast } = useToast();
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isIOS, setIsIOS] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
   const [showBanner, setShowBanner] = useState(false);
   const [showIOSModal, setShowIOSModal] = useState(false);
-  const [installedSuccess, setInstalledSuccess] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -82,15 +83,14 @@ export default function InstallAppPrompt() {
     window.addEventListener("appinstalled", () => {
       setShowBanner(false);
       setDeferredPrompt(null);
-      setInstalledSuccess(true);
-      setTimeout(() => setInstalledSuccess(false), 4000);
+      showToast("SHOPY Atelier App installed successfully", "success");
     });
 
     return () => {
       window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
       window.removeEventListener("shopy:open-install-prompt", handleManualTrigger);
     };
-  }, [deferredPrompt]);
+  }, [deferredPrompt, showToast]);
 
   const handleInstallClick = async () => {
     if (deferredPrompt) {
@@ -98,7 +98,7 @@ export default function InstallAppPrompt() {
         await deferredPrompt.prompt();
         const choice = await deferredPrompt.userChoice;
         if (choice.outcome === "accepted") {
-          setInstalledSuccess(true);
+          showToast("SHOPY Atelier App installed successfully", "success");
           setShowBanner(false);
         }
         setDeferredPrompt(null);
@@ -129,19 +129,7 @@ export default function InstallAppPrompt() {
 
   return (
     <>
-      {/* 1. Success Toast when installed */}
-      {installedSuccess && (
-        <div className="fixed bottom-6 right-6 z-[9999] bg-[#495464] text-white px-5 py-3 rounded shadow-2xl flex items-center gap-3 animate-fade-in border border-[#BBBFCA]/30">
-          <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center">
-            <Check className="w-3.5 h-3.5 text-white" />
-          </div>
-          <span className="text-xs uppercase tracking-widest font-light">
-            SHOPY Atelier successfully installed!
-          </span>
-        </div>
-      )}
-
-      {/* 2. Sleek Floating Install Banner (Bottom Right / Mobile Bottom) */}
+      {/* Sleek Floating Install Banner (Bottom Right / Mobile Bottom) */}
       {showBanner && (
         <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 sm:max-w-md z-[90] animate-slide-up">
           <div className="bg-[#F4F4F2] text-[#495464] border border-[#BBBFCA]/60 p-4 sm:p-5 shadow-[0_10px_35px_rgba(0,0,0,0.12)] rounded-none relative">
