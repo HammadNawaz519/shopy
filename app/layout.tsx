@@ -77,6 +77,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${cormorant.variable} ${jakarta.variable}`}>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{if(sessionStorage.getItem('shopy_splash_viewed')||window.matchMedia('(prefers-reduced-motion: reduce)').matches){document.documentElement.classList.add('shopy-splash-skip');}}catch(e){}})();`,
+          }}
+        />
+      </head>
       <body className="font-sans antialiased min-h-screen flex flex-col bg-[#F4F4F2] text-[#495464]">
         <SplashScreen />
         <ServiceWorkerRegister />
