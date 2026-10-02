@@ -184,6 +184,18 @@ export default function Footer() {
         <div className="max-w-[1720px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
           <span>© 2026 SHOPY — ALL RIGHTS RESERVED</span>
           <div className="flex items-center gap-6">
+            <button
+              type="button"
+              onClick={() => {
+                if (typeof window !== "undefined") {
+                  window.dispatchEvent(new Event("shopy:open-install-prompt"));
+                }
+              }}
+              className="hover:text-[#495464] transition-colors underline-offset-4 hover:underline"
+            >
+              Install App
+            </button>
+            <span>•</span>
             <span>SECURE CHECKOUT</span>
           </div>
         </div>

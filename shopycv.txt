@@ -1,0 +1,829 @@
+================================================================================
+SHOPY ATELIER — COMPREHENSIVE PROJECT CV & TECHNICAL ARCHITECTURE DOSSIER
+================================================================================
+Application Name : SHOPY Atelier E-Commerce Platform
+Domain & Focus   : Ultra-Luxury Fashion House & Haute-Couture Digital Flagship
+Developer        : Hammad Nawaz (https://github.com/HammadNawaz519)
+Master Admin     : hammadnawaz276@gmail.com
+Document         : shopycv.txt
+Generated/Update : September 2026
+Architecture     : Full-Stack Monorepo (Next.js 14 App Router, Server Components & Serverless APIs)
+Core Languages   : TypeScript 5.6.3 (Strict Mode), Node.js 20+, SQL (PostgreSQL 15.8)
+Target Deploy    : Vercel Serverless Lambdas + Edge Middleware + Supabase Cloud + Upstash Redis
+================================================================================
+
+TABLE OF CONTENTS:
+--------------------------------------------------------------------------------
+1. EXECUTIVE SUMMARY & SYSTEM OVERVIEW
+2. COMPLETE TECH STACK & INTEGRATIONS DIRECTORY
+3. SYSTEM ARCHITECTURE & ENGINEERING DESIGN PRINCIPLES
+4. EXHAUSTIVE FEATURE INVENTORY (WHAT HAS BEEN BUILT & IMPLEMENTED)
+   4.1.  Storefront, Zero-CLS Shimmer Skeletons & Haute-Couture Experience
+   4.2.  Catalog, 1:1 Color-to-Image Swatch Engine & Dynamic Multi-Angle Gallery
+   4.3.  Database-Backed Multi-Device Cart & Server-Authoritative Price Validation
+   4.4.  Mandatory Pre-Checkout Authentication Gate & Multi-Step Checkout Flow
+   4.5.  Order Lifecycle, State Machine, Bank Wire (Raast) & Cash-on-Delivery Engine
+   4.6.  Verified Customer Reviews & Reputation Moderation Queue
+   4.7.  Enterprise Admin Management Suite (12 Integrated Control Modules)
+   4.8.  Real-Time Admin Order Notification Suite (Audio Alert & BroadcastChannel)
+   4.9.  Inbound & Outbound Google Sheets Two-Way Synchronization & Auto-Reversion
+   4.10. Three-Inbox Enterprise SMTP Email Dispatch Architecture
+   4.11. Multi-Tier AI Copywriting & Editorial Generation Matrix
+   4.12. Distributed Caching, Concurrency Control & Mutex Locks
+   4.13. Media Storage Engine (PostgreSQL BYTEA Storage & Sharp Processing)
+   4.14. End-to-End Security, Authentication & Defense-in-Depth
+   4.15. Bespoke Luxury Error Pages & Graceful Recovery Flows
+5. DATABASE ARCHITECTURE & RELATIONAL SCHEMA SPECIFICATION (15 Relational Tables)
+6. COMPLETE RESTful API ROUTE MAP (42 ROUTE MODULES / 50+ PRODUCTION ENDPOINTS)
+7. DEVOPS, MAINTENANCE SCRIPTS & AUTOMATED TEST SUITES (11 PRODUCTION SCRIPTS)
+8. RESUME / CV TALKING POINTS & SENIOR ENGINEERING HIGHLIGHTS
+
+================================================================================
+1. EXECUTIVE SUMMARY & SYSTEM OVERVIEW
+================================================================================
+
+SHOPY Atelier is an enterprise-grade, high-fashion e-commerce platform designed 
+and engineered from the ground up to provide an uncompromising, bespoke shopping 
+experience reminiscent of ultra-luxury European fashion houses (such as The Row, 
+Lemaire, and Celine), paired with an industrial-strength distributed systems 
+backend.
+
+Rather than relying on off-the-shelf monolithic templates or simplistic mock APIs, 
+SHOPY Atelier implements a high-performance, event-aware, multi-tiered full-stack 
+architecture featuring:
+- Server-authoritative inventory, pricing, and discount calculations to prevent 
+  client-side tampering.
+- Atomic distributed locks and PostgreSQL ACID database transactions that eliminate 
+  double-orders and race conditions.
+- Real-time two-way synchronization with Google Sheets for non-technical retail 
+  administrators, featuring automated conflict reversion when invalid spreadsheet 
+  edits occur.
+- A 3-tier dedicated SMTP dispatch pipeline separating OTPs, Order updates, and 
+  Concierge support to protect domain reputation and achieve 100% transactional inbox deliverability.
+- Multi-model generative AI fallback matrix (Groq Llama 3.3 70B, Google Gemini, 
+  OpenAI, and curated in-memory archives) delivering dynamic psychological editorial copy 
+  that drives customer desire and conversion.
+- Upstash Redis caching with single-flight mutex protection (anti-cache-stampede) 
+  and zero-throw fail-safe degradation to Supabase PostgreSQL.
+- Zero-CLS (Cumulative Layout Shift) shimmer loading skeletons across all product grids, 
+  category lookbooks, and detail views.
+- Bidirectional 1:1 color-to-image synchronization linking hex swatches directly to 
+  specific garment photography across product detail views, catalog cards, and admin CMS.
+- Mandatory checkout authentication gate with seamless return redirect preservation 
+  (`?redirect=/checkout`), user-isolated shipping address persistence, and automatic 
+  profile pre-fill.
+- Multi-device cloud cart persistence (`user_carts`) with intelligent guest-to-account 
+  merging upon login.
+- Real-time administrative order notification suite with synthesized Web Audio chimes, 
+  delta polling anchors, and cross-tab HTML5 `BroadcastChannel` synchronization.
+- PostgreSQL native BYTEA media storage (`media_assets`) served with 1-year immutable 
+  edge caching, Sharp WebP processing, database storage telemetry, and automated orphan 
+  cleanup.
+
+================================================================================
+2. COMPLETE TECH STACK & INTEGRATIONS DIRECTORY
+================================================================================
+
+A. CORE FRONTEND & APPLICATION LAYER:
+-------------------------------------
+- Next.js 14.2.24: App Router architecture, Server Components (RSC), Client Components,
+  Static Site Generation (SSG), Incremental Static Regeneration (ISR - 5 min catalog revalidation),
+  and Edge Middleware.
+- React 18.3.1: Concurrent rendering features, Suspense boundaries, custom hooks,
+  context providers (`AuthContext`, `CartContext`, `ToastContext`, `AdminOrderNotificationContext`).
+- TypeScript 5.6.3: Strict type checking throughout the codebase (zero loose `any`
+  in production data paths).
+- Tailwind CSS 3.4.14 + PostCSS 8.4.47: Custom luxury styling design system, tailor-made
+  design tokens, custom animations (`fadeIn`, `scaleUp`, `slideDown`, `slideLeft`),
+  and custom cubic-bezier easing curves.
+- Modern Typography: Google Fonts `Cormorant Garamond` (high-fashion serif display)
+  and `Plus Jakarta Sans` (ultra-clean, legible modern sans-serif body).
+- Lucide React 0.453.0: Minimalist vector iconography.
+- Clsx 2.1.1 & Tailwind-Merge 2.5.4: Dynamic conditional CSS class merging.
+- Web Audio API: Native browser audio synthesis for administrative chime alerts without external assets.
+
+B. BACKEND, RUNTIME & SERVERLESS COMPUTE:
+-----------------------------------------
+- Node.js 20+ Runtime: Vercel Serverless Functions with Node.js connection pooling.
+- Vercel Edge Middleware: Microsecond route interception, session cookie evaluation,
+  and open-redirect defense without database roundtrips.
+- RESTful Route Handlers: 42 specialized modular API route files managing 50+ production endpoints under `app/api/*`.
+
+C. DATABASE, PERSISTENCE & RELATIONAL INTEGRITY:
+-----------------------------------------------
+- PostgreSQL 15.8 (Supabase Cloud): Single source of truth for all persistent entities.
+- Node-Postgres (`pg` 8.23.0 + `@types/pg` 8.23.1): Robust connection pooling with SSL,
+  automatic client release, parameterized queries, and ACID transactions (`BEGIN`/`COMMIT`/`ROLLBACK`).
+- Zero-Overhead Static Schema: Managed via static migration scripts (`lib/db/schema.sql` and `apply-migrations.mjs`),
+  eliminating runtime DDL execution overhead during serverless invocations.
+- Custom Database Layer (`lib/db/store.ts` & `client.ts`): Over 3,000 lines of custom
+  domain-driven relational data access code with strict typing and schema safety.
+
+D. DISTRIBUTED CACHE, CONCURRENCY & RATE LIMITING:
+--------------------------------------------------
+- Upstash Redis REST API (`@upstash/redis` 1.38.2): Serverless HTTP-based distributed Redis.
+- Versioned Cache Namespacing: Systematic `shopy:v4:*` key versioning with TTL enforcement.
+- Distributed Lock Mutex: Atomic `SET NX EX` locks with cryptographically verified
+  ownership tokens for order placement, status updating, and inventory modification.
+- Single-Flight Cache Stampede Protection: Prevents thundering-herd database crashes
+  when high-traffic cache entries expire.
+- Sliding-Window Rate Limiting: Pipelined Redis atomic counters (`INCR`, `EXPIRE`, `TTL`)
+  with automatic local in-memory fallback.
+
+E. MEDIA, ASSETS & STORAGE ENGINE:
+----------------------------------
+- PostgreSQL BYTEA Binary Storage (`media_assets` table): Guarantees permanent media storage
+  independent of ephemeral serverless filesystem lifecycles.
+- Sharp 0.35.3: Server-side high-performance image processing, format conversion,
+  and aspect-ratio optimization.
+- Content-Addressed Image Caching: `/_next/image` cached in browser for 24h (`max-age=86400`)
+  and CDN for 1 year (`s-maxage=31536000, stale-while-revalidate=604800`).
+- Immutable Media Endpoint: `/api/media/:path*` served with `max-age=31536000, immutable`.
+- Magic Byte Verification: Deep inspection of uploaded file buffers (JPEG, PNG, WebP)
+  to prevent malicious binary uploads.
+- Automated Orphan Media Pruning: CTE-driven garbage collector (`cleanupOrphanMediaAssets`)
+  that purges unreferenced media assets across products, categories, orders, and CMS.
+
+F. MULTI-CHANNEL COMMUNICATIONS & SMTP:
+---------------------------------------
+- Nodemailer 9.0.5 (`@types/nodemailer` 8.0.1): Professional multi-channel SMTP client.
+- 3 Dedicated Google Workspace / Gmail SMTP Accounts:
+  1. `shopy.otp@gmail.com`        -> Verification OTPs, Password Resets, Welcome Emails.
+  2. `shopy.orderupdate@gmail.com` -> Order Confirmations, Status Changes, Payment Alerts.
+  3. `shopy.support@gmail.com`     -> Contact Inquiries, Customer Concierge.
+- Anti-Spam Standards: RFC-5322 Message-ID alignment, custom headers, responsive HTML
+  email templates with plain-text fallbacks.
+
+G. ENTERPRISE CLOUD INTEGRATIONS:
+---------------------------------
+- Google Sheets API v4 (`googleapis` 176.0.0): Service Account JWT authentication,
+  bidirectional data synchronization with automatic sheet creation and tabular formatting.
+- Google Apps Script: Webhook trigger syncing spreadsheet status edits back to PostgreSQL.
+- Google OAuth 2.0: One-tap authentication with secure backend token validation and redirect preservation.
+
+H. GENERATIVE AI & PSYCHOLOGICAL COPYWRITING:
+---------------------------------------------
+- Groq Cloud API: Ultra-fast LLM inference using `llama-3.3-70b-versatile` (< 300ms).
+- Google Gemini API / OpenAI API: Multi-tiered fallback matrix.
+- Curated In-Memory Archive: Instant, zero-latency fallback ensuring high-status fashion quotes never fail.
+
+I. SECURITY & DEFENSE-IN-DEPTH:
+-------------------------------
+- Zod 3.23.8: Authoritative runtime schema validation for user inputs, orders, and auth.
+- Bcryptjs 2.4.3: Secure cryptographic password hashing with 10 salt rounds.
+- Jsonwebtoken 9.0.2: Stateless, tamper-proof session tokens stored in `HttpOnly` cookies.
+- Timing-Safe Cryptographic Operations: Node.js `crypto.timingSafeEqual` preventing
+  timing attacks on webhook secrets and API authentication.
+- Strict HTTP Security Headers: HSTS (2 years), X-Frame-Options (`DENY`), X-Content-Type-Options (`nosniff`),
+  Referrer-Policy (`strict-origin-when-cross-origin`), and Content Security Policy (CSP).
+
+===============================================================================
+3. SYSTEM ARCHITECTURE & ENGINEERING DESIGN PRINCIPLES
+================================================================================
+
+1. SUPABASE POSTGRESQL IS THE UNQUESTIONED SOURCE OF TRUTH:
+   Permanent business entities (users, orders, products, inventory counts, reviews,
+   settings, media assets, and user carts) reside strictly in PostgreSQL. The system
+   enforces ACID properties: if an external service or cache fails, the database
+   remains uncorrupted.
+
+2. ZERO-THROW FAIL-SAFE REDIS DEGRADATION:
+   If Upstash Redis is unreachable, misconfigured, or network-throttled, all data 
+   retrieval gracefully falls back to Supabase PostgreSQL without throwing unhandled 
+   500 errors or interrupting checkout flows.
+
+3. SERVER-AUTHORITATIVE DATA FLOW:
+   Client requests never dictate prices, totals, or stock statuses. The frontend 
+   submits only product IDs and requested quantities; the server executes authoritative
+   lookups, verifies active discounts, recalculates shipping and tax, and checks stock.
+
+4. CONCURRENCY & RACE-CONDITION DEFENSE:
+   - Order placement acquires a distributed lock: `lock:order:[idempotency/user]`.
+   - Inventory decrements execute atomically:
+     `UPDATE products SET stock_count = stock_count - qty, in_stock = (stock_count - qty > 0) WHERE id = $id AND stock_count >= qty`
+   - Database table constraints enforce non-negative inventory: `CHECK (stock_count >= 0)`.
+   - Admin status updates acquire row-level locks using `SELECT * FROM orders WHERE id = $1 FOR UPDATE`.
+
+5. REQUEST IDEMPOTENCY:
+   The checkout endpoint accepts an `x-idempotency-key` header. The idempotency key 
+   is recorded in Redis with a 24-hour TTL upon order creation. Repeated submissions
+   with the same key return the previously generated order instantly without 
+   double-charging or double-decrementing stock.
+
+6. SINGLE-FLIGHT CACHE STAMPEDE PROTECTION (MUTEX PATTERN):
+   When a high-traffic cache entry expires, only ONE serverless invocation queries
+   PostgreSQL to re-populate the cache. Concurrent requests await the leader's 
+   computation briefly and read the freshly populated cache value.
+
+7. ZERO-CLS VISUAL HYDRATION & BFCACHE OPTIMIZATION:
+   All public catalog and product pages feature bespoke Next.js shimmer loading skeletons
+   (`loading.tsx`) that match final DOM geometry precisely, preventing layout shifts.
+   The browser Back-Forward Cache (BFCache) is restored, and legacy/rogue mobile service
+   workers are automatically pruned via `ClientCacheRevalidator.tsx`.
+
+8. CROSS-TAB STATE SYNCHRONIZATION:
+   The admin panel leverages HTML5 `BroadcastChannel` (`shopy_admin_orders_channel`)
+   to synchronize real-time order arrival counters and seen statuses across multiple
+   open browser tabs without redundant polling.
+
+================================================================================
+4. EXHAUSTIVE FEATURE INVENTORY (WHAT HAS BEEN BUILT & IMPLEMENTED)
+================================================================================
+
+--------------------------------------------------------------------------------
+4.1. STOREFRONT, ZERO-CLS SHIMMER SKELETONS & HAUTE-COUTURE EXPERIENCE
+--------------------------------------------------------------------------------
+- Bespoke Luxury Visual Identity:
+  Crafted with an editorial palette of warm ecru (`#F4F4F2`), soft stone (`#E8E8E8`),
+  muted ash (`#BBBFCA`), deep slate (`#495464`), and obsidian (`#363E4B`).
+- Zero-CLS Loading Skeletons:
+  Custom luxury pulse skeletons (`loading.tsx`) implemented for:
+  * `app/products/loading.tsx`: Multi-column catalog grid shimmer.
+  * `app/product/[id]/loading.tsx`: Breadcrumb, gallery rail, hero image, and option selectors.
+  * `app/collections/loading.tsx`: Curated collection card grid.
+  * `app/collections/[category]/loading.tsx`: Category banner and product item skeletons.
+- Dynamic Homepage (`app/page.tsx`):
+  - High-impact Hero section with atmospheric photography, editorial headlines,
+    and responsive call-to-action buttons.
+  - Featured Essentials collection showcasing curated seasonal garments.
+  - Category Gallery highlighting Tops, Bottoms, Footwear, Fragrances, Co-Ord Sets,
+    and Accessories with custom aspect-ratio cards.
+  - Generative Editorial Motivation Section: Live psychological copy generated by
+    Groq AI / Gemini with elegant quotes, author attributions, and dynamic CTAs.
+  - Maison Gazette Newsletter Subscription with immediate database enrollment.
+- Product Catalog & Discovery (`app/products/page.tsx`):
+  - 5-minute Incremental Static Regeneration (ISR) with instant client-side filtering.
+  - Multi-category filtering, instant sorting (Newest, Price: Low to High, Price: High to Low, Name).
+  - Editorial collection badges (`NEW`, `SALE`, `LIMITED`, `ARCHIVE`).
+  - Out-of-stock overlay indicators and responsive 2-to-4 column grid layouts.
+- Interactive Search Modal (`components/search/SearchModal.tsx`):
+  - Debounced instant query searching across titles, descriptions, and categories.
+  - Live preview thumbnails, price formatting, and keyboard shortcuts (`Cmd/Ctrl + K`, `Escape`).
+- Collections Showcase (`app/collections/page.tsx` & `app/collections/[category]/page.tsx`):
+  - Architectural lookbook presentation of distinct seasonal collections with dynamic slug routing.
+- Brand Story & Editorial Content Pages:
+  - `app/about/page.tsx`: Atelier heritage, craftsmanship doctrine, and fabric sourcing philosophy.
+  - `app/contact/page.tsx`: Customer inquiry form saving directly to `inquiries` table with auto-notification email.
+  - `app/faq/page.tsx`: Comprehensive accordion-based FAQ.
+  - `app/shipping/page.tsx`: Transparent domestic & international shipping policies.
+  - `app/returns/page.tsx`: White-glove return, refund, and exchange guidelines.
+  - `app/size-guide/page.tsx`: Detailed garment measurements and sizing charts.
+  - `app/privacy-policy` & `app/terms`: Regulatory legal and data privacy policies.
+
+--------------------------------------------------------------------------------
+4.2. CATALOG, 1:1 COLOR-TO-IMAGE SWATCH ENGINE & DYNAMIC MULTI-ANGLE GALLERY
+--------------------------------------------------------------------------------
+- Bidirectional 1:1 Color-to-Image Swatch Engine:
+  - In `ProductDetailClientView.tsx`: Selecting a color swatch immediately switches
+    the main gallery photo to the exact matching garment color. Clicking any thumbnail
+    reverse-syncs the active color swatch selection.
+  - Main stage utilizes `key={currentImage}` triggering clean React element transitions.
+  - Tonal blur placeholders (`placeholder="blur"` with luxury `#E8E8E8` SVG blurDataURL)
+    prevent layout flashes on slow connections.
+  - Optimized image loading strategy: `loading="eager"` on primary image, `loading="lazy"` on thumbnails.
+- Storefront Product Card Integration (`ProductCard.tsx`):
+  - Interactive color swatches on catalog grid cards: Clicking a swatch dynamically swaps
+    the card's thumbnail preview in real time without navigating away.
+  - On-demand secondary image loading upon first hover (preserves initial page weight while
+    enabling interactive lookbook hover flip).
+  - Quick Add modal by size with color preservation.
+  - Link prefetching optimization (`prefetch={false}`) preventing RSC prefetch network storms.
+- Admin Color-Image Linking:
+  - In `app/admin/products/page.tsx`, administrators can link uploaded gallery images
+    directly to hex color swatches with instant visual feedback.
+- Relational Multi-Image Architecture:
+  - Dedicated `product_images` table with explicit `sort_order` indexing.
+  - Image cleanup lifecycle: Deleting or replacing images triggers automated cleanup
+    of orphaned media assets and re-indexes remaining photos.
+
+--------------------------------------------------------------------------------
+4.3. DATABASE-BACKED MULTI-DEVICE CART & SERVER-AUTHORITATIVE PRICE VALIDATION
+--------------------------------------------------------------------------------
+- Persistent Multi-Device Cart (`context/CartContext.tsx` & `app/api/cart/route.ts`):
+  - Client-side cart stored in `localStorage` with sanitization against corrupt payloads.
+  - Database Synchronization: Authenticated users have their cart saved to PostgreSQL (`user_carts` table).
+  - Guest-to-Account Cart Merge: When an anonymous visitor logs in, local guest cart items
+    are automatically merged with their cloud database cart without data loss or duplicates.
+- Slide-Over Cart Drawer (`components/layout/CartDrawer.tsx`):
+  - Real-time subtotal computation and item count badges.
+  - Interactive quantity increment/decrement and item removal.
+  - Free Shipping Progress Bar: Visually demonstrates how much more the customer 
+    needs to add to qualify for complimentary shipping (configurable threshold).
+  - Promo Code Input with instant server-side discount validation.
+- Server-Authoritative Price Recalculation (`POST /api/cart/validate`):
+  - Client sends cart items; server queries Supabase PostgreSQL for authoritative prices.
+  - Validates discount code validity, minimum order thresholds, and expiration dates.
+  - Computes shipping fees, tax percentages, and final totals, rejecting any client tampering.
+
+--------------------------------------------------------------------------------
+4.4. MANDATORY PRE-CHECKOUT AUTHENTICATION GATE & MULTI-STEP CHECKOUT FLOW
+--------------------------------------------------------------------------------
+- Mandatory Authentication Gate:
+  - Unauthenticated visitors clicking "Place Order" see an elegant single-button CTA:
+    "Log in or Sign Up to Purchase", routing to `/login?redirect=/checkout`.
+  - Redirect Preservation: The login, register, OTP verification, and Google OAuth flows
+    all honor `?redirect=/checkout`, returning the customer directly to checkout upon completion.
+- Automatic Address & Profile Prefill:
+  - Authenticated customers automatically have their account name and email pre-filled.
+  - Shipping address details are persisted per authenticated user ID in `localStorage`
+    (`shopy_shipping_user_${userId}`), ensuring complete data isolation on shared devices.
+- Multi-Step Checkout Form (`app/checkout/page.tsx`):
+  - Form validation for Name, Email, Phone (WhatsApp verification proof), Address, City, Postal Code, and Province.
+  - Idempotent Order Submission: Generates unique UUID idempotency key per order submission.
+  - Distributed lock on checkout endpoint to prevent concurrent duplicate orders.
+
+--------------------------------------------------------------------------------
+4.5. ORDER LIFECYCLE, STATE MACHINE, BANK WIRE (RAAST) & CASH-ON-DELIVERY ENGINE
+--------------------------------------------------------------------------------
+- Dual Payment Methods:
+  1. Cash on Delivery (COD): Default for domestic logistics.
+  2. Direct Bank Wire Transfer & Raast:
+     - Real-time bank account information display (Bank Name, Account Holder,
+       Account Title, Account Number, IBAN, and Raast ID).
+     - 1-Click Copy with visual feedback for account numbers and IBANs.
+     - Custom transfer instructions and direct WhatsApp submission link with pre-filled
+       Order Number for immediate payment verification screenshot dispatch.
+- Strict Order State Machine:
+  - Validated Order Statuses:
+    `VERIFYING_PAYMENT` -> `CONFIRMED` -> `PREPARING` -> `SHIPPED` -> `OUT_FOR_DELIVERY` -> `DELIVERED` -> `CANCELLED` -> `RETURN_REQUESTED` -> `RETURNED` -> `REFUNDED`.
+  - Payment Statuses:
+    `UNPAID` -> `PENDING_VERIFICATION` -> `PAID` -> `FAILED` -> `REFUNDED`.
+  - Comprehensive Audit Trail:
+    Every status update logs `previousStatus`, `changedBy`, `changedAt`, and custom notes
+    into the order's JSONB history.
+- Order Confirmation Experience (`app/order-confirmation/[id]/page.tsx`):
+  - Visual order timeline, summary breakdown, and shipping details.
+  - Auto-generated clean document title enabling 1-click native PDF invoice saving.
+
+--------------------------------------------------------------------------------
+4.6. VERIFIED CUSTOMER REVIEWS & REPUTATION MODERATION QUEUE
+--------------------------------------------------------------------------------
+- Gated Verified Buyer Eligibility (`GET /api/reviews/eligibility`):
+  - Strict anti-fraud logic: A user can only review a product if they have an
+    authenticated account, have placed an order containing that specific product,
+    the order status is officially marked `DELIVERED`, and they have not reviewed it previously.
+- Performance & Network Optimization:
+  - Guest optimization: Skips the eligibility check round-trip entirely if auth session cookie is absent.
+  - SSR hydration optimization: Skips client fetch when initial reviews are already hydrated from server.
+  - Debounced sort query changes (300ms).
+  - Uncluttered visual presentation: Removed redundant badges to preserve high-fashion editorial purity.
+- Review Submission & Moderation:
+  - Interactive star rating component (`components/ui/StarRating.tsx`).
+  - Submitted with `status = 'pending'` for administrative moderation.
+  - Admin Moderation Queue (`app/admin/reviews/page.tsx`): Approve, Reject, or Delete incoming reviews.
+
+--------------------------------------------------------------------------------
+4.7. ENTERPRISE ADMIN MANAGEMENT SUITE (12 INTEGRATED CONTROL MODULES)
+--------------------------------------------------------------------------------
+The admin portal (`app/admin/*`) is a secured, full-featured enterprise management 
+suite protected by cryptographic session verification and edge middleware:
+
+1. Executive Analytics Dashboard (`app/admin/page.tsx` & `admin/analytics`):
+   - Real-time KPI summary: Total Revenue, Gross Order Count, Active Customer Accounts,
+     Low-Stock Inventory Count.
+   - Sales velocity charts, recent order activity feed, and category distribution breakdown.
+2. Order Management Center (`app/admin/orders/page.tsx`):
+   - Multi-filter table: Search by order number, customer name, email, or status.
+   - Modal inspection: Full shipping details, line items with thumbnails, payment method.
+   - Status & Payment transitions with real-time distributed locking.
+   - Tracking Number input and courier assignment.
+   - Printable Luxury Invoice (`components/admin/OrderInvoicePrint.tsx`):
+     Formatted with high-fashion typography, line item breakdown, and print-ready CSS.
+3. Product Catalog Manager (`app/admin/products/page.tsx`):
+   - Full CRUD operations for atelier silhouettes.
+   - Multi-image upload pipeline with Sharp optimization and preview re-ordering.
+   - Color swatch linking directly to image assets.
+   - Category assignment, pricing, original sale strike-through pricing, inventory count,
+     editorial tags (`NEW`, `SALE`, `LIMITED`, `ARCHIVE`), and featured toggles.
+4. Centralized Inventory Control (`app/admin/inventory/page.tsx`):
+   - Real-time stock monitor with low-stock threshold filtering (`filter=low`, `filter=out`).
+   - Quick inline stock adjustments and one-click in-stock/out-of-stock toggles.
+5. Category Manager (`app/admin/categories/page.tsx`):
+   - Category creation and editing with slugs, taglines, banner imagery, descriptions,
+     and aspect-ratio configurations (`tall` vs `square`).
+6. Customer Intelligence Directory (`app/admin/customers/page.tsx`):
+   - Aggregated customer database tracking lifetime value (LTV / Total Spent),
+     order counts, registration dates, and last order timestamps with pagination.
+7. Discount & Voucher Engine (`app/admin/discounts/page.tsx`):
+   - Generator for percentage and fixed-amount coupon codes.
+   - Rules: Minimum order requirement, expiration dates, maximum usage caps, and live usage counters.
+8. Review Moderation Queue (`app/admin/reviews/page.tsx`):
+   - Full moderation workflow: Approve, Reject, or Delete incoming customer reviews.
+9. Homepage CMS (`app/admin/homepage/page.tsx`):
+   - Visual editor controlling hero titles, subtitles, hero image, CTA destination,
+     featured collection headers, and editorial campaign quotes.
+10. Navigation Menu Editor (`app/admin/navigation/page.tsx`):
+    - Drag-and-drop / index re-ordering and visibility toggles for header navbar links with slug deduplication.
+11. Store & Payment Settings (`app/admin/settings/page.tsx`):
+    - Global currency configuration (`PKR`, `USD`, `EUR`, etc.).
+    - Free shipping threshold and flat shipping rate settings.
+    - Bank wire transfer configuration (Bank Name, Account Number, IBAN, Raast ID, WhatsApp contact).
+12. Storage & Media Telemetry Monitor (`app/admin/storage/route.ts`):
+    - Real-time calculation of PostgreSQL database size, media asset count, and total byte volume.
+    - Automated garbage collector trigger purging orphaned binary media assets.
+
+--------------------------------------------------------------------------------
+4.8. REAL-TIME ADMIN ORDER NOTIFICATION SUITE (AUDIO ALERT & BROADCASTCHANNEL)
+--------------------------------------------------------------------------------
+- Dedicated Delta Polling Endpoint (`GET /api/admin/orders/unseen`):
+  - Uses timestamp anchors (`after`) and ID anchors (`afterId`) to fetch newly placed orders
+    without executing expensive full-table queries.
+- Web Audio Synthesizer Chime:
+  - Automatically synthesizes an elegant, high-frequency dual-tone chime upon new order arrival,
+    providing immediate audible feedback to administrators without requiring external audio file downloads.
+- Cross-Tab HTML5 `BroadcastChannel` Synchronization:
+  - Broadcasts `ORDERS_MARKED_SEEN` and order arrival notifications over `shopy_admin_orders_channel`.
+  - When an admin views orders in one browser tab, all other open admin tabs immediately update
+    their unseen counters to zero in real time without redundant API polling.
+
+--------------------------------------------------------------------------------
+4.9. INBOUND & OUTBOUND GOOGLE SHEETS TWO-WAY SYNCHRONIZATION
+--------------------------------------------------------------------------------
+- Google Sheets API v4 Integration (`lib/sheets/service.ts` & `client.ts`):
+  - Service Account JWT authentication using Google Cloud service credentials.
+  - Automatically verifies and initializes spreadsheet structure: "Orders" tab 
+    and "Order Items" tab with formatted headers.
+- Outbound Order Push:
+  - On new order placement, order metadata, customer details, line items, and 
+    Pakistan Standard Time (Asia/Karachi) timestamps are appended to Google Sheets.
+- Inbound Webhook Listener (`app/api/webhooks/sheets/route.ts`):
+  - Triggered by Google Apps Script `onEdit(e)` when an administrator edits a cell in the spreadsheet.
+  - Security: Timing-safe validation against `GOOGLE_SHEETS_WEBHOOK_SECRET` and rate-limiting.
+  - State Validation & Conflict Reversion:
+    If an admin attempts an illegal state transition (e.g., changing CANCELLED to PAID),
+    the webhook rejects the change and invokes the Google Sheets API to revert the 
+    spreadsheet cell back to the authoritative PostgreSQL state!
+  - If valid, updates PostgreSQL, appends history, and dispatches automated customer emails.
+
+--------------------------------------------------------------------------------
+4.10. THREE-INBOX ENTERPRISE SMTP EMAIL DISPATCH ARCHITECTURE
+--------------------------------------------------------------------------------
+- Modular 3-Channel SMTP Setup (`lib/email/service.ts` & `transporter.ts`):
+  To safeguard domain reputation and prevent transactional order emails from being 
+  throttled by authentication OTP spikes, the platform separates email dispatch across
+  three dedicated Google Workspace / Gmail SMTP accounts:
+
+  1. Channel 1: OTP & Security (`shopy.otp@gmail.com`)
+     - 6-digit verification code emails for registration.
+     - Single-use login OTP codes with 10-minute expiry.
+     - Cryptographic password reset links with secure tokens.
+     - Welcome and onboarding dispatches.
+
+  2. Channel 2: Order Lifecycle & Fulfillment (`shopy.orderupdate@gmail.com`)
+     - Immediate order confirmation with line items, total, and shipping address.
+     - Status updates (Order Confirmed, Preparing, Shipped with Tracking Number, Delivered).
+     - Payment verification acknowledgments for bank wire transfers.
+     - Administrative new-order alerts with customer contact info.
+
+  3. Channel 3: Concierge & Customer Support (`shopy.support@gmail.com`)
+     - Customer contact form inquiry routing to concierge team.
+     - Automated customer acknowledgment dispatch.
+
+- Technical Email Highlights:
+  - RFC-5322 compliant Message-ID generation (`<timestamp.random@shopy.atelier>`).
+  - Automatic plain-text generation alongside responsive, dark/light luxury HTML styling.
+  - Exponential backoff retry loop with zero-throw error isolation.
+
+--------------------------------------------------------------------------------
+4.11. MULTI-TIER AI COPYWRITING & EDITORIAL GENERATION MATRIX
+--------------------------------------------------------------------------------
+- Intelligent Copy Engine (`lib/groq.ts` & `app/api/editorial/quote/route.ts`):
+  - Primary Provider: Groq Cloud AI executing `llama-3.3-70b-versatile` with an ultra-low
+    inference latency (< 300ms).
+  - Multi-Tiered Fallback: If Groq key is missing or throttled, cascades seamlessly
+    to Google Gemini API, then OpenAI API, and finally to a curated in-memory 
+    archive of high-status psychographic fashion philosophy quotes.
+  - Role-Engineered System Prompts: Directs the LLM to write as an ultra-luxury 
+    creative director, emphasizing tactile permanence, architectural draping, 
+    and status distinction, converting passive visitors into committed buyers.
+
+--------------------------------------------------------------------------------
+4.12. DISTRIBUTED CACHING, CONCURRENCY CONTROL & MUTEX LOCKS
+--------------------------------------------------------------------------------
+- Upstash Redis Layer (`lib/redis.ts`):
+  - Systematic versioned keys (`shopy:v4:products:*`, `shopy:v4:categories:all`, `shopy:v4:settings`).
+  - Granular TTL Strategy:
+    - Products Catalog: 10 minutes (600s).
+    - Product Details: 15 minutes (900s).
+    - Categories: 30 minutes (1800s).
+    - Store Settings: 1 hour (3600s).
+    - Homepage Config: 30 minutes (1800s).
+    - Order Idempotency: 24 hours (86400s).
+- Atomic Distributed Locking:
+  - Implements `acquireDistributedLock(key, ttl)` via Redis `SET key value NX EX`.
+  - Generates cryptographically unique lock tokens (`timestamp_randomBytes`).
+  - Verified Ownership Release: Lock is released ONLY if the current value matches
+    the caller's token, preventing premature unlock by delayed executions.
+- Single-Flight Cache Stampede Protection:
+  - `fetchWithStampedeProtection(cacheKey, fetcher, ttl)` ensures only one serverless 
+    instance queries the database during cache expiration.
+- Efficient Batch Invalidation:
+  - `redisDelPattern(pattern)` uses Redis `SCAN` in non-blocking batches of 50 keys,
+    preventing Redis main thread stalls during catalog updates.
+
+--------------------------------------------------------------------------------
+4.13. MEDIA STORAGE ENGINE (POSTGRESQL BYTEA STORAGE & SHARP PROCESSING)
+--------------------------------------------------------------------------------
+- PostgreSQL BYTEA Storage (`media_assets` table):
+  - Binary assets stored directly in PostgreSQL with filename, MIME type, and size tracking.
+  - Eliminates dependency on ephemeral serverless disk storage and external cloud bucket quotas.
+- High-Performance Image Optimization via Sharp:
+  - Server-side image resizing, compression, and WebP format conversion.
+- Dedicated Binary Media Serving (`GET /api/media/[id]`):
+  - Served with immutable HTTP cache headers (`public, max-age=31536000, immutable`).
+- CTE Garbage Collection Pruning:
+  - Automated cleanup script identifies media assets no longer referenced in `product_images`,
+    `products`, `categories`, `order_items`, or `homepage_config`, purging them safely to reclaim disk space.
+
+--------------------------------------------------------------------------------
+4.14. END-TO-END SECURITY, AUTHENTICATION & DEFENSE-IN-DEPTH
+--------------------------------------------------------------------------------
+- Edge Middleware Route Protection (`middleware.ts`):
+  - Intercepts `/admin/*` and `/account/*` routes at the Vercel Edge.
+  - Evaluates session cookies without making expensive database roundtrips.
+  - Open-Redirect Prevention: Sanitizes redirect parameters to prevent phishing attacks.
+- Cryptographically Signed Stateless Sessions (`lib/security/session.ts`):
+  - Generates HMAC-SHA256 signed JWT session cookies (`shopy_session_id`).
+  - Cookie security flags: `HttpOnly`, `Secure` in production, `SameSite=Lax`, 7-day TTL.
+  - SuperAdmin hard authorization: Master administrator email (`hammadnawaz276@gmail.com`)
+    is automatically verified and granted unconditional administrative privileges.
+- Distributed Sliding-Window Rate Limiting (`lib/security/rateLimit.ts`):
+  - Checkout endpoint: 10 requests per 5 minutes per IP/User.
+  - Authentication (Login/Register/Reset): 5-10 requests per 15 minutes.
+  - Search & Public APIs: 100 requests per minute.
+  - Redis pipeline execution with in-memory sliding window fallback.
+- Deep File Upload Inspection (`lib/security/upload.ts`):
+  - Inspects file buffer magic bytes (rejects renamed binaries or disguised scripts).
+  - Enforces 5MB maximum file size ceiling.
+  - Dangerous extension denylist (.php, .exe, .sh, .js, .html, .svg, etc.).
+  - Crypto-randomized filename generation to prevent directory traversal.
+- HTTP Security Headers (`next.config.mjs`):
+  - Strict-Transport-Security (HSTS 2 years with `includeSubDomains; preload`).
+  - X-Frame-Options: `DENY` (clickjacking defense).
+  - X-Content-Type-Options: `nosniff`.
+  - Referrer-Policy: `strict-origin-when-cross-origin`.
+  - Comprehensive Content Security Policy (CSP).
+  - Strips `X-Powered-By` header to prevent technology stack disclosure.
+
+--------------------------------------------------------------------------------
+4.15. BESPOKE LUXURY ERROR PAGES & GRACEFUL RECOVERY FLOWS
+--------------------------------------------------------------------------------
+- Custom Luxury Error Experience (`app/not-found.tsx`, `app/error.tsx`, `app/global-error.tsx`):
+  - Engineered with a fine hairline architectural SVG circle frame and centered watermarks.
+  - Intelligent Referrer Fallback: Detects if the visitor came from an internal store route
+    and triggers native browser history back-navigation, otherwise routing gracefully to the homepage.
+  - Complete typographical harmony adhering to the ecru, stone, and slate palette.
+
+================================================================================
+5. DATABASE ARCHITECTURE & RELATIONAL SCHEMA SPECIFICATION
+================================================================================
+
+The platform uses a relational PostgreSQL schema designed for high-throughput 
+e-commerce, strict referential integrity, and sub-millisecond query execution:
+
+1. `categories`:
+   - Columns: `id` (PK), `slug` (UNIQUE), `name`, `tagline`, `image`, `description`,
+     `aspect_ratio` ('tall' | 'square'), `featured` (BOOLEAN), `created_at`, `updated_at`.
+2. `products`:
+   - Columns: `id` (PK), `name`, `slug` (UNIQUE), `category_id` (FK categories),
+     `category_slug`, `category_label`, `price`, `original_price`, `description`,
+     `tag` ('NEW' | 'SALE' | 'LIMITED' | 'ARCHIVE'), `images` (TEXT[]),
+     `colors` (JSONB), `sizes` (TEXT[]), `composition` (TEXT[]), `care_instructions` (TEXT[]),
+     `details` (TEXT[]), `featured` (BOOLEAN), `in_stock` (BOOLEAN),
+     `stock_count` (INTEGER CHECK stock_count >= 0), `created_at`, `updated_at`.
+3. `product_images` (Relational Gallery with Source-of-Truth Ordering):
+   - Columns: `id` (PK), `product_id` (FK products ON DELETE CASCADE),
+     `image_url`, `storage_path`, `sort_order` (INTEGER NOT NULL DEFAULT 0),
+     `created_at`, `updated_at`.
+4. `users`:
+   - Columns: `id` (PK), `name`, `email` (UNIQUE), `password_hash`,
+     `role` ('user' | 'admin'), `reset_token`, `reset_token_expiry`, `created_at`, `updated_at`.
+5. `orders`:
+   - Columns: `id` (PK), `order_number` (UNIQUE), `user_id` (FK users ON DELETE SET NULL),
+     `subtotal`, `discount`, `shipping`, `total`, `status`, `payment_status`,
+     `payment_method` ('cod' | 'bank_transfer' | 'online' | 'card'),
+     `payment_details` (JSONB), `shipping_address` (JSONB), `notes`,
+     `created_at`, `updated_at`.
+6. `order_items` (Historical Price Snapshot):
+   - Columns: `id` (PK), `order_id` (FK orders ON DELETE CASCADE),
+     `product_id` (FK products ON DELETE SET NULL), `name`, `price`,
+     `quantity` (INTEGER CHECK quantity > 0), `size`, `color`, `image`, `created_at`.
+7. `discounts`:
+   - Columns: `id` (PK), `code` (UNIQUE), `type` ('percentage' | 'fixed'), `value`,
+     `min_order`, `usage_limit`, `usage_count`, `active`, `expires_at`, `created_at`.
+8. `reviews`:
+   - Columns: `id` (PK), `product_id` (FK products ON DELETE CASCADE),
+     `user_id` (FK users ON DELETE SET NULL), `order_id` (FK orders ON DELETE SET NULL),
+     `product_name`, `customer_name`, `customer_email`, `rating` (CHECK 1..5),
+     `comment`, `status` ('pending' | 'approved' | 'rejected'), `created_at`.
+9. `store_settings`:
+   - Columns: `id` (PK), `store_name`, `support_email`, `currency`, `currency_symbol`,
+     `free_shipping_threshold`, `flat_shipping_rate`, `tax_percentage`,
+     `order_notifications`, `inventory_alert_threshold`, `cod_enabled`, `bank_transfer_enabled`,
+     `bank_account_holder`, `bank_account_title`, `bank_name`, `bank_account_number`, `bank_iban`,
+     `bank_raast_id`, `bank_payment_contact`, `bank_payment_instructions`, `updated_at`.
+10. `media_assets` (PostgreSQL Binary Image Storage):
+    - Columns: `id` (TEXT PK), `filename` (TEXT), `mime_type` (TEXT), `data` (BYTEA),
+      `size_bytes` (BIGINT), `created_at` (TIMESTAMPTZ DEFAULT NOW()).
+11. `user_carts` (Cross-Device Cart Persistence):
+    - Columns: `user_id` (VARCHAR PK REFERENCES users(id) ON DELETE CASCADE),
+      `items` (JSONB NOT NULL DEFAULT '[]'::jsonb), `updated_at` (TIMESTAMPTZ DEFAULT NOW()).
+12. `newsletter_subscribers`:
+    - Columns: `email` (PK), `subscribed_at`.
+13. `inquiries`:
+    - Columns: `id` (SERIAL PK), `name`, `email`, `subject`, `message`, `created_at`.
+14. `navigation_items`:
+    - Columns: `id` (PK), `name`, `href`, `order_index`, `is_active`, `category_slug`,
+      `created_at`, `updated_at`.
+15. `homepage_config`:
+    - Columns: `id` (PK), `hero_title`, `hero_subtitle`, `hero_image`, `hero_cta_text`,
+      `hero_cta_link`, `featured_title`, `featured_subtitle`, `editorial_tag`,
+      `editorial_title`, `editorial_quote`, `editorial_image_1`, `editorial_image_2`,
+      `newsletter_title`, `newsletter_subtitle`, `updated_at`.
+
+Specialized Performance Indexes:
+- `idx_products_cat_created`: Composite index on `(category_slug, created_at DESC)`.
+- `idx_products_feat_created`: Composite index on `(featured, created_at DESC)`.
+- `idx_products_stock`: Composite index on `(in_stock, stock_count)`.
+- `idx_product_images_product_id`: Btree index on `(product_id)`.
+- `idx_product_images_sort_order`: Composite index on `(product_id, sort_order)`.
+- `idx_orders_shipping_email`: Functional btree index on `LOWER(shipping_address->>'email')`.
+- `idx_orders_user_created`: Composite index on `(user_id, created_at DESC)`.
+- `idx_orders_status_created`: Composite index on `(status, created_at DESC)`.
+- `idx_reviews_prod_status_created`: Composite index on `(product_id, status, created_at DESC)`.
+- `idx_reviews_user_prod`: Composite index on `(user_id, product_id)`.
+- `idx_navigation_active_order`: Composite index on `(is_active, order_index ASC)`.
+
+================================================================================
+6. COMPLETE RESTful API ROUTE MAP (42 ROUTE MODULES / 50+ ENDPOINTS)
+================================================================================
+
+METHOD | ENDPOINT                           | AUTH LEVEL  | FUNCTION / PURPOSE
+-------|------------------------------------|-------------|----------------------------------------------------
+GET    | /api/products                      | Public      | Fetch products with category/search/sort filters
+POST   | /api/products                      | Admin       | Create new product with images & metadata
+GET    | /api/products/[id]                 | Public      | Fetch single product with relational image list
+PATCH  | /api/products/[id]                 | Admin       | Update product details and inventory
+DELETE | /api/products/[id]                 | Admin       | Delete product and cleanup associated assets
+GET    | /api/categories                    | Public      | Fetch all product categories
+POST   | /api/categories                    | Admin       | Create new collection category
+GET    | /api/cart                          | User        | Fetch persistent cloud cart for authenticated user
+POST   | /api/cart                          | User        | Save/merge cart items across devices on login
+POST   | /api/cart/validate                 | Public      | Server-authoritative cart price & discount recalculation
+GET    | /api/orders                        | User/Admin  | Fetch customer order history
+POST   | /api/orders                        | User (Auth) | Place new order (atomic transaction + idempotency lock)
+GET    | /api/orders/[id]                   | Public      | Fetch order details for confirmation & tracking
+GET    | /api/reviews                       | Public      | Fetch approved reviews with rating statistics
+POST   | /api/reviews                       | User        | Submit new customer review (pending moderation)
+GET    | /api/reviews/eligibility           | User        | Verify if customer purchased item and received it
+GET    | /api/search                        | Public      | Debounced keyword search across catalog
+GET    | /api/editorial/quote               | Public      | Generative AI psychological fashion copy
+POST   | /api/newsletter                    | Public      | Subscribe email to Maison Gazette
+POST   | /api/contact                       | Public      | Submit customer inquiry message
+GET    | /api/navigation                    | Public      | Fetch active navigation header items (deduplicated)
+GET    | /api/homepage                      | Public      | Fetch dynamic homepage hero & editorial config
+GET    | /api/settings/payment              | Public      | Fetch active payment methods & bank account details
+POST   | /api/auth/register                 | Public      | Register new customer with bcrypt hashing
+POST   | /api/auth/login                    | Public      | Authenticate credentials and issue JWT session
+POST   | /api/auth/logout                   | Public      | Terminate session and clear cookie
+GET    | /api/auth/me                       | Public      | Verify current session and retrieve profile
+POST   | /api/auth/google                   | Public      | Google OAuth token verification and login
+GET    | /api/auth/callback/google          | Public      | OAuth callback handler with redirect support
+POST   | /api/auth/forgot-password          | Public      | Issue password reset token and dispatch email
+POST   | /api/auth/reset-password           | Public      | Complete password reset with token verification
+POST   | /api/webhooks/sheets               | Secret Auth | Inbound webhook for Google Sheets edits & auto-reversion
+POST   | /api/upload                        | User        | Upload general file with magic byte inspection
+POST   | /api/admin/upload                  | Admin       | High-res image upload via Sharp to PostgreSQL BYTEA
+GET    | /api/media/[id]                    | Public      | Serve optimized binary media asset (immutable cache)
+GET    | /api/admin/metrics                 | Admin       | Dashboard revenue, order, and inventory KPIs
+GET    | /api/admin/analytics               | Admin       | In-depth sales velocity and customer metrics
+GET    | /api/admin/orders                  | Admin       | List, filter, and search all store orders
+PATCH  | /api/admin/orders                  | Admin       | Update order status, payment status, tracking
+GET    | /api/admin/orders/unseen           | Admin       | Delta polling for unseen orders with audio chime trigger
+GET    | /api/admin/customers               | Admin       | Customer directory with lifetime value (LTV) & pagination
+GET    | /api/admin/inventory               | Admin       | Centralized stock levels and low-stock alerts
+PATCH  | /api/admin/inventory               | Admin       | Bulk or single product stock replenishment
+GET    | /api/admin/discounts               | Admin       | List promotional coupons
+POST   | /api/admin/discounts               | Admin       | Create promotional discount code
+PATCH  | /api/admin/discounts               | Admin       | Toggle or edit discount code
+DELETE | /api/admin/discounts               | Admin       | Remove discount code
+GET    | /api/admin/reviews                 | Admin       | Review moderation queue
+PATCH  | /api/admin/reviews                 | Admin       | Approve or reject pending customer reviews
+DELETE | /api/admin/reviews                 | Admin       | Permanently delete customer review
+GET    | /api/admin/navigation              | Admin       | Header navigation link manager
+POST   | /api/admin/navigation              | Admin       | Add new header navigation link
+PATCH  | /api/admin/navigation              | Admin       | Re-order or edit navigation links
+DELETE | /api/admin/navigation              | Admin       | Remove navigation link
+GET    | /api/admin/homepage                | Admin       | Homepage CMS content editor
+PATCH  | /api/admin/homepage                | Admin       | Save updated hero, banner, and editorial copy
+GET    | /api/admin/settings                | Admin       | Store configuration editor
+PATCH  | /api/admin/settings                | Admin       | Update currencies, fees, and bank wire details
+GET    | /api/admin/storage                 | Admin       | Database byte size calculation & media telemetry
+
+================================================================================
+7. DEVOPS, MAINTENANCE SCRIPTS & AUTOMATED TEST SUITES (11 SCRIPTS)
+================================================================================
+
+The repository includes a dedicated suite of scripts (`Frontend/scripts/*`) for
+continuous maintenance, database evolution, and automated lifecycle verification:
+
+1. `apply-migrations.mjs`:
+   Applies high-performance composite indexes and removes redundant indexes 
+   without service downtime.
+2. `seed-sample-data.mjs`:
+   Seeds the database with authentic luxury categories (Tops, Bottoms, Footwear,
+   Fragrances, Co-Ord Sets, Accessories), realistic high-res product models,
+   demo users, active discount codes, and verified sample orders.
+3. `assign-color-images.mjs`:
+   Automatically inspects product images and builds 1:1 color-to-image mappings 
+   across the catalog database.
+4. `update-prices-3k-5k.mjs`:
+   Batch updates catalog prices to authentic localized ready-to-wear range (PKR 3,000 - 5,000)
+   with realistic strike-through original prices.
+5. `clear-all-db.mjs`:
+   Safely empties database tables in correct foreign-key dependency order for 
+   testing and staging environments.
+6. `test-lifecycle-cleanup.js`:
+   Automated end-to-end integration test verifying:
+   - Product creation with multiple media assets.
+   - Detaching an image from a product automatically deletes the binary from the
+     database and re-indexes remaining images sequentially.
+   - Deleting a category cleans up or updates related foreign keys without constraint violations.
+   - Deleting a product triggers cascade deletion of image records and review records.
+7. `test-product-images.js`:
+   Automated validation verifying relational image integrity and sort orders.
+8. `fetch-and-optimize.js`:
+   Node.js and Sharp pipeline fetching remote fashion assets and converting them to WebP.
+9. `generate-centered-hero.js`:
+   Generates mathematically centered luxury hero imagery for promotional banners.
+10. `generate-hero-material.js`:
+    Procedurally synthesizes woven fabric textures for UI backgrounds.
+11. `generate-perfect-beige-hero.js`:
+    Generates tailored high-contrast editorial photography conforming to the warm ecru palette.
+
+================================================================================
+8. RESUME / CV TALKING POINTS & SENIOR ENGINEERING HIGHLIGHTS
+================================================================================
+
+When discussing the SHOPY platform on a resume, technical portfolio, or in 
+software engineering interviews, the following architectural achievements demonstrate 
+senior-level full-stack engineering proficiency:
+
+* FULL-STACK SYSTEM DESIGN & REACT SERVER COMPONENTS:
+  - Engineered an enterprise-grade luxury e-commerce platform using Next.js 14 App Router,
+    React 18 Server Components, and TypeScript, achieving sub-second page loads through 
+    hybrid Static Site Generation (SSG), Incremental Static Regeneration (ISR), and Edge caching.
+
+* ZERO-CLS PERFORMANCE & BFCACHE RESTORATION:
+  - Implemented custom zero-CLS shimmer loading skeletons (`loading.tsx`) across all catalog
+    and product pages matching exact final DOM geometry; restored browser Back-Forward Cache
+    (BFCache) and automated rogue mobile service-worker unregistration for instantaneous navigation.
+
+* BIDIRECTIONAL 1:1 COLOR-TO-IMAGE SYNCHRONIZATION ENGINE:
+  - Architected a reactive color-to-image mapping engine linking hex swatches directly to
+    specific garment photography across product detail views, catalog grid cards, and the admin
+    CMS, paired with on-demand hover prefetching and luxury tonal blur placeholders.
+
+* RELATIONAL DATA INTEGRITY & HIGH-THROUGHPUT POSTGRESQL:
+  - Designed a production PostgreSQL schema with strict constraints, composite indexes, 
+    and ACID transaction controls that guarantee data consistency and prevent negative 
+    stock levels during high-traffic checkout spikes.
+
+* ZERO-THROW DISTRIBUTED RESILIENCE WITH REDIS:
+  - Architected a distributed coordination tier using Upstash Redis featuring atomic 
+    mutex locks (`SET NX EX`), request-level checkout idempotency (24h TTL), and 
+    single-flight cache stampede protection, backed by zero-throw graceful degradation 
+    to PostgreSQL on Redis outage.
+
+* CROSS-DEVICE CART PERSISTENCE & SECURE AUTH GATE:
+  - Built a database-backed cart persistence engine (`user_carts`) with intelligent
+    guest-to-authenticated item merging, paired with a mandatory pre-checkout auth gate
+    that seamlessly preserves navigation redirects (`?redirect=/checkout`) and isolates user shipping data.
+
+* REAL-TIME ADMIN NOTIFICATIONS & BROADCASTCHANNEL SYNC:
+  - Engineered a low-overhead real-time order alert system featuring Web Audio synthesized
+    chimes, delta polling anchors, and cross-tab HTML5 `BroadcastChannel` synchronization.
+
+* TWO-WAY ENTERPRISE INTEGRATION WITH CONFLICT RESOLUTION:
+  - Implemented bidirectional synchronization between PostgreSQL and Google Sheets API v4
+    via service account JWTs and Google Apps Script webhooks, featuring automatic cell
+    reversion if an administrator attempts an invalid state transition in the spreadsheet.
+
+* DEDICATED MULTI-CHANNEL SMTP COMMUNICATIONS PIPELINE:
+  - Built a 3-tier isolated SMTP email dispatch architecture with Nodemailer separating
+    OTPs/Security, Order updates, and Concierge inquiries to protect domain reputation
+    and ensure 100% transactional inbox deliverability with RFC-5322 compliance.
+
+* IN-DATABASE BYTEA MEDIA ENGINE & TELEMETRY MONITOR:
+  - Architected native binary media storage (`media_assets`) in PostgreSQL served with
+    1-year immutable edge cache headers, Sharp WebP compression, database storage metrics,
+    and automated CTE garbage collection pruning unreferenced assets.
+
+* PRODUCTION SECURITY & DEFENSE-IN-DEPTH HARDENING:
+  - Implemented defense-in-depth security: Edge Middleware routing protection,
+    HttpOnly stateless signed JWT sessions, sliding-window rate limiting, magic-byte
+    file buffer upload inspection, timing-safe cryptographic comparisons, and strict CSP headers.
+
+================================================================================
+END OF SHOPY ATELIER CV & TECHNICAL ARCHITECTURE DOSSIER
+================================================================================
