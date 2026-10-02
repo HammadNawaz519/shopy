@@ -89,54 +89,16 @@ export default function SplashScreen() {
           transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)",
         }}
       >
-        {/* Exact Inline Vector Wordmark for 0ms Zero-FOUC Instant Paint */}
-        <div className="w-[260px] sm:w-[320px] md:w-[380px] filter drop-shadow-[0_4px_24px_rgba(73,84,100,0.12)]">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 640 180"
-            width="100%"
-            height="auto"
-            className="block"
-          >
-            {/* Premium Dark Label Box in Deep Slate #495464 */}
-            <rect width="640" height="180" rx="4" fill="#495464" />
-
-            {/* Subtle Inner Hairline Accent #BBBFCA */}
-            <rect
-              x="8"
-              y="8"
-              width="624"
-              height="164"
-              rx="2"
-              stroke="#BBBFCA"
-              strokeWidth="1"
-              fill="none"
-              opacity="0.35"
-            />
-
-            {/* SHOPY Pure Editorial Serif Wordmark in #F4F4F2 */}
-            <text
-              x="320"
-              y="112"
-              textAnchor="middle"
-              fill="#F4F4F2"
-              fontFamily="'Cormorant Garamond', 'Playfair Display', 'Georgia', serif"
-              fontSize="74"
-              fontWeight="300"
-              letterSpacing="24"
-            >
-              SHOPY
-            </text>
-          </svg>
-        </div>
-
-        {/* Delicate Atelier Subtitle & Hairline */}
-        <div className="mt-6 flex flex-col items-center">
-          <span className="text-[10px] sm:text-[11px] font-sans uppercase tracking-[0.35em] text-[#495464]/60 font-light">
-            Haute Atelier
-          </span>
-          <div className="mt-3 w-8 h-[1px] bg-[#BBBFCA]/40" />
-        </div>
+        {/* App Icon */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/icon-512x512.png"
+          alt="SHOPY"
+          width={120}
+          height={120}
+          className="w-[100px] h-[100px] sm:w-[120px] sm:h-[120px] md:w-[140px] md:h-[140px] object-contain drop-shadow-[0_4px_24px_rgba(73,84,100,0.15)]"
+          draggable={false}
+        />
       </div>
 
       {/* Subtle Bottom Skip Hint */}
