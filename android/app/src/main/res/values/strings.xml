@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">SHOPY Atelier</string>
+    <string name="title_activity_main">SHOPY Atelier</string>
+    <string name="package_name">com.shopy.fashion</string>
+    <string name="custom_url_scheme">com.shopy.fashion</string>
+</resources>
