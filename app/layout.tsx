@@ -1,8 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Cormorant_Garamond, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
-import { AuthProvider } from "@/context/AuthContext";
-import { CartProvider } from "@/context/CartContext";
+import { EnhancedAuthProvider } from "@/context/EnhancedAuthContext";
+import { EnhancedCartProvider } from "@/context/EnhancedCartContext";
 import { ToastProvider } from "@/context/ToastContext";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
@@ -82,8 +82,8 @@ export default function RootLayout({
 
       <body className="font-sans antialiased min-h-screen flex flex-col bg-[#F4F4F2] text-[#495464]">
         <ServiceWorkerRegister />
-        <AuthProvider>
-          <CartProvider>
+        <EnhancedAuthProvider>
+          <EnhancedCartProvider>
             <ToastProvider>
               <ClientCacheRevalidator />
               <Navbar />
@@ -92,8 +92,8 @@ export default function RootLayout({
               <Footer />
               <InstallAppPrompt />
             </ToastProvider>
-          </CartProvider>
-        </AuthProvider>
+          </EnhancedCartProvider>
+        </EnhancedAuthProvider>
       </body>
     </html>
   );

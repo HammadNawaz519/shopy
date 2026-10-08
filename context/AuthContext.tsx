@@ -28,7 +28,9 @@ let mePromise: Promise<User | null> | null = null;
 let lastVerifiedTimestamp = 0;
 const REVALIDATION_INTERVAL_MS = 60 * 1000; // 60s memory cache to prevent redundant edge requests
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+// Exported so enhanced/alternate providers can publish values on the same
+// context object, keeping every existing `useAuth()` consumer working.
+export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);

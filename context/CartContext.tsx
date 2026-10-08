@@ -41,7 +41,9 @@ interface CartContextType {
   isLoadingServer: boolean;
 }
 
-const CartContext = createContext<CartContextType | undefined>(undefined);
+// Exported so enhanced/alternate providers can publish values on the same
+// context object, keeping every existing `useCart()` consumer working.
+export const CartContext = createContext<CartContextType | undefined>(undefined);
 const CART_STORAGE_KEY = "shopy_cart_v1";
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
