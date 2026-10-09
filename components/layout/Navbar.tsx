@@ -124,7 +124,7 @@ export default function Navbar() {
 
   return (
     <>
-      <header className="fixed top-0 left-0 right-0 z-50 select-none text-[#495464] pt-[env(safe-area-inset-top)]">
+      <header className="fixed top-0 left-0 right-0 z-50 select-none bg-gradient-to-b from-black/60 via-black/20 to-transparent text-white pt-[env(safe-area-inset-top)]">
         <div className="max-w-[1720px] mx-auto px-6 lg:px-12 h-16 flex items-center justify-between">
           {/* Left: Mobile Toggle & Mobile Logo */}
           <div className="flex items-center gap-4 lg:hidden">
@@ -137,7 +137,7 @@ export default function Navbar() {
             </button>
             <Link
               href="/"
-              className="font-serif tracking-[0.3em] text-lg font-light text-[#495464]"
+              className="font-serif tracking-[0.3em] text-lg font-light text-white"
             >
               SHOPY
             </Link>
@@ -147,7 +147,7 @@ export default function Navbar() {
           <div className="hidden lg:flex items-center gap-8 xl:gap-10">
             <Link
               href="/"
-              className="font-serif tracking-[0.35em] text-xl lg:text-2xl font-light transition-colors whitespace-nowrap text-[#495464]"
+              className="font-serif tracking-[0.35em] text-xl lg:text-2xl font-light transition-colors whitespace-nowrap text-white"
             >
               SHOPY
             </Link>
@@ -162,8 +162,8 @@ export default function Navbar() {
                     href={link.href}
                     className={`text-[12px] font-normal tracking-wider lowercase whitespace-nowrap transition-all duration-300 relative py-1 ${
                       isActive
-                        ? "text-[#495464] font-medium after:w-full"
-                        : "text-[#495464]/80 hover:text-[#495464] after:w-0"
+                        ? "text-white font-medium after:w-full"
+                        : "text-white/80 hover:text-white after:w-0"
                     } after:content-[''] after:absolute after:bottom-0 after:left-0 after:h-[1px] after:bg-current after:transition-all after:duration-300 hover:after:w-full`}
                   >
                     {link.name}
@@ -206,7 +206,7 @@ export default function Navbar() {
               <div className="relative">
                 <ShoppingBag className="w-3.5 h-3.5 stroke-[1.5]" />
                 {totalCount > 0 && (
-                  <span className="absolute -top-1.5 -right-2 w-3.5 h-3.5 rounded-full text-[8px] font-medium flex items-center justify-center transition-colors bg-[#495464] text-[#F4F4F2]">
+                  <span className="absolute -top-1.5 -right-2 w-3.5 h-3.5 rounded-full text-[8px] font-medium flex items-center justify-center transition-colors bg-white text-[#495464]">
                     {totalCount}
                   </span>
                 )}
