@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
+import { Capacitor } from "@capacitor/core";
 import { Download, X, Share2, PlusSquare } from "lucide-react";
 import { useToast } from "@/context/ToastContext";
 
@@ -20,6 +21,7 @@ export default function InstallAppPrompt() {
 
   const [isIOS, setIsIOS] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
+  const [isNative, setIsNative] = useState(false);
   const [showBanner, setShowBanner] = useState(false);
   const [showIOSModal, setShowIOSModal] = useState(false);
 
@@ -53,6 +55,11 @@ export default function InstallAppPrompt() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+
+    if (Capacitor.isNativePlatform()) {
+      setIsNative(true);
+      return;
+    }
 
     // 1. Already installed as standalone app - hide everything
     const isInStandaloneMode =
@@ -133,7 +140,7 @@ export default function InstallAppPrompt() {
     } catch {}
   };
 
-  if (isStandalone) return null;
+  if (isStandalone || isNative) return null;
 
   return (
     <>
