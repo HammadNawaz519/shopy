@@ -59,7 +59,7 @@ export async function consumeNativeHandoff(
     try {
       const key = buildCacheKey("oauth-native-handoff", handoffId);
       const raw = await redis.get(key);
-      if (raw === null) return null;
+      if (raw === null || typeof raw !== "string") return null;
       await redis.del(key).catch(() => {});
       const parsed = JSON.parse(raw) as NativeHandoffRecord;
       if (typeof parsed?.sessionJwt === "string" && typeof parsed?.destinationPath === "string") {
