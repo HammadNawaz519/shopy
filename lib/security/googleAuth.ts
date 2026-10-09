@@ -40,8 +40,12 @@ export function getGoogleOAuthConfig(requestOrigin?: string): GoogleOAuthConfig 
   const isLocalOrigin = (value: string) =>
     value.startsWith("http://localhost") ||
     value.startsWith("http://127.0.0.1");
+  const isProductionRequest =
+    requestOrigin && !isLocalOrigin(requestOrigin);
   let appBaseUrl =
-    configuredOrigin ||
+    (configuredOrigin && (!isProductionRequest || !isLocalOrigin(configuredOrigin))
+      ? configuredOrigin
+      : "") ||
     (requestOrigin && isLocalOrigin(requestOrigin) ? requestOrigin : "") ||
     "https://buyatshopy.vercel.app";
 
