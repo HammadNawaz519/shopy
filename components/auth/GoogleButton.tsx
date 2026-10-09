@@ -157,10 +157,14 @@ export default function GoogleButton({
           typeof (Browser as unknown as { open?: unknown })?.open === "function",
       });
       nativeFlowRef.current = true;
+      const browserFinishedListener = await Browser.addListener("browserFinished", () => {
+        logStep("BROWSER: sign-in tab closed; resuming handoff polling");
+      });
       try {
         await Browser.open({ url: authUrl });
         logStep("BROWSER: Browser.open resolved (tab opened)");
       } catch (browserErr) {
+        await browserFinishedListener.remove();
         logStep("BROWSER: Browser.open threw", {
           message: (browserErr as Error)?.message,
         });
@@ -187,7 +191,11 @@ export default function GoogleButton({
         try {
           pollRes = await fetch(
             `/api/auth/google/handoff?handoffId=${encodeURIComponent(handoffId)}`,
-            { credentials: "same-origin" }
+            {
+              credentials: "same-origin",
+              cache: "no-store",
+              headers: { "Cache-Control": "no-cache" },
+            }
           );
         } catch (netErr) {
           logStep("POLL: fetch threw", { message: (netErr as Error)?.message });
@@ -232,6 +240,7 @@ export default function GoogleButton({
               destinationPath: data.destinationPath || "/account",
             });
             setDiag("SESSION: success");
+            await browserFinishedListener.remove();
             window.location.href = data.destinationPath || "/account";
             return;
           }
@@ -249,8 +258,10 @@ export default function GoogleButton({
         msSinceLastStatusChange: Date.now() - lastStatusAt,
       });
       fail("POLL", `timed out (last status ${lastStatus ?? "none"} after ${pollCount} polls)`);
+      await browserFinishedListener.remove();
       return;
     } catch (err) {
+      logStep("BROWSER: listener cleanup after failure");
       logStep("UNCAUGHT error", { message: (err as Error)?.message });
       fail("UNCAUGHT", (err as Error)?.message || "unknown error");
     }
