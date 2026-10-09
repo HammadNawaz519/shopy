@@ -278,7 +278,7 @@ function navigateWithShellFallback(request, cacheName) {
 
 // --- Warm up public data on activation (best-effort, never fatal) ---
 async function warmUpCriticalData() {
-  const endpoints = ['/api/categories', '/api/homepage', '/api/navigation'];
+  const endpoints = ['/api/categories', '/api/homepage', '/api/navigation', '/api/products'];
   await Promise.allSettled(
     endpoints.map((path) =>
       fetch(path, { credentials: 'same-origin' }).then((res) => {

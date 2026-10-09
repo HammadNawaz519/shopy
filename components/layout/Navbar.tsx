@@ -145,8 +145,8 @@ export default function Navbar() {
       <header
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 select-none pt-[env(safe-area-inset-top)] ${
           isTransparent
-            ? "bg-gradient-to-b from-black/60 via-black/20 to-transparent text-white"
-            : "bg-[#F4F4F2]/95 backdrop-blur-md text-[#495464] border-b border-[#BBBFCA]/30 shadow-[0_2px_15px_rgba(0,0,0,0.02)]"
+            ? "bg-gradient-to-b from-black/25 to-transparent text-white"
+            : "bg-[#F4F4F2] text-[#495464] border-b border-[#BBBFCA]/30 shadow-[0_2px_15px_rgba(0,0,0,0.02)]"
         }`}
       >
         <div className="max-w-[1720px] mx-auto px-6 lg:px-12 h-16 flex items-center justify-between">

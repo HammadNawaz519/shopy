@@ -9,6 +9,7 @@ import Footer from "@/components/layout/Footer";
 import CartDrawer from "@/components/layout/CartDrawer";
 import ClientCacheRevalidator from "@/components/common/ClientCacheRevalidator";
 import ServiceWorkerRegister from "@/components/pwa/ServiceWorkerRegister";
+import IdlePrefetcher from "@/components/pwa/IdlePrefetcher";
 import InstallAppPrompt from "@/components/pwa/InstallAppPrompt";
 
 const cormorant = Cormorant_Garamond({
@@ -86,6 +87,7 @@ export default function RootLayout({
           <EnhancedCartProvider>
             <ToastProvider>
               <ClientCacheRevalidator />
+              <IdlePrefetcher />
               <Navbar />
               <CartDrawer />
               <main className="flex-1">{children}</main>

@@ -1,8 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!--
+        120 Hz support: hardware acceleration is required for the WebView to
+        composite on the GPU. The high-refresh-rate feature declaration tells
+        the OS the app is allowed to run on a high-refresh display mode when
+        the user's device/battery settings permit it — it is never forced,
+        unsupported devices simply keep their native rate. MainActivity.java
+        then requests the matching display mode + Surface frame rate at
+        runtime (guarded, no-ops where unavailable).
+    -->
+    <uses-feature
+        android:name="android.hardware.touchscreen.highrefreshrate"
+        android:required="false" />
+
     <application
         android:allowBackup="true"
+        android:hardwareAccelerated="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
