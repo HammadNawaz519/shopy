@@ -124,7 +124,7 @@ export default function Navbar() {
 
   return (
     <>
-      <header className="fixed top-0 left-0 right-0 z-50 select-none bg-[#F4F4F2]/95 backdrop-blur-md text-[#495464] border-b border-[#BBBFCA]/30 shadow-[0_2px_15px_rgba(0,0,0,0.02)]">
+      <header className="fixed top-0 left-0 right-0 z-50 select-none bg-[#F4F4F2]/95 text-[#495464] border-b border-[#BBBFCA]/30 shadow-[0_2px_15px_rgba(0,0,0,0.02)]">
         <div className="max-w-[1720px] mx-auto px-6 lg:px-12 h-16 flex items-center justify-between">
           {/* Left: Mobile Toggle & Mobile Logo */}
           <div className="flex items-center gap-4 lg:hidden">
