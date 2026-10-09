@@ -17,10 +17,25 @@ export async function GET(req: Request) {
 
     const origin = url.origin;
     const config = getGoogleOAuthConfig(origin);
+    const wantsNative = url.searchParams.get("native") === "1";
 
     if (!config.clientId || !config.clientSecret) {
       console.error("[GOOGLE OAUTH CONFIG ERROR] Missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET");
       return NextResponse.redirect(new URL("/login?error=oauth_not_configured", origin));
+    }
+
+    // Classic web OAuth stores its CSRF state in a cookie. Start the flow on
+    // the same canonical origin that receives the callback so that cookie is
+    // available when Google redirects back.
+    if (!wantsNative) {
+      const callbackOrigin = new URL(config.redirectUri).origin;
+      if (callbackOrigin !== origin) {
+        const canonicalStart = new URL("/api/auth/google", callbackOrigin);
+        if (sanitizedRedirect) {
+          canonicalStart.searchParams.set("redirect", sanitizedRedirect);
+        }
+        return NextResponse.redirect(canonicalStart);
+      }
     }
 
     const { stateToken, rawCookieValue } = generateOAuthState(sanitizedRedirect);
@@ -35,7 +50,6 @@ export async function GET(req: Request) {
     // jars, so the state carries a random handoff id (signed in the URL) and
     // the app's own WebView later polls /api/auth/google/handoff to collect
     // the session that the tab sign-in produced.
-    const wantsNative = url.searchParams.get("native") === "1";
     if (wantsNative) {
       const handoffId = url.searchParams.get("handoff") || "";
       const state = buildSignedNativeState(sanitizedRedirect, handoffId);
