@@ -1,8 +1,8 @@
 export default function ProductsLoading() {
   return (
-    <div className="pt-20 pb-20 bg-[#F4F4F2] text-[#495464]">
+    <div className="pt-16 pb-20 bg-[#F4F4F2] text-[#495464]">
       <div className="max-w-[1720px] mx-auto px-6 lg:px-12">
-        <div className="text-center py-12 border-b border-[#BBBFCA]/30 mb-12">
+        <div className="text-center py-6 border-b border-[#BBBFCA]/30 mb-12">
           <div className="h-3 w-28 bg-[#BBBFCA]/40 rounded mx-auto mb-3 animate-pulse" />
           <div className="h-10 w-56 bg-[#BBBFCA]/40 rounded mx-auto mb-3 animate-pulse" />
           <div className="h-3 w-40 bg-[#BBBFCA]/30 rounded mx-auto animate-pulse" />

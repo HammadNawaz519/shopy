@@ -43,7 +43,7 @@ function SearchContent() {
   return (
     <div className="max-w-[1720px] mx-auto px-6 lg:px-12">
       {/* Header */}
-      <div className="text-center py-12 border-b border-[#BBBFCA]/30 mb-12">
+      <div className="text-center py-6 border-b border-[#BBBFCA]/30 mb-12">
         <span className="text-xs uppercase tracking-widest text-[#495464]/60 block mb-2 font-medium">
           INDEXED SEARCH
         </span>
@@ -95,7 +95,7 @@ function SearchContent() {
 
 export default function SearchPage() {
   return (
-    <div className="pt-20 pb-20 bg-[#F4F4F2] text-[#495464]">
+    <div className="pt-16 pb-20 bg-[#F4F4F2] text-[#495464]">
       <Suspense
         fallback={
           <div className="py-20 text-center">

@@ -68,7 +68,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
   }
 
   return (
-    <div className="pt-20 pb-20 bg-[#F4F4F2] text-[#495464]">
+    <div className="pt-16 pb-20 bg-[#F4F4F2] text-[#495464]">
       {/* Category Hero Banner */}
       <div className="relative w-full h-[50vh] min-h-[380px] bg-[#1a1c20] flex items-center justify-center overflow-hidden mb-16">
         <Image

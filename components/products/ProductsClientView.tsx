@@ -60,10 +60,10 @@ export default function ProductsClientView({
   }, [categoriesList]);
 
   return (
-    <div className="pt-20 pb-20 bg-[#F4F4F2] text-[#495464]">
+    <div className="pt-16 pb-20 bg-[#F4F4F2] text-[#495464]">
       <div className="max-w-[1720px] mx-auto px-6 lg:px-12">
         {/* Page Title & Breadcrumb */}
-        <div className="text-center py-12 border-b border-[#BBBFCA]/30 mb-12">
+        <div className="text-center py-6 border-b border-[#BBBFCA]/30 mb-12">
           <span className="text-xs uppercase tracking-widest text-[#495464]/60 block mb-2">
             CATALOGUE ARCHIVE
           </span>

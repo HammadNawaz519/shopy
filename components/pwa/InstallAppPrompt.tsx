@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import Image from "next/image";
 import { Download, X, Share2, PlusSquare } from "lucide-react";
 import { useToast } from "@/context/ToastContext";
 
@@ -142,11 +141,7 @@ export default function InstallAppPrompt() {
               <X className="w-4 h-4 stroke-[1.5]" />
             </button>
 
-            <div className="flex items-start gap-3.5">
-              <div className="relative w-12 h-12 flex-shrink-0 bg-white border border-[#BBBFCA]/40 p-1">
-                <Image src="/icon-192x192.png" alt="SHOPY App" fill className="object-cover" />
-              </div>
-
+            <div className="flex items-start">
               <div className="flex-1 pr-6">
                 <span className="text-[10px] tracking-[0.25em] uppercase text-[#495464]/60 font-semibold block mb-0.5">
                   App Experience
@@ -192,10 +187,7 @@ export default function InstallAppPrompt() {
               <X className="w-4 h-4 stroke-[1.5]" />
             </button>
 
-            <div className="flex items-center gap-3 pb-4 border-b border-[#BBBFCA]/30">
-              <div className="relative w-10 h-10 border border-[#BBBFCA]/40 p-0.5 bg-white flex-shrink-0">
-                <Image src="/icon-192x192.png" alt="SHOPY" fill className="object-cover" />
-              </div>
+            <div className="pb-4 border-b border-[#BBBFCA]/30">
               <div>
                 <span className="text-[10px] tracking-[0.25em] uppercase text-[#495464]/60 block">
                   iOS Installation

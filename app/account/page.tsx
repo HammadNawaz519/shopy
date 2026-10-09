@@ -82,7 +82,7 @@ export default function AccountPage() {
   // If initial load with no cached user and still validating
   if (loading && !user) {
     return (
-      <div className="min-h-[60vh] pt-20 pb-20 flex flex-col justify-center items-center bg-[#F4F4F2] text-[#495464] space-y-4">
+      <div className="min-h-[60vh] pt-16 pb-20 flex flex-col justify-center items-center bg-[#F4F4F2] text-[#495464] space-y-4">
         <Loader2 className="w-8 h-8 animate-spin text-[#495464]" />
         <span className="text-xs uppercase tracking-widest text-[#495464]/60">
           Loading Client Account...
@@ -94,7 +94,7 @@ export default function AccountPage() {
   // If verified unauthenticated
   if (!user) {
     return (
-      <div className="min-h-[60vh] pt-20 pb-20 flex flex-col justify-center items-center bg-[#F4F4F2] text-[#495464] px-6 text-center space-y-6">
+      <div className="min-h-[60vh] pt-16 pb-20 flex flex-col justify-center items-center bg-[#F4F4F2] text-[#495464] px-6 text-center space-y-6">
         <span className="text-xs uppercase tracking-widest text-[#495464]/60 font-medium">
           ACCOUNT ACCESS REQUIRED
         </span>
@@ -116,7 +116,7 @@ export default function AccountPage() {
   }
 
   return (
-    <div className="pt-20 pb-20 bg-[#F4F4F2] text-[#495464]">
+    <div className="pt-16 pb-20 bg-[#F4F4F2] text-[#495464]">
       <div className="max-w-[1400px] mx-auto px-6 lg:px-12">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between py-6 border-b border-[#BBBFCA]/30 mb-12 gap-4">
