@@ -36,7 +36,7 @@ export function getGoogleOAuthConfig(requestOrigin?: string): GoogleOAuthConfig 
   const clientId = cleanEnv(process.env.GOOGLE_CLIENT_ID);
   const clientSecret = cleanEnv(process.env.GOOGLE_CLIENT_SECRET);
 
-  const configuredOrigin = cleanEnv(process.env.NEXT_PUBLIC_APP_URL);
+  const configuredOrigin = cleanEnv(process.env.APP_URL);
   const isLocalOrigin = (value: string) =>
     value.startsWith("http://localhost") ||
     value.startsWith("http://127.0.0.1");

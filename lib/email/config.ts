@@ -148,10 +148,7 @@ export function getEmailSystemConfig(): EmailSystemConfig {
   );
 
   const adminEmail = cleanEnv(process.env.ADMIN_EMAIL, "hammadnawaz276@gmail.com");
-  const appUrl = cleanEnv(
-    process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL,
-    "http://localhost:3000"
-  );
+  const appUrl = cleanEnv(process.env.APP_URL, "http://localhost:3000");
   const appName = cleanEnv(process.env.NEXT_PUBLIC_APP_NAME, "SHOPY");
 
   return {

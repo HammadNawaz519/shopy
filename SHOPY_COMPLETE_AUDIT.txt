@@ -689,7 +689,7 @@ X. ENVIRONMENT VARIABLE AUDIT
 ================================================================================
 
 PUBLIC VARIABLES (Exposed to Client):
-- `NEXT_PUBLIC_APP_URL` (Base application URL, e.g. `http://localhost:3000` or production domain)
+- `APP_URL` (Base application URL, e.g. `http://localhost:3000` or production domain)
 - `NEXT_PUBLIC_APP_NAME` (Store display name, default: `SHOPY`)
 
 PRIVATE SERVER SECRETS (Must NEVER be exposed to Client):

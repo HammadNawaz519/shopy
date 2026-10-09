@@ -8,7 +8,6 @@ function formatCurrency(amount: number): string {
 
 function getAppUrl(): string {
   return (
-    process.env.NEXT_PUBLIC_APP_URL ||
     process.env.APP_URL ||
     "https://shopy.vercel.app"
   ).replace(/\/+$/, "");
