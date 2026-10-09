@@ -213,17 +213,35 @@ export default function AdminNavigationPage() {
     const targetItem = items[targetIndex];
 
     try {
-      await fetch("/api/admin/navigation", {
+      const firstUpdate = await fetch("/api/admin/navigation", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: currentItem.id, orderIndex: targetItem.orderIndex }),
+        body: JSON.stringify({ id: currentItem.id, orderIndex: -1 }),
       });
-      await fetch("/api/admin/navigation", {
+      if (!firstUpdate.ok) {
+        throw new Error("Failed to reserve navigation position.");
+      }
+
+      const secondUpdate = await fetch("/api/admin/navigation", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: targetItem.id, orderIndex: currentItem.orderIndex }),
       });
-      fetchNavItems();
+      if (!secondUpdate.ok) {
+        throw new Error("Failed to move adjacent navigation item.");
+      }
+
+      const thirdUpdate = await fetch("/api/admin/navigation", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: currentItem.id, orderIndex: targetItem.orderIndex }),
+      });
+      if (!thirdUpdate.ok) {
+        throw new Error("Failed to finalize navigation order.");
+      }
+
+      showToast("Navigation order updated.", "success");
+      await fetchNavItems();
     } catch {
       showToast("Failed to update ordering.", "error");
     }

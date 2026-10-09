@@ -34,6 +34,7 @@ export default function AdminProductsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [saving, setSaving] = useState(false);
+  const [generatingColorHex, setGeneratingColorHex] = useState<number | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [customUrlInput, setCustomUrlInput] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -205,6 +206,34 @@ export default function AdminProductsPage() {
       updated[index] = { ...updated[index], [field]: value };
       return { ...prev, colors: updated };
     });
+  };
+
+  const handleSuggestColorHex = async (index: number) => {
+    const colorName = formData.colors[index]?.name.trim();
+    if (!colorName) {
+      showToast("Enter a color name first.", "error");
+      return;
+    }
+
+    setGeneratingColorHex(index);
+    try {
+      const res = await fetch("/api/admin/color-hex", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ colorName }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || typeof data.hex !== "string") {
+        showToast(data.error || "Could not generate a color hex.", "error");
+        return;
+      }
+      handleUpdateColor(index, "hex", data.hex);
+      showToast(`Suggested hex ${data.hex} for ${colorName}.`, "success");
+    } catch {
+      showToast("Network error generating color hex.", "error");
+    } finally {
+      setGeneratingColorHex(null);
+    }
   };
 
   const handleRemoveColor = (index: number) => {
@@ -1040,6 +1069,14 @@ export default function AdminProductsPage() {
                             placeholder="#495464"
                             className="h-8 w-20 bg-[#F4F4F2] border border-[#BBBFCA] px-2 text-[10px] font-mono text-[#495464] uppercase focus:outline-none focus:border-[#495464]"
                           />
+                          <button
+                            type="button"
+                            onClick={() => handleSuggestColorHex(cIdx)}
+                            disabled={generatingColorHex === cIdx}
+                            className="h-8 px-2 bg-[#BBBFCA]/40 hover:bg-[#BBBFCA]/70 text-[9px] uppercase tracking-wider font-semibold disabled:opacity-50 whitespace-nowrap"
+                          >
+                            {generatingColorHex === cIdx ? "Suggesting..." : "Suggest Hex"}
+                          </button>
                         </div>
 
                         <div className="flex items-center gap-2 flex-shrink-0 justify-between sm:justify-end">

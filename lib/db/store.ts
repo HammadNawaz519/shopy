@@ -2508,24 +2508,29 @@ class SupabaseDataStore {
 
   async updateNavigationItem(id: string, updates: Partial<NavigationItem>): Promise<NavigationItem | undefined> {
     await this.ensureTablesExist();
+    const categoryUpdate =
+      updates.categorySlug !== undefined ? "category_slug = $6," : "";
+    const params: unknown[] = [
+      id,
+      updates.name ? updates.name.toLowerCase().trim() : null,
+      updates.href ? updates.href.trim() : null,
+      updates.orderIndex !== undefined ? updates.orderIndex : null,
+      updates.isActive !== undefined ? updates.isActive : null,
+    ];
+    if (updates.categorySlug !== undefined) {
+      params.push(updates.categorySlug);
+    }
     const res = await query(
       `UPDATE navigation_items SET
         name = COALESCE($2, name),
         href = COALESCE($3, href),
         order_index = COALESCE($4, order_index),
         is_active = COALESCE($5, is_active),
-        category_slug = $6,
+        ${categoryUpdate}
         updated_at = NOW()
       WHERE id = $1
       RETURNING *;`,
-      [
-        id,
-        updates.name ? updates.name.toLowerCase().trim() : null,
-        updates.href ? updates.href.trim() : null,
-        updates.orderIndex !== undefined ? updates.orderIndex : null,
-        updates.isActive !== undefined ? updates.isActive : null,
-        updates.categorySlug !== undefined ? updates.categorySlug : null,
-      ]
+      params
     );
     if (res.rows.length === 0) return undefined;
     const r = res.rows[0];
@@ -3022,5 +3027,3 @@ export const getCachedHomepageConfig = serverCache(async () => {
 export const getCachedNavigationItems = serverCache(async (onlyActive: boolean = true) => {
   return db.getNavigationItems(onlyActive);
 });
-
-
