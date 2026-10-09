@@ -71,6 +71,14 @@ export default function InstallAppPrompt() {
       setIsIOS(true);
     }
 
+    const dismissedAt = localStorage.getItem("shopy_pwa_dismissed");
+    const sevenDays = 7 * 24 * 60 * 60 * 1000;
+    let bannerTimer: ReturnType<typeof setTimeout> | undefined;
+    if (!dismissedAt || Date.now() - parseInt(dismissedAt, 10) > sevenDays) {
+      hasShownBannerRef.current = true;
+      bannerTimer = setTimeout(() => setShowBanner(true), 4000);
+    }
+
     // 3. Single beforeinstallprompt handler
     const handleBeforeInstall = (e: Event) => {
       e.preventDefault();
@@ -79,12 +87,10 @@ export default function InstallAppPrompt() {
       // Only auto-show once per session if not recently dismissed
       if (hasShownBannerRef.current) return;
 
-      const dismissedAt = localStorage.getItem("shopy_pwa_dismissed");
-      const sevenDays = 7 * 24 * 60 * 60 * 1000;
       if (!dismissedAt || Date.now() - parseInt(dismissedAt, 10) > sevenDays) {
         hasShownBannerRef.current = true;
         // Delay banner to not interrupt hero experience
-        setTimeout(() => setShowBanner(true), 4000);
+        bannerTimer = setTimeout(() => setShowBanner(true), 4000);
       }
     };
 
@@ -111,6 +117,7 @@ export default function InstallAppPrompt() {
     window.addEventListener("shopy:open-install-prompt", handleManualTrigger);
 
     return () => {
+      if (bannerTimer) clearTimeout(bannerTimer);
       window.removeEventListener("beforeinstallprompt", handleBeforeInstall);
       window.removeEventListener("appinstalled", handleAppInstalled);
       window.removeEventListener("shopy:open-install-prompt", handleManualTrigger);
