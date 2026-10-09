@@ -55,16 +55,7 @@ export default function Navbar() {
 
   const isHome = pathname === "/";
 
-  const [navItems, setNavItems] = useState<Array<{ name: string; href: string }>>([
-    { name: "home", href: "/" },
-    { name: "view all", href: "/products" },
-    { name: "tops", href: "/collections/tops" },
-    { name: "bottoms", href: "/collections/bottoms" },
-    { name: "co-ord sets", href: "/collections/co-ord-sets" },
-    { name: "footwear", href: "/collections/footwear" },
-    { name: "fragrances", href: "/collections/fragrances" },
-    { name: "collections", href: "/collections" },
-  ]);
+  const [navItems, setNavItems] = useState<Array<{ name: string; href: string }>>([]);
 
   useEffect(() => {
     const handleScroll = () => {

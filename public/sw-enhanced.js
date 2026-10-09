@@ -142,6 +142,10 @@ self.addEventListener('fetch', (event) => {
 
   // Public data APIs: stale-while-revalidate.
   if (SWR_PUBLIC_APIS.some((p) => p.test(url.pathname))) {
+    if (url.pathname === '/api/navigation') {
+      event.respondWith(fetch(request));
+      return;
+    }
     event.respondWith(staleWhileRevalidate(event, request, CACHE_NAMES.RUNTIME));
     return;
   }
