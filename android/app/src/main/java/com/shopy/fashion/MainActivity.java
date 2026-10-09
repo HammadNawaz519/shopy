@@ -4,7 +4,6 @@ import android.os.Build;
 import android.os.Bundle;
 import android.view.Display;
 import android.view.Surface;
-import android.view.SurfaceControl;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
@@ -65,21 +64,6 @@ public class MainActivity extends BridgeActivity {
             lp.preferredRefreshRate = best.getRefreshRate();
             getWindow().setAttributes(lp);
 
-            // Android 12+: the display-mode hint above is ignored by some OEM skins
-            // for the WebView. Requesting the frame rate on the window's own surface
-            // steers the compositor directly — this is what actually lifts the
-            // WebView (and thus scrolling) to 120Hz rather than a hard 60.
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                SurfaceControl surfaceControl = getWindow().getDecorView().getRootSurfaceControl();
-                if (surfaceControl != null) {
-                    new SurfaceControl.Transaction()
-                            .setFrameRate(
-                                    surfaceControl,
-                                    best.getRefreshRate(),
-                                    Surface.FRAME_RATE_COMPATIBILITY_FIXED_SOURCE)
-                            .apply();
-                }
-            }
         } catch (Throwable ignored) {
             // Device without multiple display modes or restricted window — no-op.
         }
