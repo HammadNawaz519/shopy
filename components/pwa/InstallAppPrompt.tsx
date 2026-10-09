@@ -167,8 +167,8 @@ export default function InstallAppPrompt() {
 
                 <div className="mt-3.5 flex items-center gap-2.5">
                   <a
-                    href="/Shopy.apk"
-                    download="Shopy.apk"
+                    href="/shopy.apk"
+                    download="shopy.apk"
                     className="inline-flex items-center gap-2 bg-[#495464] hover:bg-[#363E4B] text-white text-[10px] uppercase tracking-[0.2em] px-4 py-2 font-light transition-all"
                   >
                     <Download className="w-3 h-3" />
