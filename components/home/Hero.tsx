@@ -26,18 +26,42 @@ export default function Hero({ initialConfig }: HeroProps) {
 
   const heroImgSrc = hero.heroImage;
 
+  // The default editorial photo is a wide 16:9 frame. On phones the hero is a
+  // tall portrait container, so `object-cover` zoom-crops the wide frame and
+  // the shot looks stretched/soft. A portrait 9:16 crop of the same photo
+  // fills the mobile hero 1:1 with no zoom — sharp at Retina sizes.
+  // Custom admin-configured images keep the classic cover behavior on all
+  // breakpoints (their framing is unknown).
+  const isDefaultBeige = heroImgSrc === "/hero-beige.jpg";
+  const mobileSrc = isDefaultBeige ? "/hero-beige-portrait.jpg" : heroImgSrc;
+
+  const heroImgClass =
+    "object-cover object-center transform scale-100 filter brightness-[0.92] contrast-[1.03] transition-transform duration-1000";
+
   return (
     <section className="relative w-full h-[94vh] min-h-[620px] max-h-[1100px] flex items-center justify-center overflow-hidden bg-[#181a1d] select-none">
       {/* Editorial Hero Photography — Minimalist Warm Beige Architectural Luxury */}
       <div className="absolute inset-0 w-full h-full">
+        {/* Mobile: portrait-crop asset, no zoom */}
         <Image
-          src={heroImgSrc}
+          src={mobileSrc}
           alt="SHOPY Editorial Campaign"
           fill
           priority
           sizes="100vw"
-          className="object-cover object-center transform scale-100 filter brightness-[0.92] contrast-[1.03] transition-transform duration-1000"
+          className={`${heroImgClass} ${isDefaultBeige ? "sm:hidden" : ""}`}
         />
+        {/* Desktop & up: original wide asset (unchanged) */}
+        {isDefaultBeige && (
+          <Image
+            src={heroImgSrc}
+            alt=""
+            fill
+            priority
+            sizes="100vw"
+            className={`${heroImgClass} hidden sm:block`}
+          />
+        )}
         {/* Soft elegant warm grading overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/15 to-black/25" />
       </div>

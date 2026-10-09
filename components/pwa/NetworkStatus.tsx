@@ -69,7 +69,9 @@ export default function NetworkStatus({ showFullMessage = false }: NetworkStatus
   return (
     <div
       className={`${
-        showFullMessage ? "fixed inset-x-0 top-0 z-[100]" : "fixed top-4 right-4 z-[90]"
+        showFullMessage
+          ? "fixed inset-x-0 top-0 z-[100] pt-[env(safe-area-inset-top)]"
+          : "fixed top-[calc(env(safe-area-inset-top)+1rem)] right-4 z-[90]"
       }`}
     >
       <div

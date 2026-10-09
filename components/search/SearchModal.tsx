@@ -63,7 +63,7 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
   return (
     <div className="fixed inset-0 z-[110] flex flex-col bg-[#F4F4F2]/98 backdrop-blur-md animate-fadeIn text-[#495464]">
       {/* Top Bar */}
-      <div className="max-w-[1400px] w-full mx-auto px-6 lg:px-12 pt-8 pb-6 flex items-center justify-between border-b border-[#BBBFCA]/30">
+      <div className="max-w-[1400px] w-full mx-auto px-6 lg:px-12 pt-[calc(env(safe-area-inset-top)+2rem)] pb-6 flex items-center justify-between border-b border-[#BBBFCA]/30">
         <span className="font-serif tracking-widest text-2xl font-medium">SHOPY SEARCH</span>
         <button
           onClick={onClose}
@@ -115,7 +115,7 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
       </div>
 
       {/* Results Container */}
-      <div className="flex-1 overflow-y-auto max-w-6xl w-full mx-auto px-6 py-8">
+      <div className="flex-1 overflow-y-auto max-w-6xl w-full mx-auto px-6 pt-8 pb-[calc(env(safe-area-inset-bottom)+2rem)]">
         {results.length > 0 ? (
           <div>
             <p className="text-xs uppercase tracking-widest text-[#495464]/70 mb-6">

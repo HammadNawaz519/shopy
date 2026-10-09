@@ -3,6 +3,7 @@ import {
   getGoogleOAuthConfig,
   buildGoogleAuthUrl,
   generateOAuthState,
+  buildSignedNativeState,
 } from "@/lib/security/googleAuth";
 import { isValidRedirectUrl } from "@/lib/security/sanitize";
 
@@ -28,6 +29,23 @@ export async function GET(req: Request) {
       redirectUri: config.redirectUri,
       state: stateToken,
     });
+
+    // NATIVE (CAPACITOR) MODE: the app opens the auth URL in its in-app
+    // browser tab. The sign-in tab and the app WebView have separate cookie
+    // jars, so the state carries a random handoff id (signed in the URL) and
+    // the app's own WebView later polls /api/auth/google/handoff to collect
+    // the session that the tab sign-in produced.
+    const wantsNative = url.searchParams.get("native") === "1";
+    if (wantsNative) {
+      const handoffId = url.searchParams.get("handoff") || "";
+      const state = buildSignedNativeState(sanitizedRedirect, handoffId);
+      const nativeAuthUrl = buildGoogleAuthUrl({
+        clientId: config.clientId,
+        redirectUri: config.redirectUri,
+        state,
+      });
+      return NextResponse.json({ authUrl: nativeAuthUrl });
+    }
 
     const isProduction = process.env.NODE_ENV === "production";
     const response = NextResponse.redirect(authUrl);

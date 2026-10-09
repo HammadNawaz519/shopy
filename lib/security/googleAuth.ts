@@ -5,6 +5,8 @@
  */
 
 import crypto from "crypto";
+import jwt from "jsonwebtoken";
+import { getJwtSecret } from "./session";
 
 export interface GoogleOAuthConfig {
   clientId: string;
@@ -159,6 +161,97 @@ export function generateOAuthState(redirectPath?: string): { stateToken: string;
     stateToken: randomToken,
     rawCookieValue,
   };
+}
+
+/**
+ * NATIVE (CAPACITOR) OAUTH BRIDGE
+ *
+ * The in-app WebView and the external sign-in tab each have their own cookie
+ * jars, so a classic cookie-based OAuth state can't cross between them. In
+ * native mode the state is self-contained and HMAC-signed (JWT_SECRET) and
+ * travels inside the URL, which lets the app WebView complete the code
+ * exchange after the sign-in tab closes.
+ *
+ * The state payload also carries `n: 1` (native marker) so the standard
+ * callback route can detect it and skip the exchange (preventing a
+ * double-consumption of the one-time Google authorization code).
+ */
+export const NATIVE_STATE_TTL_MS = 10 * 60 * 1000;
+
+export function buildSignedNativeState(redirectPath?: string, handoffId?: string): string {
+  const randomToken = crypto.randomBytes(24).toString("hex");
+  const payload = {
+    t: randomToken,
+    r: redirectPath || "",
+    h: handoffId || "",
+    c: Date.now(),
+    n: 1,
+  };
+  const body = Buffer.from(JSON.stringify(payload)).toString("base64url");
+  const hmac = crypto.createHmac("sha256", getJwtSecretForOAuth()).update(body).digest("base64url");
+  return `${body}.${hmac}`;
+}
+
+export interface VerifiedNativeState {
+  valid: boolean;
+  token?: string;
+  redirect?: string;
+  handoff?: string;
+}
+
+export function verifySignedNativeState(state: string | undefined): VerifiedNativeState {
+  if (!state || typeof state !== "string") return { valid: false };
+
+  const dot = state.lastIndexOf(".");
+  if (dot <= 0 || dot === state.length - 1) return { valid: false };
+
+  const body = state.slice(0, dot);
+  const hmac = state.slice(dot + 1);
+
+  try {
+    const expected = crypto.createHmac("sha256", getJwtSecretForOAuth()).update(body).digest("base64url");
+    // Constant-time comparison of the two base64url digests.
+    const a = Buffer.from(hmac);
+    const b = Buffer.from(expected);
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+      return { valid: false };
+    }
+
+    const payload = JSON.parse(Buffer.from(body, "base64url").toString("utf8"));
+    if (payload.n !== 1 || !payload.t || typeof payload.c !== "number") return { valid: false };
+    if (Date.now() - payload.c > NATIVE_STATE_TTL_MS) return { valid: false };
+
+    return {
+      valid: true,
+      token: payload.t,
+      redirect: typeof payload.r === "string" ? payload.r : undefined,
+      handoff: typeof payload.h === "string" && payload.h ? payload.h : undefined,
+    };
+  } catch {
+    return { valid: false };
+  }
+}
+
+// The OAuth engine reuses the app's signing secret so no extra env is needed.
+function getJwtSecretForOAuth(): string {
+  return getJwtSecret();
+}
+
+/**
+ * Safely verifies a signed SHOPY session JWT (as used by the native handoff
+ * bridge). Returns the decoded payload, or null when invalid/expired.
+ */
+export function jwtVerifySafe(
+  token: string,
+  secret: string
+): Record<string, unknown> | null {
+  try {
+    const decoded = jwt.verify(token, secret);
+    if (decoded && typeof decoded === "object") return decoded;
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 /**

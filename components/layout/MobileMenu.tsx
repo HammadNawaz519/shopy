@@ -52,7 +52,7 @@ export default function MobileMenu({
       />
 
       {/* Drawer */}
-      <div className="relative w-full max-w-md bg-[#F4F4F2] text-[#495464] h-full flex flex-col justify-between p-8 z-10 shadow-2xl animate-slideLeft overflow-y-auto">
+      <div className="relative w-full max-w-md bg-[#F4F4F2] text-[#495464] h-full flex flex-col justify-between px-8 pt-[calc(env(safe-area-inset-top)+2rem)] pb-[calc(env(safe-area-inset-bottom)+2rem)] z-10 shadow-2xl animate-slideLeft overflow-y-auto">
         <div>
           {/* Header */}
           <div className="flex items-center justify-between pb-6 border-b border-[#BBBFCA]/30">

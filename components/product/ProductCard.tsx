@@ -68,7 +68,7 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
       <div className="relative aspect-[3/4] w-full bg-[#E8E8E8] overflow-hidden">
         <Link
           href={`/product/${product.id}`}
-          prefetch={false}
+          prefetch={priority}
           className="block w-full h-full"
         >
           {/* Primary Image with Crisp Retina Delivery, Blur Placeholder & Instant Rendering */}
@@ -181,7 +181,7 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
             )}
           </div>
 
-          <Link href={`/product/${product.id}`} prefetch={false} className="block group-hover:underline">
+          <Link href={`/product/${product.id}`} prefetch={priority} className="block group-hover:underline">
             <h3 className="font-serif text-base font-medium text-[#495464] leading-snug line-clamp-1">
               {product.name}
             </h3>

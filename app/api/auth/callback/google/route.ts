@@ -1,20 +1,16 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import crypto from "crypto";
 import {
   getGoogleOAuthConfig,
-  exchangeGoogleCode,
-  fetchGoogleUserInfo,
   verifyOAuthState,
+  verifySignedNativeState,
 } from "@/lib/security/googleAuth";
-import { db, ADMIN_EMAIL } from "@/lib/db/store";
+import { completeGoogleSignIn } from "@/lib/security/googleAuthFlow";
+import { rememberNativeHandoff } from "@/lib/security/nativeOAuthState";
 import {
-  createSession,
   SESSION_COOKIE_NAME,
   getSessionCookieOptions,
 } from "@/lib/security/session";
-import { hashPassword } from "@/lib/security/auth";
-import { isValidRedirectUrl } from "@/lib/security/sanitize";
 
 export const dynamic = "force-dynamic";
 
@@ -45,7 +41,35 @@ export async function GET(req: Request) {
       return NextResponse.redirect(new URL("/login?error=missing_code", origin));
     }
 
-    // 2. Validate CSRF State Cookie
+    // 2a. NATIVE (CAPACITOR) BRIDGE: signed URL-carried state. The sign-in
+    //     happened in the in-app browser tab (separate cookie jar), so we
+    //     complete the Google exchange HERE and hand the issued session to
+    //     the app via a one-time handoff record that the app's own WebView
+    //     polls at /api/auth/google/handoff and converts into its session.
+    const nativeState = verifySignedNativeState(state);
+    if (nativeState.valid) {
+      const config = getGoogleOAuthConfig(origin);
+      const completed = await completeGoogleSignIn(code, config, nativeState.redirect);
+
+      if (nativeState.handoff) {
+        rememberNativeHandoff(nativeState.handoff, {
+          sessionJwt: completed.session.id,
+          destinationPath: completed.destinationPath,
+        });
+      }
+
+      console.log("[GOOGLE OAUTH NATIVE] Sign-in complete, handoff stored");
+      const html = `<!doctype html><html><head><meta charset="utf-8"/><title>SHOPY — Sign In</title></head>
+<body style="margin:0;background:#F4F4F2;font-family:Georgia,serif;color:#495464;display:flex;align-items:center;justify-content:center;height:100vh">
+<div style="text-align:center;padding:2rem">
+<h1 style="font-weight:300;letter-spacing:.3em">SHOPY</h1>
+<p style="font-size:14px;letter-spacing:.1em;margin-top:1rem">Sign-in complete&hellip;</p>
+<p style="font-size:11px;margin-top:2rem">You can close this window now.</p>
+</div></body></html>`;
+      return new NextResponse(html, { status: 200, headers: { "Content-Type": "text/html" } });
+    }
+
+    // 2b. CLASSIC WEB FLOW: Validate CSRF State Cookie
     const cookieStore = cookies();
     const stateCookie = cookieStore.get("shopy_oauth_state")?.value;
     const { valid: isStateValid, redirectUrl: savedRedirect } = verifyOAuthState(
@@ -65,84 +89,17 @@ export async function GET(req: Request) {
       return NextResponse.redirect(new URL("/login?error=oauth_not_configured", origin));
     }
 
-    // 4. Exchange code for Google access token
-    const tokenData = await exchangeGoogleCode({
-      code,
-      clientId: config.clientId,
-      clientSecret: config.clientSecret,
-      redirectUri: config.redirectUri,
-    });
+    // 4-7. Exchange code, resolve/link user, issue session
+    const completed = await completeGoogleSignIn(code, config, savedRedirect);
 
-    if (!tokenData.access_token) {
-      throw new Error("No access_token returned by Google");
-    }
-
-    // 5. Fetch verified Google user info
-    const googleUser = await fetchGoogleUserInfo(tokenData.access_token);
-
-    if (!googleUser.email) {
-      return NextResponse.redirect(new URL("/login?error=no_email_provided", origin));
-    }
-
-    if (!googleUser.emailVerified) {
-      console.warn("[GOOGLE OAUTH UNVERIFIED EMAIL]", googleUser.email);
-      return NextResponse.redirect(new URL("/login?error=email_not_verified", origin));
-    }
-
-    const normalizedEmail = googleUser.email.toLowerCase().trim();
-    const isSuperAdminEmail = normalizedEmail === ADMIN_EMAIL.toLowerCase().trim();
-
-    // 6. Resolve / Link in Existing SHOPY User Database
-    let user = await db.findUserByEmail(normalizedEmail);
-
-    if (user) {
-      // CASE A & C: Existing account found -> Link authentication cleanly
-      const isSuperAdmin = isSuperAdminEmail || user.role === "admin";
-      if (isSuperAdmin && user.role !== "admin") {
-        await db.updateUser(user.id, { role: "admin" });
-        user.role = "admin";
-      }
-
-      // If user had a placeholder name, upgrade it from Google profile
-      if (
-        googleUser.name &&
-        (user.name === "Client" || user.name === "SHOPY Client" || !user.name)
-      ) {
-        await db.updateUser(user.id, { name: googleUser.name });
-        user.name = googleUser.name;
-      }
-    } else {
-      // CASE B: New user registering via Google -> Create account in existing database
-      const randomSecureHash = await hashPassword(
-        crypto.randomBytes(32).toString("hex")
-      );
-
-      user = await db.createUser({
-        name: googleUser.name || "SHOPY Client",
-        email: normalizedEmail,
-        passwordHash: randomSecureHash,
-        role: isSuperAdminEmail ? "admin" : "user",
-      });
-    }
-
-    // 7. Issue Authenticated SHOPY Session
-    const session = createSession(user);
-
-    // 8. Determine Clean Post-Authentication Redirect Destination
-    let destinationPath = "/account";
-
-    if (user.role === "admin" || isSuperAdminEmail) {
-      destinationPath = "/admin";
-    } else if (savedRedirect && isValidRedirectUrl(savedRedirect)) {
-      destinationPath = savedRedirect;
-    }
-
-    const response = NextResponse.redirect(new URL(destinationPath, origin));
+    const response = NextResponse.redirect(
+      new URL(completed.destinationPath, origin)
+    );
 
     // Attach signed session cookie
     response.cookies.set(
       SESSION_COOKIE_NAME,
-      session.id,
+      completed.session.id,
       getSessionCookieOptions()
     );
     response.cookies.set("shopy_client_auth", "1", {
