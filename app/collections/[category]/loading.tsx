@@ -1,6 +1,6 @@
 export default function CategoryLoading() {
   return (
-    <div className="pt-16 pb-20 bg-[#F4F4F2] text-[#495464]">
+    <div className="pt-20 pb-20 bg-[#F4F4F2] text-[#495464]">
       <div className="relative w-full h-[50vh] min-h-[380px] bg-[#BBBFCA]/20 animate-pulse mb-16" />
       <div className="max-w-[1720px] mx-auto px-6 lg:px-12">
         <div className="flex items-center justify-between pb-6 mb-12 border-b border-[#BBBFCA]/30">

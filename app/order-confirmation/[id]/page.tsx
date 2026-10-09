@@ -52,7 +52,7 @@ export default function OrderConfirmationPage({ params }: { params: { id: string
 
   if (loading) {
     return (
-      <div className="pt-16 pb-20 flex justify-center items-center bg-[#F4F4F2] text-[#495464]">
+      <div className="pt-20 pb-20 flex justify-center items-center bg-[#F4F4F2] text-[#495464]">
         <Loader2 className="w-8 h-8 animate-spin text-[#495464]" />
       </div>
     );
@@ -60,7 +60,7 @@ export default function OrderConfirmationPage({ params }: { params: { id: string
 
   if (!order) {
     return (
-      <div className="pt-16 pb-20 text-center bg-[#F4F4F2] text-[#495464]">
+      <div className="pt-20 pb-20 text-center bg-[#F4F4F2] text-[#495464]">
         <div className="max-w-md mx-auto px-6">
           <h1 className="font-serif text-3xl mb-3">Order Not Found</h1>
           <p className="text-xs text-[#495464]/70 tracking-wider uppercase mb-8">
@@ -85,7 +85,7 @@ export default function OrderConfirmationPage({ params }: { params: { id: string
     (isBankTransfer && !isPaid);
 
   return (
-    <div className="pt-16 pb-20 bg-[#F4F4F2] text-[#495464]">
+    <div className="pt-20 pb-20 bg-[#F4F4F2] text-[#495464]">
       <div className="max-w-3xl mx-auto px-6">
         {/* Header */}
         <div className="text-center py-8 border-b border-[#BBBFCA]/30 space-y-4">

@@ -6,9 +6,9 @@ export const metadata = {
 
 export default function ShippingPage() {
   return (
-    <div className="pt-16 pb-20 bg-[#F4F4F2] text-[#495464]">
+    <div className="pt-20 pb-20 bg-[#F4F4F2] text-[#495464]">
       <div className="max-w-3xl mx-auto px-6">
-        <div className="text-center py-8 border-b border-[#BBBFCA]/30 mb-16">
+        <div className="text-center py-16 border-b border-[#BBBFCA]/30 mb-16">
           <span className="text-xs uppercase tracking-widest text-[#495464]/60 block mb-2 font-medium">
             LOGISTICS &amp; DISPATCH
           </span>

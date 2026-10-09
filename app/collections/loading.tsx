@@ -1,8 +1,8 @@
 export default function CollectionsLoading() {
   return (
-    <div className="pt-16 pb-20 bg-[#F4F4F2] text-[#495464]">
+    <div className="pt-20 pb-20 bg-[#F4F4F2] text-[#495464]">
       <div className="max-w-[1720px] mx-auto px-6 lg:px-12">
-        <div className="text-center py-6 border-b border-[#BBBFCA]/30 mb-16">
+        <div className="text-center py-12 border-b border-[#BBBFCA]/30 mb-16">
           <div className="h-3 w-36 bg-[#BBBFCA]/40 rounded mx-auto mb-3 animate-pulse" />
           <div className="h-10 w-48 bg-[#BBBFCA]/40 rounded mx-auto mb-3 animate-pulse" />
           <div className="h-3 w-64 bg-[#BBBFCA]/25 rounded mx-auto animate-pulse" />

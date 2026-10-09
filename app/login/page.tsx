@@ -183,7 +183,7 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <div className="pt-16 pb-16 min-h-[calc(100vh-4rem)] bg-[#F4F4F2] text-[#495464] flex items-center justify-center">
+    <div className="pt-20 pb-16 min-h-[calc(100vh-4rem)] bg-[#F4F4F2] text-[#495464] flex items-center justify-center">
       <Suspense
         fallback={
           <div className="py-20 text-center">

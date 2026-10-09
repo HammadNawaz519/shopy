@@ -19,8 +19,14 @@ const DENSITIES = [
 ];
 
 // Square launcher tile: logo cover-cropped onto the brand background.
+// Flattened (alpha removed) so iOS/Android never show transparent corners
+// behind the launcher mask — matches the look of the web/PWA icon.
 async function logoOnBrand(size) {
-  return sharp(SRC).resize(size, size, { fit: "cover", background: BG }).png().toBuffer();
+  return sharp(SRC)
+    .resize(size, size, { fit: "cover", background: BG })
+    .flatten({ background: BG })
+    .png()
+    .toBuffer();
 }
 
 // Adaptive foreground: logo centered inside a transparent canvas (safe-zone padding)
