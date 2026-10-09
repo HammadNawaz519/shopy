@@ -11,8 +11,7 @@ export async function GET() {
       { navigation: navigation || [] },
       {
         headers: {
-          // Navigation is public and changes rarely; 10-min CDN cache, 1-hour SWR.
-          "Cache-Control": "public, s-maxage=600, stale-while-revalidate=3600",
+          "Cache-Control": "no-store",
         },
       }
     );

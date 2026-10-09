@@ -61,6 +61,17 @@ export async function PATCH(req: Request) {
     const body = await req.json();
     const { id, ...updates } = body;
 
+    if (Array.isArray(body.orderIds)) {
+      const success = await db.reorderNavigationItems(body.orderIds);
+      if (!success) {
+        return NextResponse.json({ error: "Navigation order is empty." }, { status: 400 });
+      }
+      revalidatePath("/");
+      revalidatePath("/products");
+      revalidatePath("/collections");
+      return NextResponse.json({ success: true });
+    }
+
     if (!id) {
       return NextResponse.json({ error: "Navigation item ID is required." }, { status: 400 });
     }

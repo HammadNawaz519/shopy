@@ -2550,6 +2550,21 @@ class SupabaseDataStore {
     return (res.rowCount || 0) > 0;
   }
 
+  async reorderNavigationItems(ids: string[]): Promise<boolean> {
+    const cleanIds = ids.filter((id) => typeof id === "string" && id.length > 0);
+    if (cleanIds.length === 0) return false;
+
+    await transaction(async (client) => {
+      for (let index = 0; index < cleanIds.length; index += 1) {
+        await client.query(
+          `UPDATE navigation_items SET order_index = $2, updated_at = NOW() WHERE id = $1;`,
+          [cleanIds[index], index]
+        );
+      }
+    });
+    return true;
+  }
+
   // --------------------------------------------------------------------------
   // HOMEPAGE CONFIGURATION
   // --------------------------------------------------------------------------

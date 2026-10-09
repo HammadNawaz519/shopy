@@ -9,8 +9,6 @@ import { useAuth } from "@/context/AuthContext";
 import MobileMenu from "@/components/layout/MobileMenu";
 import SearchModal from "@/components/search/SearchModal";
 
-let cachedNavItems: Array<{ name: string; href: string }> | null = null;
-
 // Defensive deduplication helper to ensure no duplicate links, and remove about/contact/accessories
 const EXCLUDED_NAMES = new Set(["about", "contact", "accessories"]);
 const EXCLUDED_HREFS = new Set(["/about", "/contact", "/collections/accessories"]);
@@ -83,44 +81,15 @@ export default function Navbar() {
   }, []);
 
   useEffect(() => {
-    // Purge legacy storage items
-    try {
-      sessionStorage.removeItem("shopy_nav");
-      sessionStorage.removeItem("shopy_nav_v2");
-      sessionStorage.removeItem("shopy_nav_v3");
-    } catch {}
-
-    if (cachedNavItems) {
-      setNavItems(cachedNavItems);
-      return;
-    }
-
-    try {
-      const stored = sessionStorage.getItem("shopy_nav_v4");
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const deduplicated = deduplicateLinks(parsed);
-          cachedNavItems = deduplicated;
-          setNavItems(deduplicated);
-          return;
-        }
-      }
-    } catch {}
-
     let isMounted = true;
     const fetchNav = async () => {
       try {
-        const res = await fetch("/api/navigation");
+        const res = await fetch("/api/navigation", { cache: "no-store" });
         if (res.ok) {
           const data = await res.json();
           if (isMounted && Array.isArray(data.navigation)) {
             const mapped = data.navigation.map((i: any) => ({ name: i.name, href: i.href }));
             const deduplicated = deduplicateLinks(mapped);
-            cachedNavItems = deduplicated;
-            try {
-              sessionStorage.setItem("shopy_nav_v4", JSON.stringify(deduplicated));
-            } catch {}
             setNavItems(deduplicated);
           }
         }
@@ -274,4 +243,3 @@ export default function Navbar() {
     </>
   );
 }
-

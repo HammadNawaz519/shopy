@@ -209,35 +209,17 @@ export default function AdminNavigationPage() {
     const targetIndex = direction === "up" ? index - 1 : index + 1;
     if (targetIndex < 0 || targetIndex >= items.length) return;
 
-    const currentItem = items[index];
-    const targetItem = items[targetIndex];
-
     try {
-      const firstUpdate = await fetch("/api/admin/navigation", {
+      const reorderedItems = [...items];
+      const [currentItem] = reorderedItems.splice(index, 1);
+      reorderedItems.splice(targetIndex, 0, currentItem);
+      const res = await fetch("/api/admin/navigation", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: currentItem.id, orderIndex: -1 }),
+        body: JSON.stringify({ orderIds: reorderedItems.map((item) => item.id) }),
       });
-      if (!firstUpdate.ok) {
-        throw new Error("Failed to reserve navigation position.");
-      }
-
-      const secondUpdate = await fetch("/api/admin/navigation", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: targetItem.id, orderIndex: currentItem.orderIndex }),
-      });
-      if (!secondUpdate.ok) {
-        throw new Error("Failed to move adjacent navigation item.");
-      }
-
-      const thirdUpdate = await fetch("/api/admin/navigation", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: currentItem.id, orderIndex: targetItem.orderIndex }),
-      });
-      if (!thirdUpdate.ok) {
-        throw new Error("Failed to finalize navigation order.");
+      if (!res.ok) {
+        throw new Error("Failed to save navigation order.");
       }
 
       showToast("Navigation order updated.", "success");
