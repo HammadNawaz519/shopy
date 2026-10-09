@@ -112,7 +112,7 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
         ) : null}
 
         {/* Quick Add Slide-up Overlay (Only available when in stock) */}
-        {product.stockCount > 0 && product.inStock !== false && (
+        {product.stockCount > 0 && product.inStock !== false && product.sizes?.length > 0 && (
           <div
             className={`absolute inset-x-0 bottom-0 p-3 bg-[#F4F4F2]/95 border-t border-[#BBBFCA]/30 transition-transform duration-300 z-20 ${
               showQuickAdd ? "translate-y-0" : "translate-y-full"
@@ -136,7 +136,7 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
         )}
 
         {/* Quick Add Toggle Button (visible on hover when in stock) */}
-        {product.stockCount > 0 && product.inStock !== false && (
+        {product.stockCount > 0 && product.inStock !== false && product.sizes?.length > 0 && (
           <button
             onClick={(e) => {
               e.preventDefault();

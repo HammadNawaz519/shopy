@@ -28,7 +28,21 @@ export async function POST(req: Request) {
 
   try {
     const body = await req.json();
-    const { name, category, categoryLabel, price, originalPrice, description, images, sizes, colors, stockCount, tag, featured } = body;
+    const {
+      name,
+      category,
+      categoryLabel,
+      price,
+      originalPrice,
+      description,
+      images,
+      sizes,
+      sizesEnabled,
+      colors,
+      stockCount,
+      tag,
+      featured,
+    } = body;
 
     if (!name || !category || !price) {
       return NextResponse.json({ error: "Name, category, and price are required." }, { status: 400 });
@@ -46,7 +60,11 @@ export async function POST(req: Request) {
       originalPrice: originalPrice ? Number(originalPrice) : undefined,
       description: description || "",
       images: validImages.length > 0 ? validImages : ["/editorial-craft.jpg"],
-      sizes: Array.isArray(sizes) && sizes.length > 0 ? sizes : ["S", "M", "L", "XL"],
+      sizes: sizesEnabled === false
+        ? []
+        : Array.isArray(sizes) && sizes.length > 0
+          ? sizes
+          : ["S", "M", "L", "XL"],
       colors: Array.isArray(colors) && colors.length > 0 ? colors : [{ name: "Obsidian Slate", hex: "#495464" }],
       stockCount: Number(stockCount !== undefined ? stockCount : 10),
       inStock: Number(stockCount !== undefined ? stockCount : 10) > 0,

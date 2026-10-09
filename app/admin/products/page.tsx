@@ -54,6 +54,8 @@ export default function AdminProductsPage() {
     description: "",
     images: [] as string[],
     colors: [] as { name: string; hex: string; imageUrl?: string }[],
+    sizesEnabled: false,
+    sizes: [] as string[],
     tag: "NEW",
     featured: false,
   });
@@ -272,6 +274,8 @@ export default function AdminProductsPage() {
         { name: "Light", hex: "#E8E8E8", imageUrl: "" },
         { name: "Dark", hex: "#222831", imageUrl: "" },
       ],
+      sizesEnabled: false,
+      sizes: [],
       tag: "NEW",
       featured: false,
     });
@@ -306,6 +310,8 @@ export default function AdminProductsPage() {
       description: prod.description || "",
       images: Array.isArray(prod.images) ? [...prod.images] : [],
       colors: existingColors,
+      sizesEnabled: Array.isArray(prod.sizes) && prod.sizes.length > 0,
+      sizes: Array.isArray(prod.sizes) ? [...prod.sizes] : [],
       tag: prod.tag || "NEW",
       featured: Boolean(prod.featured),
     });
@@ -356,6 +362,7 @@ export default function AdminProductsPage() {
             description: formData.description.trim(),
             images: productImages,
             colors: validColors,
+            sizes: formData.sizesEnabled ? formData.sizes.filter(Boolean) : [],
             tag: formData.tag,
             featured: formData.featured,
           }),
@@ -384,6 +391,7 @@ export default function AdminProductsPage() {
             description: formData.description.trim(),
             images: productImages,
             colors: validColors,
+            sizes: formData.sizesEnabled ? formData.sizes.filter(Boolean) : [],
             tag: formData.tag,
             featured: formData.featured,
           }),
@@ -765,7 +773,49 @@ export default function AdminProductsPage() {
                   </div>
                 </div>
 
-                {/* 4. Product Image Upload with Sharp processing & Multi-Image Gallery Manager */}
+                {/* 4. Optional Size Selection */}
+                <div className="border border-[#BBBFCA]/50 p-3.5 space-y-3">
+                  <label className="flex items-center justify-between gap-4 cursor-pointer">
+                    <span className="text-[10px] uppercase tracking-widest font-semibold">
+                      Show Size Selection
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={formData.sizesEnabled}
+                      onChange={(e) =>
+                        setFormData({ ...formData, sizesEnabled: e.target.checked })
+                      }
+                      className="h-4 w-4 accent-[#495464]"
+                    />
+                  </label>
+                  {formData.sizesEnabled && (
+                    <div>
+                      <label className="block text-[10px] uppercase tracking-widest font-semibold mb-1.5">
+                        Sizes
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.sizes.join(", ")}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            sizes: e.target.value
+                              .split(",")
+                              .map((size) => size.trim())
+                              .filter(Boolean),
+                          })
+                        }
+                        placeholder="S, M, L, XL"
+                        className="h-10 w-full bg-[#E8E8E8] border border-[#BBBFCA] px-3.5 text-xs text-[#495464] focus:outline-none focus:border-[#495464] transition-colors"
+                      />
+                      <p className="text-[10px] text-[#495464]/60 mt-1">
+                        Separate each size with a comma.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* 5. Product Image Upload with Sharp processing & Multi-Image Gallery Manager */}
                 <div className="space-y-2.5 pt-1">
                   <div className="flex items-center justify-between">
                     <label className="block text-[10px] uppercase tracking-widest font-semibold text-[#495464]">

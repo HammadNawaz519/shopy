@@ -34,7 +34,7 @@ export default function ProductDetailClientView({
   initialReviews,
 }: ProductDetailClientViewProps) {
   const [selectedImageIdx, setSelectedImageIdx] = useState(0);
-  const [selectedSize, setSelectedSize] = useState(product?.sizes?.[0] || "M");
+  const [selectedSize, setSelectedSize] = useState(product?.sizes?.[0] || "");
   const [selectedColor, setSelectedColor] = useState(product?.colors?.[0]?.name || "Default");
   const [quantity, setQuantity] = useState(1);
   const [openAccordion, setOpenAccordion] = useState<string | null>("details");
@@ -158,7 +158,7 @@ export default function ProductDetailClientView({
                 fill
                 priority
                 sizes="(max-width: 1024px) 100vw, 45vw"
-                className="object-cover transition-opacity duration-300"
+                className="object-contain p-3 sm:p-5 lg:p-6 transition-opacity duration-300"
                 placeholder="blur"
                 blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMSIgaGVpZ2h0PSIxIiB2aWV3Qm94PSIwIDAgMSAxIiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxIiBoZWlnaHQ9IjEiIGZpbGw9IiNFOEU4RTgiLz48L3N2Zz4="
               />
@@ -238,32 +238,34 @@ export default function ProductDetailClientView({
                 </div>
               )}
 
-              <div className="pt-1">
-                <div className="flex justify-between text-[11px] uppercase tracking-wider text-[#495464] mb-1.5 font-medium">
-                  <span>Size: {selectedSize}</span>
-                  <Link
-                    href="/size-guide"
-                    className="text-[#495464]/70 hover:text-[#495464] underline normal-case"
-                  >
-                    Size Guide
-                  </Link>
-                </div>
-                <div className="grid grid-cols-4 sm:grid-cols-5 gap-1.5">
-                  {product.sizes && product.sizes.map((sz: string) => (
-                    <button
-                      key={sz}
-                      onClick={() => setSelectedSize(sz)}
-                      className={`py-2 text-[11px] uppercase tracking-wider font-medium border transition-all ${
-                        selectedSize === sz
-                          ? "border-[#495464] bg-[#495464] text-[#F4F4F2]"
-                          : "border-[#BBBFCA]/60 bg-[#E8E8E8]/50 text-[#495464] hover:border-[#495464]"
-                      }`}
+              {Array.isArray(product.sizes) && product.sizes.length > 0 && (
+                <div className="pt-1">
+                  <div className="flex justify-between text-[11px] uppercase tracking-wider text-[#495464] mb-1.5 font-medium">
+                    <span>Size: {selectedSize}</span>
+                    <Link
+                      href="/size-guide"
+                      className="text-[#495464]/70 hover:text-[#495464] underline normal-case"
                     >
-                      {sz}
-                    </button>
-                  ))}
+                      Size Guide
+                    </Link>
+                  </div>
+                  <div className="grid grid-cols-4 sm:grid-cols-5 gap-1.5">
+                    {product.sizes.map((sz: string) => (
+                      <button
+                        key={sz}
+                        onClick={() => setSelectedSize(sz)}
+                        className={`py-2 text-[11px] uppercase tracking-wider font-medium border transition-all ${
+                          selectedSize === sz
+                            ? "border-[#495464] bg-[#495464] text-[#F4F4F2]"
+                            : "border-[#BBBFCA]/60 bg-[#E8E8E8]/50 text-[#495464] hover:border-[#495464]"
+                        }`}
+                      >
+                        {sz}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div className="pt-2 space-y-2.5">
                 <div className="flex items-center gap-3">
