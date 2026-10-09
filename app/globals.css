@@ -27,6 +27,9 @@
     background-color: var(--bg-primary);
     color: var(--dark-primary);
     overflow-x: hidden;
+    /* Keep page content out of the status bar / notch on the native app
+       (iOS + Android edge-to-edge). 0 in a normal desktop/mobile browser. */
+    padding-top: env(safe-area-inset-top, 0px);
   }
 
   ::selection {
