@@ -16,8 +16,23 @@ export default function GoogleButton({
 }: GoogleButtonProps) {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  // Temporary diagnostics: the OAuth step that last succeeded / failed. Rendered
+  // as a small detail line and mirrored to console.log. Contains no credentials.
+  const [diag, setDiag] = useState<string | null>(null);
   // Set true once the in-app sign-in tab is open so polling can begin / UI can change.
   const nativeFlowRef = useRef(false);
+
+  // Diagnostic logger (safe by construction: callers only pass non-secret fields —
+  // never OAuth tokens, cookies, client secrets, JWTs, passwords, or the auth URL).
+  const logStep = (step: string, detail?: unknown) => {
+    const suffix =
+      detail === undefined
+        ? ""
+        : typeof detail === "string"
+          ? ` ${detail}`
+          : ` ${JSON.stringify(detail)}`;
+    console.log(`[GOOGLE-SIGNIN] ${step}${suffix}`);
+  };
 
   /**
    * CLASSIC WEB FLOW: the whole OAuth round-trip happens in this window,
@@ -48,6 +63,15 @@ export default function GoogleButton({
     if (loading) return;
     setLoading(true);
     setErrorMsg(null);
+    setDiag(null);
+
+    // Terminal failure: record which step broke, show the friendly message, stop.
+    const fail = (step: string, reason: string) => {
+      logStep("FAIL", { step, reason });
+      setDiag(`${step}: ${reason}`);
+      setErrorMsg("Sign-in did not complete. Please try again.");
+      setLoading(false);
+    };
 
     try {
       // 1. Ask the server for a signed, URL-carried auth URL. The handoff id
@@ -56,53 +80,179 @@ export default function GoogleButton({
         typeof crypto !== "undefined" && "randomUUID" in crypto
           ? crypto.randomUUID()
           : `h_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+      logStep("START: handoffId created", {
+        length: handoffId.length,
+        matchesServerRegex: /^[0-9a-fA-F-]{8,64}$/.test(handoffId),
+        prefix: handoffId.slice(0, 8),
+      });
 
       const params = new URLSearchParams({ native: "1", handoff: handoffId });
       if (redirect) params.set("redirect", redirect);
-      const startRes = await fetch(`/api/auth/google?${params.toString()}`);
-      if (!startRes.ok) throw new Error("auth_start_failed");
-      const { authUrl } = await startRes.json();
-      if (!authUrl || !authUrl.startsWith("https://accounts.google.com/")) {
-        throw new Error("auth_start_failed");
+
+      // STEP 1 — START: fetch the signed Google auth URL.
+      let startRes: Response;
+      try {
+        startRes = await fetch(`/api/auth/google?${params.toString()}`);
+      } catch (netErr) {
+        logStep("START: fetch threw", { message: (netErr as Error)?.message });
+        fail("START", "network error reaching /api/auth/google");
+        return;
+      }
+      logStep("START: /api/auth/google responded", {
+        status: startRes.status,
+        ok: startRes.ok,
+        contentType: startRes.headers.get("content-type"),
+      });
+      if (!startRes.ok) {
+        fail("START", `/api/auth/google returned ${startRes.status}`);
+        return;
       }
 
-      // 2. Open the sign-in flow in the in-app browser tab.
-      nativeFlowRef.current = true;
-      await Browser.open({ url: authUrl });
+      let startJson: { authUrl?: unknown };
+      try {
+        startJson = await startRes.json();
+      } catch (jsonErr) {
+        // A non-JSON 200 usually means the request was redirected to an HTML page
+        // (e.g. the route hit the missing-creds or error path and 302'd to /login).
+        logStep("START: response was NOT JSON", {
+          status: startRes.status,
+          contentType: startRes.headers.get("content-type"),
+          message: (jsonErr as Error)?.message,
+        });
+        fail("START", "auth URL request did not return JSON");
+        return;
+      }
 
-      // 3. Poll the one-time handoff until the tab sign-in completes.
+      // STEP 2 — GOOGLE URL: validate the returned authorize URL (full URL not logged).
+      const authUrl = startJson.authUrl;
+      const googleHostOk =
+        typeof authUrl === "string" && authUrl.startsWith("https://accounts.google.com/");
+      let redirectUri = "?";
+      let hasState = false;
+      if (typeof authUrl === "string") {
+        try {
+          const parsed = new URL(authUrl);
+          redirectUri = parsed.searchParams.get("redirect_uri") || "?";
+          hasState = parsed.searchParams.has("state");
+        } catch {
+          redirectUri = "(unparseable)";
+        }
+      }
+      logStep("GOOGLE URL", {
+        present: Boolean(authUrl),
+        isString: typeof authUrl === "string",
+        googleHost: googleHostOk,
+        redirectUri,
+        hasState,
+      });
+      if (!googleHostOk) {
+        fail("GOOGLE URL", "authUrl missing or not an accounts.google.com URL");
+        return;
+      }
+
+      // STEP 3 — BROWSER: open the sign-in tab in the in-app browser.
+      logStep("BROWSER: about to Browser.open", {
+        browserDefined: typeof Browser !== "undefined",
+        openIsFn:
+          typeof (Browser as unknown as { open?: unknown })?.open === "function",
+      });
+      nativeFlowRef.current = true;
+      try {
+        await Browser.open({ url: authUrl });
+        logStep("BROWSER: Browser.open resolved (tab opened)");
+      } catch (browserErr) {
+        logStep("BROWSER: Browser.open threw", {
+          message: (browserErr as Error)?.message,
+        });
+        fail("BROWSER", "in-app browser tab failed to open");
+        return;
+      }
+
+      // STEP 4 — POLL the one-time handoff until the tab sign-in completes.
       const deadline = Date.now() + 4 * 60 * 1000; // 4 minutes
+      let pollCount = 0;
+      let lastStatus: number | null = null;
+      let lastStatusAt = 0;
       while (Date.now() < deadline) {
         // Only keep polling while the native flow is still the active one
         // (user hasn't navigated away or closed the app screen).
-        if (!nativeFlowRef.current) return;
+        if (!nativeFlowRef.current) {
+          logStep("POLL: stopped early (flow no longer active)");
+          return;
+        }
 
         await new Promise((r) => setTimeout(r, 1500));
 
-        const pollRes = await fetch(
-          `/api/auth/google/handoff?handoffId=${encodeURIComponent(handoffId)}`,
-          { credentials: "same-origin" }
-        );
+        let pollRes: Response;
+        try {
+          pollRes = await fetch(
+            `/api/auth/google/handoff?handoffId=${encodeURIComponent(handoffId)}`,
+            { credentials: "same-origin" }
+          );
+        } catch (netErr) {
+          logStep("POLL: fetch threw", { message: (netErr as Error)?.message });
+          fail("POLL", "network error while polling handoff");
+          return;
+        }
+
+        pollCount += 1;
+        if (pollRes.status !== lastStatus) {
+          logStep("POLL: status", {
+            pollCount,
+            status: pollRes.status,
+            meaning:
+              pollRes.status === 200
+                ? "complete"
+                : pollRes.status === 202
+                ? "pending"
+                : pollRes.status === 400
+                ? "invalid_handoff or handoff_invalid"
+                : pollRes.status === 404
+                ? "not_found"
+                : pollRes.status === 409
+                ? "handoff_consumed"
+                : pollRes.status === 500
+                ? "handler_error"
+                : "other",
+          });
+          lastStatus = pollRes.status;
+          lastStatusAt = Date.now();
+        }
+
         if (pollRes.status === 200) {
-          const data = await pollRes.json().catch(() => ({}));
+          let data: { status?: string; destinationPath?: string };
+          try {
+            data = await pollRes.json();
+          } catch {
+            logStep("POLL: 200 but body was not JSON");
+            data = {};
+          }
           if (data?.status === "complete") {
+            logStep("SESSION: created", {
+              destinationPath: data.destinationPath || "/account",
+            });
+            setDiag("SESSION: success");
             window.location.href = data.destinationPath || "/account";
             return;
           }
-          // 409 consumed / other: surface a friendly retry prompt.
-          setErrorMsg("Sign-in did not complete. Please try again.");
-          setLoading(false);
+          logStep("POLL: 200 but status !== complete", { got: data?.status });
+          fail("POLL", `server returned 200 with status=${data?.status ?? "none"}`);
           return;
         }
-        // 202 pending → keep waiting.
+        // 202 / 400 / 404 / 409 / 500 → keep waiting until the deadline.
       }
 
-      // Timed out without the tab finishing.
-      setErrorMsg("Sign-in did not complete. Please try again.");
-      setLoading(false);
-    } catch {
-      setErrorMsg("Sign-in did not complete. Please try again.");
-      setLoading(false);
+      // STEP 4 (timeout) — the tab never produced a consumable handoff.
+      logStep("POLL: timed out", {
+        polls: pollCount,
+        lastStatus,
+        msSinceLastStatusChange: Date.now() - lastStatusAt,
+      });
+      fail("POLL", `timed out (last status ${lastStatus ?? "none"} after ${pollCount} polls)`);
+      return;
+    } catch (err) {
+      logStep("UNCAUGHT error", { message: (err as Error)?.message });
+      fail("UNCAUGHT", (err as Error)?.message || "unknown error");
     }
   };
 
@@ -164,9 +314,16 @@ export default function GoogleButton({
         )}
       </button>
       {errorMsg && (
-        <p className="text-[11px] tracking-wider text-red-700/80 uppercase mt-2 text-center">
-          {errorMsg}
-        </p>
+        <>
+          <p className="text-[11px] tracking-wider text-red-700/80 uppercase mt-2 text-center">
+            {errorMsg}
+          </p>
+          {diag && (
+            <p className="text-[10px] text-red-700/60 mt-1 text-center font-mono break-words">
+              {diag}
+            </p>
+          )}
+        </>
       )}
     </div>
   );

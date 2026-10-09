@@ -33,18 +33,42 @@ const memStore =
   global.__shopy_native_oauth_handoffs || new Map<string, NativeHandoffRecord>();
 global.__shopy_native_oauth_handoffs = memStore;
 
-export function rememberNativeHandoff(
+export async function rememberNativeHandoff(
   handoffId: string,
   record: NativeHandoffRecord
-): void {
+): Promise<{ store: "redis" | "memory"; ok: boolean }> {
+  // Always keep an in-memory copy for same-instance reads (local dev / lucky scale).
   memStore.set(handoffId, record);
-  getRedisClient()
-    ?.set(
+
+  const redis = getRedisClient();
+  if (!redis) {
+    // Cross-instance Vercel: without a shared Upstash client the record only lives
+    // on the instance that handled the callback, so the app's poll (a different
+    // instance) will keep seeing "pending" and time out.
+    console.log(
+      "[GOOGLE-SIGNIN] REDIS WRITE skipped: no Upstash client configured → in-memory only"
+    );
+    return { store: "memory", ok: true };
+  }
+
+  try {
+    await redis.set(
       buildCacheKey("oauth-native-handoff", handoffId),
       JSON.stringify(record),
       { ex: HANDOFF_TTL_SECONDS }
-    )
-    .catch(() => {});
+    );
+    console.log("[GOOGLE-SIGNIN] REDIS WRITE ok", {
+      store: "redis",
+      ttlSec: HANDOFF_TTL_SECONDS,
+    });
+    return { store: "redis", ok: true };
+  } catch (err) {
+    console.warn(
+      "[GOOGLE-SIGNIN] REDIS WRITE failed (kept in-memory only)",
+      { message: (err as Error)?.message }
+    );
+    return { store: "memory", ok: false };
+  }
 }
 
 /**
@@ -59,12 +83,19 @@ export async function consumeNativeHandoff(
     try {
       const key = buildCacheKey("oauth-native-handoff", handoffId);
       const raw = await redis.get(key);
-      if (raw === null || typeof raw !== "string") return null;
+      if (raw === null || typeof raw !== "string") {
+        console.log("[GOOGLE-SIGNIN] CONSUME: not found in redis (missing / expired)");
+        return null;
+      }
       await redis.del(key).catch(() => {});
       const parsed = JSON.parse(raw) as NativeHandoffRecord;
       if (typeof parsed?.sessionJwt === "string" && typeof parsed?.destinationPath === "string") {
+        console.log("[GOOGLE-SIGNIN] CONSUME: consumed from redis", {
+          destinationPath: parsed.destinationPath,
+        });
         return parsed;
       }
+      console.log("[GOOGLE-SIGNIN] CONSUME: redis record malformed");
       return null;
     } catch {
       // Redis hiccup: fall through to in-memory (single-instance safe).
@@ -72,7 +103,12 @@ export async function consumeNativeHandoff(
   }
 
   const record = memStore.get(handoffId);
-  if (record) memStore.delete(handoffId);
+  if (record) {
+    memStore.delete(handoffId);
+    console.log("[GOOGLE-SIGNIN] CONSUME: consumed from in-memory", {
+      destinationPath: record.destinationPath,
+    });
+  }
   return record ?? null;
 }
 

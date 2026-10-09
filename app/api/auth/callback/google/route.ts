@@ -48,17 +48,41 @@ export async function GET(req: Request) {
     //     polls at /api/auth/google/handoff and converts into its session.
     const nativeState = verifySignedNativeState(state);
     if (nativeState.valid) {
+      // [DIAG] The sign-in tab reached the callback. No code/state/token is logged.
+      console.log("[GOOGLE-SIGNIN] CALLBACK reached: native state valid", {
+        handoffPresent: Boolean(nativeState.handoff),
+        handoffLen: nativeState.handoff?.length ?? 0,
+        hasRedirect: Boolean(nativeState.redirect),
+      });
+
       const config = getGoogleOAuthConfig(origin);
-      const completed = await completeGoogleSignIn(code, config, nativeState.redirect);
+      // .catch logs the exact exchange failure (no token/secret), then rethrows so
+      // the existing outer catch returns oauth_failed and NO handoff is stored.
+      const completed = await completeGoogleSignIn(code, config, nativeState.redirect).catch(
+        (e) => {
+          console.error(
+            "[GOOGLE-SIGNIN] CALLBACK: completeGoogleSignIn threw → no handoff stored",
+            (e as Error)?.message || e
+          );
+          throw e;
+        }
+      );
+      console.log("[GOOGLE-SIGNIN] CALLBACK: google exchange + session OK", {
+        role: completed.user.role,
+        destinationPath: completed.destinationPath,
+      });
 
       if (nativeState.handoff) {
-        rememberNativeHandoff(nativeState.handoff, {
+        const storeResult = await rememberNativeHandoff(nativeState.handoff, {
           sessionJwt: completed.session.id,
           destinationPath: completed.destinationPath,
         });
+        console.log("[GOOGLE-SIGNIN] CALLBACK: handoff stored", storeResult);
+      } else {
+        console.warn(
+          "[GOOGLE-SIGNIN] CALLBACK: native state had NO handoff id — the app's poll can never complete"
+        );
       }
-
-      console.log("[GOOGLE OAUTH NATIVE] Sign-in complete, handoff stored");
       const html = `<!doctype html><html><head><meta charset="utf-8"/><title>SHOPY — Sign In</title></head>
 <body style="margin:0;background:#F4F4F2;font-family:Georgia,serif;color:#495464;display:flex;align-items:center;justify-content:center;height:100vh">
 <div style="text-align:center;padding:2rem">
