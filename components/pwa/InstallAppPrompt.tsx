@@ -132,7 +132,7 @@ export default function InstallAppPrompt() {
     <>
       {/* Install Banner — Android / Desktop Chrome */}
       {showBanner && (
-        <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+1rem)] left-4 right-4 sm:left-auto sm:right-6 sm:max-w-md z-[90] animate-slide-up">
+        <div className="fixed top-[calc(env(safe-area-inset-top)+1rem)] left-4 right-4 sm:left-auto sm:right-6 sm:max-w-md z-[90] animate-slide-up">
           <div className="bg-[#F4F4F2] text-[#495464] border border-[#BBBFCA]/60 p-4 sm:p-5 shadow-[0_10px_35px_rgba(0,0,0,0.12)] relative">
             <button
               onClick={handleDismiss}
@@ -159,13 +159,14 @@ export default function InstallAppPrompt() {
                 </p>
 
                 <div className="mt-3.5 flex items-center gap-2.5">
-                  <button
-                    onClick={handleInstallClick}
+                  <a
+                    href="/Shopy.apk"
+                    download="Shopy.apk"
                     className="inline-flex items-center gap-2 bg-[#495464] hover:bg-[#363E4B] text-white text-[10px] uppercase tracking-[0.2em] px-4 py-2 font-light transition-all"
                   >
                     <Download className="w-3 h-3" />
-                    <span>Install App</span>
-                  </button>
+                    <span>Download SHOPY</span>
+                  </a>
 
                   <button
                     onClick={handleDismiss}
