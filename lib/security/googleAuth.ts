@@ -29,21 +29,21 @@ function cleanEnv(value: string | undefined, fallback: string = ""): string {
 
 /**
  * Resolves the Google OAuth configuration.
- * Dynamically resolves redirect_uri based on environment and request host.
+ * Uses one canonical production origin because Google only accepts callback
+ * URLs that exactly match an authorized redirect URI.
  */
 export function getGoogleOAuthConfig(requestOrigin?: string): GoogleOAuthConfig {
   const clientId = cleanEnv(process.env.GOOGLE_CLIENT_ID);
   const clientSecret = cleanEnv(process.env.GOOGLE_CLIENT_SECRET);
 
-  let appBaseUrl = "http://localhost:3000";
-
-  if (requestOrigin) {
-    appBaseUrl = requestOrigin;
-  } else if (process.env.NEXT_PUBLIC_APP_URL) {
-    appBaseUrl = cleanEnv(process.env.NEXT_PUBLIC_APP_URL);
-  } else if (process.env.VERCEL_URL) {
-    appBaseUrl = `https://${cleanEnv(process.env.VERCEL_URL)}`;
-  }
+  const configuredOrigin = cleanEnv(process.env.NEXT_PUBLIC_APP_URL);
+  const isLocalOrigin = (value: string) =>
+    value.startsWith("http://localhost") ||
+    value.startsWith("http://127.0.0.1");
+  let appBaseUrl =
+    configuredOrigin ||
+    (requestOrigin && isLocalOrigin(requestOrigin) ? requestOrigin : "") ||
+    "https://buyatshopy.vercel.app";
 
   // Ensure protocol
   if (!appBaseUrl.startsWith("http://") && !appBaseUrl.startsWith("https://")) {
