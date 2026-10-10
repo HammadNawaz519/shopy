@@ -100,24 +100,20 @@ export default function MobileMenu({
 
         {/* Bottom Drawer Footer */}
         <div className="pt-6 border-t border-[#BBBFCA]/30 space-y-4">
-          <button
-            type="button"
-            onClick={() => {
-              onClose();
-              if (typeof window !== "undefined") {
-                window.dispatchEvent(new Event("shopy:open-install-prompt"));
-              }
-            }}
+          <Link
+            href="/shopy.apk"
+            download="shopy.apk"
+            onClick={onClose}
             className="flex items-center justify-between w-full text-xs tracking-[0.2em] uppercase font-light text-[#495464] hover:text-black transition-colors"
           >
             <span className="flex items-center gap-2.5">
               <Smartphone className="w-3.5 h-3.5 stroke-[1.5]" />
-              <span>Install App</span>
+              <span>Download App</span>
             </span>
             <span className="text-[9px] tracking-widest uppercase px-1.5 py-0.5 bg-[#E8E8E8] text-[#495464]">
-              PWA
+              APK
             </span>
-          </button>
+          </Link>
 
           <Link
             href={user ? "/account" : "/login"}
