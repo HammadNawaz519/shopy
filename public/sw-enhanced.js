@@ -23,6 +23,10 @@ const CACHE_NAMES = {
   RUNTIME: `${CACHE_NAMESPACE}-${VERSION}-runtime`,
   // App-shell HTML documents: network-first with cached-shell fallback.
   PAGES: `${CACHE_NAMESPACE}-${VERSION}-pages`,
+  // App Router RSC flight payloads (client-side navigations/prefetches).
+  // Dedicated cache because caches match by URL+method ONLY (headers ignored),
+  // so a route's HTML document and its flight payload must live apart.
+  FLIGHT: `${CACHE_NAMESPACE}-${VERSION}-flight`,
 };
 
 // Minimal precache (the app shell). Kept small and correct: only URLs that are
@@ -150,6 +154,22 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // App Router flight data: the client router GETs each route path again with
+  // an `RSC: 1` (real navigation) or `Next-Router-Prefetch: 1` header to fetch
+  // that page's serialized React payload. Without a cache entry for a route,
+  // an offline tap falls back to a full reload and bounces to the cached home
+  // shell — the exact "clicking a product takes me back home" bug. Cache these
+  // stale-while-revalidate so client-side navigation works fully offline.
+  const isFlightRequest =
+    (request.headers.get('Next-Router-Prefetch') || request.headers.get('RSC')) &&
+    !url.pathname.startsWith('/api/') &&
+    !url.pathname.startsWith('/_next') &&
+    !url.pathname.startsWith('/uploads/');
+  if (isFlightRequest) {
+    event.respondWith(staleWhileRevalidate(event, request, CACHE_NAMES.FLIGHT));
+    return;
+  }
+
   // HTML navigation: network-first, fall back to the cached app shell offline.
   if (request.mode === 'navigate') {
     event.respondWith(navigateWithShellFallback(request, CACHE_NAMES.PAGES));
@@ -256,8 +276,13 @@ function staleWhileRevalidate(event, request, cacheName) {
 
 // Navigation: try the network, and when offline (or the exact page was never
 // cached) serve the cached app shell so the SPA still boots and can hydrate from
-// its own local data.
+// its own local data. When the served document is NOT the requested url (i.e.
+// the fallback shell, or an ignoreSearch variant), inject the intended target
+// so the SPA can re-route to it on boot — offline deep links stop bouncing to
+// the home page.
 function navigateWithShellFallback(request, cacheName) {
+  const target = new URL(request.url);
+  const requestedPath = target.pathname + target.search;
   return fetch(request)
     .then((res) => {
       if (res && res.ok) {
@@ -269,15 +294,45 @@ function navigateWithShellFallback(request, cacheName) {
     .catch(() =>
       caches
         .match(request)
+        .then((cached) => cached || caches.match(request, { ignoreSearch: true }))
         .then((cached) => cached || caches.match('/', { ignoreSearch: true }))
-        .then((shell) => {
-          if (shell) return shell;
-          return new Response('You are offline. Reconnect to continue.', {
-            status: 503,
-            headers: { 'Content-Type': 'text/html' },
-          });
-        })
-  );
+    )
+    .then((document) => {
+      if (!document) {
+        return new Response('You are offline. Reconnect to continue.', {
+          status: 503,
+          headers: { 'Content-Type': 'text/html' },
+        });
+      }
+      const documentPath = new URL(document.url, request.url).pathname +
+        new URL(document.url, request.url).search;
+      // Only rewrite when the document is a stand-in for a different url.
+      if (documentPath !== requestedPath) {
+        return injectOfflineTarget(document, requestedPath);
+      }
+      return document;
+    });
+}
+
+// Rewrite the cached HTML so the SPA knows where the user actually wanted to
+// go. The injected script sets window.__shopyOfflineTarget; the client reads
+// it on boot, router.replace()s to the target (served from the FLIGHT cache
+// when offline) and clears the flag so it only ever fires once.
+function injectOfflineTarget(response, targetPath) {
+  return response
+    .clone()
+    .text()
+    .then((html) => {
+      const script = `<script>window.__shopyOfflineTarget=${JSON.stringify(targetPath)};</script>`;
+      const body = html.includes('</head>')
+        ? html.replace('</head>', `${script}</head>`)
+        : script + html;
+      const headers = new Headers(response.headers);
+      headers.delete('Content-Length');
+      headers.set('Content-Type', 'text/html');
+      return new Response(body, { status: 200, headers });
+    })
+    .catch(() => response);
 }
 
 // --- Warm up public data on activation (best-effort, never fatal) ---
@@ -294,6 +349,48 @@ async function warmUpCriticalData() {
   );
 }
 
+// --- Offline catalog warming (driven by the client, runs while online) ---
+// Caches each route in two shapes:
+//   PAGES  : the HTML document   → covers cold open / deep link / full reloads
+//   FLIGHT : the RSC payload     → covers client-side router navigation
+// Both are only useful AFTER a fresh online fetch, so this is never run when
+// the network is down — warming always stores the freshest data.
+async function warmOfflinePaths(paths) {
+  const pageCache = await caches.open(CACHE_NAMES.PAGES);
+  const flightCache = await caches.open(CACHE_NAMES.FLIGHT);
+  let warmed = 0;
+  let failed = 0;
+  await Promise.allSettled(
+    paths.map(async (path) => {
+      // 1. HTML document (for navigations and deep links).
+      try {
+        const htmlRes = await fetch(path, { method: 'GET', credentials: 'same-origin' });
+        if (htmlRes && htmlRes.ok) {
+          await pageCache.put(path, htmlRes.clone());
+        }
+      } catch {
+        /* offline path — never fatal */
+      }
+      // 2. RSC flight payload (for in-app router navigation).
+      try {
+        const flightReq = new Request(path, {
+          headers: { RSC: '1', 'Next-Router-Prefetch': '1' },
+        });
+        const flightRes = await fetch(flightReq, { credentials: 'same-origin' });
+        if (flightRes && flightRes.ok) {
+          await flightCache.put(path, flightRes.clone());
+          warmed += 1;
+        } else {
+          failed += 1;
+        }
+      } catch {
+        failed += 1;
+      }
+    })
+  );
+  return { warmed, failed };
+}
+
 // --- Messaging: let the app control updates and cache lifecycle ---
 self.addEventListener('message', (event) => {
   const { data } = event || {};
@@ -301,6 +398,22 @@ self.addEventListener('message', (event) => {
 
   if (data.type === 'SKIP_WAITING') {
     self.skipWaiting();
+  }
+
+  // Client asks to warm the offline catalog: for each path cache BOTH the HTML
+  // document (deep links / full reloads while offline) and the RSC flight
+  // payload (client-side navigation while offline). Runs in the background;
+  // progress is posted back on the returned port or as regular messages.
+  if (data.type === 'WARM_OFFLINE' && Array.isArray(data.paths)) {
+    warmOfflinePaths(data.paths).then((result) => {
+      event.source &&
+        event.source.postMessage({
+          type: 'WARM_OFFLINE_RESULT',
+          warmed: result.warmed,
+          failed: result.failed,
+        });
+    });
+    return;
   }
 
   if (data.data && data.data.type === 'CLEAR_CACHE') {

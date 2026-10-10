@@ -11,6 +11,8 @@ import ClientCacheRevalidator from "@/components/common/ClientCacheRevalidator";
 import ServiceWorkerRegister from "@/components/pwa/ServiceWorkerRegister";
 import IdlePrefetcher from "@/components/pwa/IdlePrefetcher";
 import InstallAppPrompt from "@/components/pwa/InstallAppPrompt";
+import OfflineCacheWarmer from "@/components/pwa/OfflineCacheWarmer";
+import OfflineRecovery from "@/components/pwa/OfflineRecovery";
 
 const cormorant = Cormorant_Garamond({
   subsets: ["latin"],
@@ -83,6 +85,8 @@ export default function RootLayout({
 
       <body className="font-sans antialiased min-h-screen flex flex-col bg-[#F4F4F2] text-[#495464]">
         <ServiceWorkerRegister />
+        <OfflineCacheWarmer />
+        <OfflineRecovery />
         <EnhancedAuthProvider>
           <EnhancedCartProvider>
             <ToastProvider>
