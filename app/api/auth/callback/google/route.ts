@@ -88,7 +88,9 @@ export async function GET(req: Request) {
 <div style="text-align:center;padding:2rem">
 <h1 style="font-weight:300;letter-spacing:.3em">SHOPY</h1>
 <p style="font-size:14px;letter-spacing:.1em;margin-top:1rem">Sign-in complete&hellip;</p>
-<p style="font-size:11px;margin-top:2rem">You can close this window now.</p>
+<p style="font-size:11px;margin-top:1.5rem">SHOPY will log you in automatically.</p>
+<p style="font-size:11px;margin-top:.5rem;opacity:.7">You can close this tab now.</p>
+<script>setTimeout(function(){try{window.close()}catch(e){}},800)</script>
 </div></body></html>`;
       return new NextResponse(html, { status: 200, headers: { "Content-Type": "text/html" } });
     }

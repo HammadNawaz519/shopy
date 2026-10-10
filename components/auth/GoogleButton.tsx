@@ -10,6 +10,59 @@ interface GoogleButtonProps {
   text?: string;
 }
 
+/**
+ * Pending native handoffs are persisted so the sign-in can finish automatically:
+ *  - If the app's WebView is suspended while the user signs in the Google tab
+ *    (iOS freezes background timers), polling resumes when the app regains
+ *    focus (visibilitychange / focus).
+ *  - If the user closes the app entirely and reopens it, the component mounts
+ *    with the stored record and auto-completes + redirects with no re-click.
+ */
+const HANDOFF_STORAGE_KEY = "shopy_google_native_handoff";
+const HANDOFF_TTL_MS = 10 * 60 * 1000; // matches the server-side 5-min record TTL + slack
+
+interface StoredHandoff {
+  handoffId: string;
+  redirect: string | null;
+  startedAt: number;
+}
+
+function readStoredHandoff(): StoredHandoff | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(HANDOFF_STORAGE_KEY);
+    if (!raw) return null;
+    const rec = JSON.parse(raw) as Partial<StoredHandoff>;
+    if (!rec || typeof rec.handoffId !== "string" || rec.handoffId.length < 8) return null;
+    const startedAt = typeof rec.startedAt === "number" ? rec.startedAt : 0;
+    if (startedAt > 0 && Date.now() - startedAt > HANDOFF_TTL_MS) {
+      window.localStorage.removeItem(HANDOFF_STORAGE_KEY);
+      return null;
+    }
+    return { handoffId: rec.handoffId, redirect: rec.redirect ?? null, startedAt };
+  } catch {
+    return null;
+  }
+}
+
+function storeHandoff(rec: StoredHandoff) {
+  try {
+    window.localStorage.setItem(HANDOFF_STORAGE_KEY, JSON.stringify(rec));
+  } catch {
+    /* storage full / private mode — polling for the current session still works */
+  }
+}
+
+function clearStoredHandoff() {
+  try {
+    window.localStorage.removeItem(HANDOFF_STORAGE_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+type PollOutcome = "complete" | "pending" | "stopped";
+
 export default function GoogleButton({
   redirect,
   text = "Continue with Google",
@@ -21,9 +74,11 @@ export default function GoogleButton({
   const [diag, setDiag] = useState<string | null>(null);
   // Set true once the in-app sign-in tab is open so polling can begin / UI can change.
   const nativeFlowRef = useRef(false);
+  // Mirrors `loading` for use inside stable callbacks.
+  const loadingRef = useRef(false);
+  // A resume-poll driven by the stored record is in flight.
+  const resumePollRef = useRef(false);
 
-  // Diagnostic logger (safe by construction: callers only pass non-secret fields —
-  // never OAuth tokens, cookies, client secrets, JWTs, passwords, or the auth URL).
   const logStep = (step: string, detail?: unknown) => {
     const suffix =
       detail === undefined
@@ -35,12 +90,108 @@ export default function GoogleButton({
   };
 
   /**
+   * Poll the one-time handoff until the sign-in tab completes it.
+   *  - "complete" → caller navigates away (window.location.href already set)
+   *  - "pending"  → deadline reached with no record yet (user may still be signing in)
+   *  - "stopped"  → flow no longer active / record already finished elsewhere
+   */
+  const pollHandoff = async (
+    handoffId: string,
+    deadline: number,
+    isActive: () => boolean
+  ): Promise<PollOutcome> => {
+    let lastStatus: number | null = null;
+    while (Date.now() < deadline) {
+      if (!isActive()) return "stopped";
+
+      await new Promise((r) => setTimeout(r, 1500));
+
+      let pollRes: Response;
+      try {
+        pollRes = await fetch(
+          `/api/auth/google/handoff?handoffId=${encodeURIComponent(handoffId)}`,
+          {
+            credentials: "same-origin",
+            cache: "no-store",
+            headers: { "Cache-Control": "no-cache" },
+          }
+        );
+      } catch (netErr) {
+        logStep("POLL: fetch threw (retrying)", { message: (netErr as Error)?.message });
+        continue;
+      }
+
+      if (pollRes.status !== lastStatus) {
+        logStep("POLL: status", {
+          status: pollRes.status,
+          meaning:
+            pollRes.status === 200
+              ? "complete"
+              : pollRes.status === 202
+                ? "pending"
+                : pollRes.status === 409
+                  ? "handoff_consumed"
+                  : "other",
+        });
+        lastStatus = pollRes.status;
+      }
+
+      if (pollRes.status === 200) {
+        let data: { status?: string; destinationPath?: string };
+        try {
+          data = await pollRes.json();
+        } catch {
+          logStep("POLL: 200 but body was not JSON");
+          data = {};
+        }
+        if (data?.status === "complete") {
+          logStep("SESSION: created", {
+            destinationPath: data.destinationPath || "/account",
+          });
+          clearStoredHandoff();
+          window.location.href = data.destinationPath || "/account";
+          return "complete";
+        }
+        logStep("POLL: 200 but status !== complete", { got: data?.status });
+        return "stopped";
+      }
+
+      // 409 = another poll already consumed it, 400 = record gone/expired.
+      // If our own WebView is already authenticated (the consumed handoff DID
+      // set the session cookie before), finish from there instead of stalling.
+      if (pollRes.status === 409 || pollRes.status === 400) {
+        logStep("POLL: handoff no longer consumable — probing /api/auth/me");
+        let me: { user?: { role?: string } | null } = {};
+        try {
+          const meRes = await fetch("/api/auth/me", { credentials: "same-origin" });
+          me = await meRes.json();
+        } catch {
+          me = {};
+        }
+        if (me.user) {
+          logStep("SESSION: already active — navigating");
+          const stored = readStoredHandoff();
+          clearStoredHandoff();
+          window.location.href =
+            me.user.role === "admin" ? "/admin" : stored?.redirect || "/account";
+          return "complete";
+        }
+        clearStoredHandoff();
+        return "stopped";
+      }
+      // 202 / 404 / 500 → keep waiting until the deadline.
+    }
+    return "pending";
+  };
+
+  /**
    * CLASSIC WEB FLOW: the whole OAuth round-trip happens in this window,
    * so the session cookie lands in the same browser that is viewing the app.
    */
   const handleGoogleSignIn = () => {
     if (loading) return;
     setLoading(true);
+    loadingRef.current = true;
     setErrorMsg(null);
 
     let targetUrl = "/api/auth/google";
@@ -55,13 +206,16 @@ export default function GoogleButton({
    * NATIVE (CAPACITOR) FLOW: Google's sign-in screen refuses embedded
    * WebViews and bounces to the system Chrome — which is why users ended up
    * "using the app in Chrome". Instead we open Google in the in-app browser
-   * tab (Chrome Custom Tab, stays branded in-app), and because that tab has a
-   * separate cookie jar we hand the issued session back to the app via a
-   * one-time server-side handoff record that this WebView polls for.
+   * tab (Chrome Custom Tab / SFSafariViewController, stays branded in-app), and
+   * because that tab has a separate cookie jar we hand the issued session back
+   * to the app via a one-time server-side handoff record that this WebView
+   * polls for. The pending record is persisted so sign-in can ALWAYS auto-
+   * complete: on app refocus, or after the app was closed and reopened.
    */
   const handleNativeGoogleSignIn = async () => {
-    if (loading) return;
+    if (loading || loadingRef.current) return;
     setLoading(true);
+    loadingRef.current = true;
     setErrorMsg(null);
     setDiag(null);
 
@@ -71,6 +225,7 @@ export default function GoogleButton({
       setDiag(`${step}: ${reason}`);
       setErrorMsg("Sign-in did not complete. Please try again.");
       setLoading(false);
+      loadingRef.current = false;
     };
 
     try {
@@ -82,9 +237,11 @@ export default function GoogleButton({
           : `h_${Date.now()}_${Math.random().toString(36).slice(2)}`;
       logStep("START: handoffId created", {
         length: handoffId.length,
-        matchesServerRegex: /^[0-9a-fA-F-]{8,64}$/.test(handoffId),
         prefix: handoffId.slice(0, 8),
       });
+
+      // Persist immediately so a closed/suspended app can still auto-finish.
+      storeHandoff({ handoffId, redirect: redirect ?? null, startedAt: Date.now() });
 
       const params = new URLSearchParams({ native: "1", handoff: handoffId });
       if (redirect) params.set("redirect", redirect);
@@ -98,11 +255,6 @@ export default function GoogleButton({
         fail("START", "network error reaching /api/auth/google");
         return;
       }
-      logStep("START: /api/auth/google responded", {
-        status: startRes.status,
-        ok: startRes.ok,
-        contentType: startRes.headers.get("content-type"),
-      });
       if (!startRes.ok) {
         fail("START", `/api/auth/google returned ${startRes.status}`);
         return;
@@ -112,8 +264,6 @@ export default function GoogleButton({
       try {
         startJson = await startRes.json();
       } catch (jsonErr) {
-        // A non-JSON 200 usually means the request was redirected to an HTML page
-        // (e.g. the route hit the missing-creds or error path and 302'd to /login).
         logStep("START: response was NOT JSON", {
           status: startRes.status,
           contentType: startRes.headers.get("content-type"),
@@ -127,38 +277,15 @@ export default function GoogleButton({
       const authUrl = startJson.authUrl;
       const googleHostOk =
         typeof authUrl === "string" && authUrl.startsWith("https://accounts.google.com/");
-      let redirectUri = "?";
-      let hasState = false;
-      if (typeof authUrl === "string") {
-        try {
-          const parsed = new URL(authUrl);
-          redirectUri = parsed.searchParams.get("redirect_uri") || "?";
-          hasState = parsed.searchParams.has("state");
-        } catch {
-          redirectUri = "(unparseable)";
-        }
-      }
-      logStep("GOOGLE URL", {
-        present: Boolean(authUrl),
-        isString: typeof authUrl === "string",
-        googleHost: googleHostOk,
-        redirectUri,
-        hasState,
-      });
       if (!googleHostOk) {
         fail("GOOGLE URL", "authUrl missing or not an accounts.google.com URL");
         return;
       }
 
       // STEP 3 — BROWSER: open the sign-in tab in the in-app browser.
-      logStep("BROWSER: about to Browser.open", {
-        browserDefined: typeof Browser !== "undefined",
-        openIsFn:
-          typeof (Browser as unknown as { open?: unknown })?.open === "function",
-      });
       nativeFlowRef.current = true;
       const browserFinishedListener = await Browser.addListener("browserFinished", () => {
-        logStep("BROWSER: sign-in tab closed; resuming handoff polling");
+        logStep("BROWSER: sign-in tab closed; handoff polling continues");
       });
       try {
         await Browser.open({ url: authUrl });
@@ -173,98 +300,58 @@ export default function GoogleButton({
       }
 
       // STEP 4 — POLL the one-time handoff until the tab sign-in completes.
-      const deadline = Date.now() + 4 * 60 * 1000; // 4 minutes
-      let pollCount = 0;
-      let lastStatus: number | null = null;
-      let lastStatusAt = 0;
-      while (Date.now() < deadline) {
-        // Only keep polling while the native flow is still the active one
-        // (user hasn't navigated away or closed the app screen).
-        if (!nativeFlowRef.current) {
-          logStep("POLL: stopped early (flow no longer active)");
-          return;
-        }
-
-        await new Promise((r) => setTimeout(r, 1500));
-
-        let pollRes: Response;
-        try {
-          pollRes = await fetch(
-            `/api/auth/google/handoff?handoffId=${encodeURIComponent(handoffId)}`,
-            {
-              credentials: "same-origin",
-              cache: "no-store",
-              headers: { "Cache-Control": "no-cache" },
-            }
-          );
-        } catch (netErr) {
-          logStep("POLL: fetch threw", { message: (netErr as Error)?.message });
-          fail("POLL", "network error while polling handoff");
-          return;
-        }
-
-        pollCount += 1;
-        if (pollRes.status !== lastStatus) {
-          logStep("POLL: status", {
-            pollCount,
-            status: pollRes.status,
-            meaning:
-              pollRes.status === 200
-                ? "complete"
-                : pollRes.status === 202
-                ? "pending"
-                : pollRes.status === 400
-                ? "invalid_handoff or handoff_invalid"
-                : pollRes.status === 404
-                ? "not_found"
-                : pollRes.status === 409
-                ? "handoff_consumed"
-                : pollRes.status === 500
-                ? "handler_error"
-                : "other",
-          });
-          lastStatus = pollRes.status;
-          lastStatusAt = Date.now();
-        }
-
-        if (pollRes.status === 200) {
-          let data: { status?: string; destinationPath?: string };
-          try {
-            data = await pollRes.json();
-          } catch {
-            logStep("POLL: 200 but body was not JSON");
-            data = {};
-          }
-          if (data?.status === "complete") {
-            logStep("SESSION: created", {
-              destinationPath: data.destinationPath || "/account",
-            });
-            setDiag("SESSION: success");
-            await browserFinishedListener.remove();
-            window.location.href = data.destinationPath || "/account";
-            return;
-          }
-          logStep("POLL: 200 but status !== complete", { got: data?.status });
-          fail("POLL", `server returned 200 with status=${data?.status ?? "none"}`);
-          return;
-        }
-        // 202 / 400 / 404 / 409 / 500 → keep waiting until the deadline.
-      }
-
-      // STEP 4 (timeout) — the tab never produced a consumable handoff.
-      logStep("POLL: timed out", {
-        polls: pollCount,
-        lastStatus,
-        msSinceLastStatusChange: Date.now() - lastStatusAt,
-      });
-      fail("POLL", `timed out (last status ${lastStatus ?? "none"} after ${pollCount} polls)`);
+      const outcome = await pollHandoff(
+        handoffId,
+        Date.now() + 4 * 60 * 1000,
+        () => nativeFlowRef.current
+      );
       await browserFinishedListener.remove();
-      return;
+
+      if (outcome === "complete") return; // already navigated away
+      if (outcome === "stopped") return;
+
+      // "pending": the tab never produced a consumable handoff within the
+      // window. The record stays persisted — returning to the app (or
+      // reopening it) auto-resumes and finishes the sign-in.
+      logStep("POLL: window elapsed, keeping record for auto-resume");
+      setDiag("Sign-in in progress — it will finish automatically when you return to SHOPY.");
+      setErrorMsg("If you signed in, close the Google tab and go back to the app.");
+      setLoading(false);
+      loadingRef.current = false;
     } catch (err) {
-      logStep("BROWSER: listener cleanup after failure");
       logStep("UNCAUGHT error", { message: (err as Error)?.message });
       fail("UNCAUGHT", (err as Error)?.message || "unknown error");
     }
+  };
+
+  /**
+   * AUTO-RESUME: pick up a persisted handoff without re-clicking. Runs on mount
+   * (covers the closed-then-reopened app) and every time the WebView regains
+   * focus (covers the suspended-while-signing-in case).
+   */
+  const resumeStoredHandoff = () => {
+    if (resumePollRef.current || loadingRef.current) return;
+    const rec = readStoredHandoff();
+    if (!rec) return;
+    resumePollRef.current = true;
+    setLoading(true);
+    loadingRef.current = true;
+    setDiag("Resuming Google sign-in…");
+    logStep("RESUME: polling stored handoff", { age: Date.now() - rec.startedAt });
+    pollHandoff(rec.handoffId, Date.now() + 5 * 60 * 1000, () => resumePollRef.current).then(
+      (outcome) => {
+        if (outcome === "complete") return; // already navigated away
+        resumePollRef.current = false;
+        setLoading(false);
+        loadingRef.current = false;
+        if (outcome === "stopped") {
+          setErrorMsg("Sign-in did not complete. Please try again.");
+        } else {
+          setDiag("Still signing in — finish in the Google tab and it will complete here automatically.");
+          setErrorMsg("Sign-in in progress — it will finish automatically when you return to SHOPY.");
+        }
+      }
+    );
   };
 
   const onClick = () => {
@@ -279,7 +366,25 @@ export default function GoogleButton({
   useEffect(() => {
     return () => {
       nativeFlowRef.current = false;
+      resumePollRef.current = false;
     };
+  }, []);
+
+  // Auto-resume on mount + whenever the app's WebView becomes visible/focused.
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    resumeStoredHandoff();
+    const onWake = () => {
+      if (typeof document === "undefined" || document.visibilityState !== "visible") return;
+      resumeStoredHandoff();
+    };
+    document.addEventListener("visibilitychange", onWake);
+    window.addEventListener("focus", onWake);
+    return () => {
+      document.removeEventListener("visibilitychange", onWake);
+      window.removeEventListener("focus", onWake);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
@@ -293,7 +398,7 @@ export default function GoogleButton({
         {loading ? (
           <>
             <Loader2 className="w-4 h-4 animate-spin text-[#495464]" />
-            <span>Connecting to Google...</span>
+            <span>Connecting to Google…</span>
           </>
         ) : (
           <>

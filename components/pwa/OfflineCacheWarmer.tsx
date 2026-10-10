@@ -124,7 +124,7 @@ export default function OfflineCacheWarmer() {
     if ("requestIdleCallback" in window) {
       idleId = window.requestIdleCallback(warm, { timeout: 15000 });
     } else {
-      timerId = setTimeout(warm, 8000);
+      timerId = setTimeout(warm, 8000) as unknown as number;
     }
 
     return () => {

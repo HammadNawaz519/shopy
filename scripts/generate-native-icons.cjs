@@ -1,4 +1,4 @@
-// One-off generator: writes SHOPY's public/icon.png into every native icon
+// One-off generator: writes SHOPY's public/icon-512x512.png into every native icon
 // slot (Android mipmaps + adaptive foregrounds, iOS AppIcon). Native-shell
 // assets only — does not touch the web app/UI.
 const sharp = require("sharp");
@@ -6,7 +6,7 @@ const fs = require("fs");
 const path = require("path");
 
 const ROOT = process.cwd();
-const SRC = path.join(ROOT, "public", "icon.png");
+const SRC = path.join(ROOT, "public", "icon-512x512.png");
 const BG = { r: 244, g: 244, b: 242, alpha: 1 }; // #F4F4F2 (SHOPY bg)
 
 const ANDROID_RES = path.join(ROOT, "android", "app", "src", "main", "res");
@@ -62,7 +62,7 @@ async function adaptiveForeground(fgSize) {
   writes.push(fs.promises.writeFile(path.join(iosDir, "AppIcon-512@2x.png"), ios));
 
   await Promise.all(writes);
-  console.log(`[icons] Wrote ${writes.length} native icon files from public/icon.png`);
+  console.log(`[icons] Wrote ${writes.length} native icon files from public/icon-512x512.png`);
 })().catch((e) => {
   console.error("[icons] Failed:", e);
   process.exit(1);
