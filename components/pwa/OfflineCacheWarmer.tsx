@@ -27,14 +27,21 @@ import { PRODUCTS } from "@/lib/data/products";
  * rest of the service worker upholds for admin/checkout (always network).
  */
 
-const WARM_FLAG = "shopy-offline-warmed-v1";
+const WARM_FLAG = "shopy-offline-warmed-v2";
 
 // Always-warmed storefront routes (stable, few, cheap).
+// Session-gated page shells (/cart, /checkout, /account) are warmed too so
+// offline navigation renders their real last-known view instead of bouncing to
+// the home shell. Only their HTML document + RSC payload are cached; their
+// data APIs and order/payment mutations always stay network-only.
 const ALWAYS_PATHS = [
   "/",
   "/products",
   "/collections",
   "/search",
+  "/cart",
+  "/checkout",
+  "/account",
   "/shipping",
   "/returns",
   "/size-guide",

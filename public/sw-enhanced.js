@@ -14,7 +14,7 @@
 // older `shopy-pwa-v*` caches) without touching unrelated browser storage.
 
 const CACHE_NAMESPACE = 'shopy-pwa';
-const VERSION = 'v2';
+const VERSION = 'v3';
 
 const CACHE_NAMES = {
   // Immutable, content-hashed build assets: cache-first.
@@ -41,21 +41,27 @@ const PRECACHE_URLS = [
   '/logo.svg',
 ];
 
-// Endpoints that must ALWAYS hit the network and are NEVER cached. These are
-// the places where caching could leak or fabricate data:
+// API endpoints that must ALWAYS hit the network and are NEVER cached. These
+// are the places where caching could leak or fabricate data:
 //   - /api/admin/*  : admin data (never a shared cache)
 //   - /api/auth/*   : session validation (server stays authoritative)
-//   - /api/cart, /api/orders : user-scoped / payment-critical (offline state is
-//                              held in user-scoped IndexedDB, not the SW)
-//   - /account, /admin, /checkout : session-gated / payment pages
+//   - /api/cart, /api/orders : user-scoped / payment-critical mutations (offline
+//                              state is held in user-scoped IndexedDB, not the SW;
+//                              order/payment submission always reaches the network
+//                              and simply fails offline rather than being faked)
+//
+// NOTE: the session-gated *pages* themselves (/account, /admin, /checkout) are
+// deliberately NOT in this list. Their HTML documents are cached as last-known
+// snapshots so offline navigation/deep-links render the real page instead of
+// bouncing to the home shell — exactly the "last-known data, never fake
+// mutations" guarantee the rest of this worker upholds. Only their data APIs
+// stay network-authoritative. This assumes a single-user native shell, which is
+// the real deployment model here.
 const NEVER_CACHE = [
   /^\/api\/admin/,
   /^\/api\/auth/,
   /^\/api\/cart/,
   /^\/api\/orders/,
-  /^\/account/,
-  /^\/admin/,
-  /^\/checkout/,
 ];
 
 // Public, GET-safe endpoints that may be served stale-while-revalidate.
