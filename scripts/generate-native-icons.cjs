@@ -1,7 +1,6 @@
-// One-off generator: writes SHOPY's native app icon (public/app-icon-source.png,
-// a full-bleed square photo) into every native icon slot (Android mipmaps +
-// adaptive foregrounds, iOS AppIcon). Native-shell assets only — does not
-// touch the web app/UI or the PWA web icons.
+// One-off generator: writes SHOPY's shared app icon source into the web/PWA
+// icons and every native icon slot (Android mipmaps + adaptive foregrounds,
+// iOS AppIcon).
 const sharp = require("sharp");
 const fs = require("fs");
 const path = require("path");
@@ -17,11 +16,30 @@ const DENSITIES = [
   { d: "xxxhdpi", icon: 192, fg: 432 },
 ];
 
-// The source is a full square photo, so each slot is a plain cover-resize.
-// Launchers / iOS mask the shape themselves (square tile for PNG slots,
-// circular/system mask for adaptive + iOS), so no padding or background fill.
+// Legacy and iOS slots can use the complete square artwork. Android adaptive
+// icons and maskable PWA icons need the artwork inside the launcher safe zone;
+// otherwise the system mask crops the edges of the icon.
 async function photoTile(size) {
   return sharp(SRC).resize(size, size, { fit: "cover" }).png().toBuffer();
+}
+
+async function safeTile(size) {
+  const source = sharp(SRC);
+  const { dominant } = await source.stats();
+  const inset = Math.round(size * 0.66);
+  const foreground = await source.resize(inset, inset, { fit: "fill" }).png().toBuffer();
+
+  return sharp({
+    create: {
+      width: size,
+      height: size,
+      channels: 4,
+      background: { r: dominant.r, g: dominant.g, b: dominant.b, alpha: 1 },
+    },
+  })
+    .composite([{ input: foreground, gravity: "centre" }])
+    .png()
+    .toBuffer();
 }
 
 (async () => {
@@ -32,10 +50,7 @@ async function photoTile(size) {
     const tile = await photoTile(icon);
     writes.push(fs.promises.writeFile(path.join(dir, "ic_launcher.png"), tile));
     writes.push(fs.promises.writeFile(path.join(dir, "ic_launcher_round.png"), tile));
-    // Adaptive foreground is the photo full-bleed too, so the system mask
-    // crops it like any photographic app icon instead of floating a small
-    // logo on a brand background.
-    const fgTile = await photoTile(fg);
+    const fgTile = await safeTile(fg);
     writes.push(fs.promises.writeFile(path.join(dir, "ic_launcher_foreground.png"), fgTile));
   }
 
@@ -43,6 +58,11 @@ async function photoTile(size) {
   const iosDir = path.join(ROOT, "ios", "App", "App", "Assets.xcassets", "AppIcon.appiconset");
   const ios = await photoTile(1024);
   writes.push(fs.promises.writeFile(path.join(iosDir, "AppIcon-512@2x.png"), ios));
+
+  writes.push(fs.promises.writeFile(path.join(ROOT, "public", "icon-192x192.png"), await photoTile(192)));
+  writes.push(fs.promises.writeFile(path.join(ROOT, "public", "icon-512x512.png"), await photoTile(512)));
+  writes.push(fs.promises.writeFile(path.join(ROOT, "public", "icon-512x512-maskable.png"), await safeTile(512)));
+  writes.push(fs.promises.writeFile(path.join(ROOT, "public", "apple-touch-icon.png"), await photoTile(180)));
 
   await Promise.all(writes);
   console.log(`[icons] Wrote ${writes.length} native icon files from public/app-icon-source.png`);
