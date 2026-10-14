@@ -49,12 +49,27 @@ export default function Navbar() {
   const { totalCount, openCart } = useCart();
   const { user } = useAuth();
 
+  const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchModalOpen, setSearchModalOpen] = useState(false);
 
   const isHome = pathname === "/";
 
   const [navItems, setNavItems] = useState<Array<{ name: string; href: string }>>([]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 30) {
+        setIsScrolled(true);
+      } else {
+        setIsScrolled(false);
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -82,16 +97,16 @@ export default function Navbar() {
     return null;
   }
 
-  const isTransparent = isHome;
+  const isTransparent = isHome && !isScrolled;
   const navLinks = deduplicateLinks(navItems);
 
   return (
     <>
       <header
-        className={`fixed top-0 left-0 right-0 z-50 select-none pt-[env(safe-area-inset-top)] backdrop-blur-xl backdrop-saturate-150 ${
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 select-none pt-[env(safe-area-inset-top)] ${
           isTransparent
-            ? "bg-black/20 text-white border-b border-white/20 shadow-[0_2px_15px_rgba(0,0,0,0.08)]"
-            : "bg-[#F4F4F2]/75 text-[#495464] border-b border-[#BBBFCA]/30 shadow-[0_2px_15px_rgba(0,0,0,0.04)]"
+            ? "bg-gradient-to-b from-black/25 to-transparent text-white"
+            : "bg-[#F4F4F2] text-[#495464] border-b border-[#BBBFCA]/30 shadow-[0_2px_15px_rgba(0,0,0,0.02)]"
         }`}
       >
         <div className="max-w-[1720px] mx-auto px-6 lg:px-12 h-16 flex items-center justify-between">
