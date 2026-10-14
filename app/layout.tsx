@@ -5,6 +5,7 @@ import { EnhancedAuthProvider } from "@/context/EnhancedAuthContext";
 import { EnhancedCartProvider } from "@/context/EnhancedCartContext";
 import { ToastProvider } from "@/context/ToastContext";
 import Navbar from "@/components/layout/Navbar";
+import StatusBarTint from "@/components/layout/StatusBarTint";
 import Footer from "@/components/layout/Footer";
 import CartDrawer from "@/components/layout/CartDrawer";
 import ClientCacheRevalidator from "@/components/common/ClientCacheRevalidator";
@@ -93,6 +94,7 @@ export default function RootLayout({
               <ClientCacheRevalidator />
               <IdlePrefetcher />
               <Navbar />
+              <StatusBarTint />
               <CartDrawer />
               <main className="flex-1">{children}</main>
               <Footer />
