@@ -46,6 +46,11 @@ export default function Hero({ initialConfig }: HeroProps) {
     objectFit: fitMode as any,
     objectPosition: posMode,
   };
+  const desktopImageStyle: React.CSSProperties = {
+    ...imageStyle,
+    transform: fitMode === "cover" ? "scale(1.2)" : undefined,
+    transformOrigin: "center",
+  };
 
   return (
     <section className="relative w-full h-screen min-h-[620px] sm:h-[88vh] sm:min-h-[600px] sm:max-h-[980px] flex items-center justify-center overflow-hidden bg-[#181a1d] select-none">
@@ -76,7 +81,7 @@ export default function Hero({ initialConfig }: HeroProps) {
             quality={100}
             unoptimized={!isDefaultBeige}
             sizes="100vw"
-            style={imageStyle}
+            style={desktopImageStyle}
             className="filter brightness-[0.94] contrast-[1.02]"
           />
         </div>

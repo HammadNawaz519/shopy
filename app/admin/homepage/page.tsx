@@ -332,6 +332,11 @@ export default function AdminHomepagePage() {
                       style={{
                         objectFit: config.heroImageFit || "cover",
                         objectPosition: config.heroImagePosition || "center",
+                        transform:
+                          previewDevice === "desktop" && (config.heroImageFit || "cover") === "cover"
+                            ? "scale(1.2)"
+                            : undefined,
+                        transformOrigin: "center",
                         pointerEvents: "none",
                       }}
                       className="w-full h-full filter brightness-[0.94] contrast-[1.02]"
