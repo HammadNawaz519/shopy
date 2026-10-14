@@ -77,7 +77,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
           fill
           priority
           sizes="100vw"
-          className="object-contain object-center p-4 sm:p-8 brightness-75"
+          className="object-cover object-center brightness-75"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-black/40" />
 

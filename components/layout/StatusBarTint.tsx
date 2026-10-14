@@ -14,7 +14,7 @@ import { usePathname } from "next/navigation";
  *
  * This samples the average colour of the exact slice of the hero photo under
  * the strip (after the hero's brightness / contrast / gradient grading and
- * the navbar's glass) and paints a matching solid strip, so it reads as a
+ * the navbar's transparent top gradient) and paints a matching solid strip, so it reads as a
  * seamless continuation of the landing page — for whatever image is
  * configured.
  * Once the hero scrolls past the top the strip switches to the navbar's
@@ -168,20 +168,20 @@ async function sampleHeroTopColour(): Promise<string | null> {
 }
 
 /**
- * The grading the strip must reproduce so it blends seamlessly:
- *  - the hero's own `brightness-[0.92] contrast-[1.03]` + top of its
- *    `to-black/25` gradient overlay (what the photo looks like as rendered),
- *  - plus the navbar's `bg-black/20` glass over that row, which the strip
- *    sits directly above — without it a hard seam would form between the
- *    strip and the SHOPY row below.
+ * The grading the strip must reproduce so it blends seamlessly. Keep in sync
+ * with the CURRENT navbar + hero overlays:
+ *  - the hero's own `brightness-[0.92] contrast-[1.03]` (Hero.tsx),
+ *  - the hero's `to-black/25` gradient overlay at the top edge (Hero.tsx),
+ *  - the navbar's transparent-state `from-black/25 to-transparent` gradient at
+ *    its top row (Navbar.tsx, 8638ab9 form — no solid bg-black/20 glass).
  */
 function gradeHeroColour(r: number, g: number, b: number): string {
   const channel = (value: number) => {
     let v = value / 255;
     v *= 0.92; // brightness-[0.92]
     v = (v - 0.5) * 1.03 + 0.5; // contrast-[1.03]
-    v *= 0.75; // bg-gradient ... to-black/25 at the top edge
-    v *= 0.8; // navbar glass bg-black/20
+    v *= 0.75; // hero overlay to-black/25 at the top edge
+    v *= 0.75; // navbar from-black/25 gradient top (8638ab9 form, no glass)
     return Math.round(Math.min(1, Math.max(0, v)) * 255);
   };
   return `rgb(${channel(r)}, ${channel(g)}, ${channel(b)})`;

@@ -97,7 +97,7 @@ export default function AdminHomepagePage() {
       const formData = new FormData();
       formData.append("file", file);
 
-      const res = await fetch("/api/admin/upload", {
+      const res = await fetch("/api/admin/upload?fit=banner", {
         method: "POST",
         body: formData,
       });
