@@ -14,6 +14,7 @@ import IdlePrefetcher from "@/components/pwa/IdlePrefetcher";
 import InstallAppPrompt from "@/components/pwa/InstallAppPrompt";
 import OfflineCacheWarmer from "@/components/pwa/OfflineCacheWarmer";
 import OfflineRecovery from "@/components/pwa/OfflineRecovery";
+import NativeGoogleAuthResume from "@/components/auth/NativeGoogleAuthResume";
 
 const cormorant = Cormorant_Garamond({
   subsets: ["latin"],
@@ -99,6 +100,7 @@ export default function RootLayout({
               <main className="flex-1">{children}</main>
               <Footer />
               <InstallAppPrompt />
+              <NativeGoogleAuthResume />
             </ToastProvider>
           </EnhancedCartProvider>
         </EnhancedAuthProvider>

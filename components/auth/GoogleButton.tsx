@@ -302,7 +302,7 @@ export default function GoogleButton({
       // STEP 4 — POLL the one-time handoff until the tab sign-in completes.
       const outcome = await pollHandoff(
         handoffId,
-        Date.now() + 4 * 60 * 1000,
+        Date.now() + 9 * 60 * 1000,
         () => nativeFlowRef.current
       );
       await browserFinishedListener.remove();
@@ -338,7 +338,7 @@ export default function GoogleButton({
     loadingRef.current = true;
     setDiag("Resuming Google sign-in…");
     logStep("RESUME: polling stored handoff", { age: Date.now() - rec.startedAt });
-    pollHandoff(rec.handoffId, Date.now() + 5 * 60 * 1000, () => resumePollRef.current).then(
+    pollHandoff(rec.handoffId, Date.now() + 9 * 60 * 1000, () => resumePollRef.current).then(
       (outcome) => {
         if (outcome === "complete") return; // already navigated away
         resumePollRef.current = false;

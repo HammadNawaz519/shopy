@@ -36,6 +36,22 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!--
+                Custom-scheme deep link (shopy://oauth/...). After a Google
+                sign-in finishes in the in-app browser tab, the callback offers a
+                "Open in SHOPY" action that launches this scheme; Android routes it
+                to MainActivity and brings the app to the foreground, where the
+                global auth-resume completes the pending session. A custom scheme
+                (not an https App Link) needs no domain verification and is safe
+                for a self-hosted APK.
+            -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="shopy" android:host="oauth" />
+            </intent-filter>
+
         </activity>
 
         <provider

@@ -8,7 +8,7 @@
  *      native OAuth state (URL-carried, HMAC-signed, 10-min expiry).
  *   2. When the sign-in tab reaches /api/auth/callback/google the server
  *      completes the Google exchange and stores the issued session JWT under
- *      that handoff id (one-time, 5-min TTL).
+ *      that handoff id (one-time, 10-min TTL).
  *   3. The app WebView polls /api/auth/google/handoff?handoffId=... until the
  *      record exists, then the server sets the session cookie in the APP's own
  *      cookie jar and marks the record consumed.
@@ -19,7 +19,7 @@
 
 import { getRedisClient, buildCacheKey } from "../redis";
 
-const HANDOFF_TTL_SECONDS = 5 * 60;
+const HANDOFF_TTL_SECONDS = 10 * 60;
 
 export interface NativeHandoffRecord {
   sessionJwt: string;

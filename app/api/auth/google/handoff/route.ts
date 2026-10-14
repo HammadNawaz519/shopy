@@ -24,7 +24,7 @@ export const dynamic = "force-dynamic";
  *
  * Security:
  *   - handoffId is an unpredictable client-generated UUID (122 bits)
- *   - the record is one-time (read + delete) with a 5-minute TTL
+ *   - the record is one-time (read + delete) with a 10-minute TTL
  *   - the session JWT is re-verified before the cookie is issued
  */
 export async function GET(req: Request) {

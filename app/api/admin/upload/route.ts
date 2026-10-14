@@ -57,7 +57,7 @@ export async function POST(req: Request) {
       .rotate()
       .resize(
         isBanner
-          ? { width: 2560, height: 1440, fit: "inside", withoutEnlargement: true }
+          ? { width: 3840, height: 2160, fit: "inside", withoutEnlargement: true }
           : { width: 1400, height: 1600, fit: "inside", withoutEnlargement: true }
       )
       .sharpen({
@@ -66,7 +66,7 @@ export async function POST(req: Request) {
         m2: 2.0,
       })
       .webp({
-        quality: isBanner ? 88 : 86,
+        quality: isBanner ? 90 : 86,
         effort: 4,
         smartSubsample: true,
       })

@@ -83,14 +83,27 @@ export async function GET(req: Request) {
           "[GOOGLE-SIGNIN] CALLBACK: native state had NO handoff id — the app's poll can never complete"
         );
       }
+      // Bring the Capacitor app to the foreground so the pending session
+      // completes on its own. The app's global auth-resume picks up the stored
+      // handoff and establishes the logged-in state. Auto-redirect to the custom
+      // scheme (shipped via the APK's manifest); a tap target covers browsers
+      // that block automatic custom-scheme navigation.
       const html = `<!doctype html><html><head><meta charset="utf-8"/><title>SHOPY — Sign In</title></head>
 <body style="margin:0;background:#F4F4F2;font-family:Georgia,serif;color:#495464;display:flex;align-items:center;justify-content:center;height:100vh">
-<div style="text-align:center;padding:2rem">
+<div style="text-align:center;padding:2rem;max-width:320px">
 <h1 style="font-weight:300;letter-spacing:.3em">SHOPY</h1>
 <p style="font-size:14px;letter-spacing:.1em;margin-top:1rem">Sign-in complete&hellip;</p>
-<p style="font-size:11px;margin-top:1.5rem">SHOPY will log you in automatically.</p>
-<p style="font-size:11px;margin-top:.5rem;opacity:.7">You can close this tab now.</p>
-<script>setTimeout(function(){try{window.close()}catch(e){}},800)</script>
+<p style="font-size:11px;margin-top:1.5rem">Opening the SHOPY app&hellip;</p>
+<a href="shopy://oauth/complete"
+   style="display:inline-block;margin-top:1.5rem;padding:.7rem 1.4rem;background:#495464;color:#F4F4F2;font-size:11px;letter-spacing:.15em;text-transform:uppercase;text-decoration:none;border-radius:2px">
+  Open in SHOPY app
+</a>
+<script>
+setTimeout(function(){
+  try { window.location.href = "shopy://oauth/complete"; } catch (e) {}
+  try { window.close(); } catch (e) {}
+}, 900);
+</script>
 </div></body></html>`;
       return new NextResponse(html, { status: 200, headers: { "Content-Type": "text/html" } });
     }
