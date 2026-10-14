@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -25,7 +25,7 @@ export default function Footer() {
     return null;
   }
 
-  const shopLinks = [
+  const defaultShopLinks = [
     { name: "View All", href: "/products" },
     { name: "Tops", href: "/collections/tops" },
     { name: "Bottoms", href: "/collections/bottoms" },
@@ -34,6 +34,26 @@ export default function Footer() {
     { name: "Co-Ord Sets", href: "/collections/co-ord-sets" },
     { name: "Accessories", href: "/collections/accessories" },
   ];
+  const [shopLinks, setShopLinks] = useState(defaultShopLinks);
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/navigation", { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error("Navigation request failed"))))
+      .then((data) => {
+        if (!active || !Array.isArray(data.navigation)) return;
+        const links = data.navigation
+          .filter((item: { name?: string; href?: string }) => item.name && item.href)
+          .map((item: { name: string; href: string }) => ({ name: item.name, href: item.href }));
+        if (links.length > 0) setShopLinks(links);
+      })
+      .catch(() => {
+        // Keep the safe default links when navigation cannot be loaded.
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const infoLinks = [
     { name: "About SHOPY", href: "/about" },
@@ -191,8 +211,6 @@ export default function Footer() {
             >
               Download App
             </a>
-            <span>•</span>
-            <span>SECURE CHECKOUT</span>
           </div>
         </div>
       </div>
