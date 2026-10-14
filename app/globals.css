@@ -16,9 +16,7 @@
   }
   
   html {
-    /* No global smooth scroll: it animates programmatic scrolls (router back/
-       forward, in-app navigation) and makes long-page jumps feel laggy on
-       touch. Native touch scrolling keeps its fluid momentum untouched. */
+    /* Keep scrolling on the browser's native compositor path. */
     background-color: var(--bg-primary);
     color: var(--dark-primary);
     -webkit-font-smoothing: antialiased;
