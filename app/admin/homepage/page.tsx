@@ -210,8 +210,8 @@ export default function AdminHomepagePage() {
     const bounds = previewRef.current.getBoundingClientRect();
     const deltaX = ((event.clientX - dragRef.current.x) / bounds.width) * 100;
     const deltaY = ((event.clientY - dragRef.current.y) / bounds.height) * 100;
-    const positionX = Math.max(0, Math.min(100, dragRef.current.positionX - deltaX));
-    const positionY = Math.max(0, Math.min(100, dragRef.current.positionY - deltaY));
+    const positionX = Math.max(0, Math.min(100, dragRef.current.positionX + deltaX));
+    const positionY = Math.max(0, Math.min(100, dragRef.current.positionY + deltaY));
     setConfig((prev) => ({ ...prev, heroImagePosition: `${positionX.toFixed(1)}% ${positionY.toFixed(1)}%` }));
   };
 
@@ -312,7 +312,8 @@ export default function AdminHomepagePage() {
                       previewDevice === "desktop"
                         ? "aspect-video"
                         : "aspect-[9/16] max-w-[280px]"
-                    } ${previewDevice === "desktop" && config.heroImageFit === "cover" ? "cursor-grab active:cursor-grabbing" : ""}`}
+                    } ${previewDevice === "desktop" && (config.heroImageFit || "cover") === "cover" ? "cursor-grab active:cursor-grabbing" : ""}`}
+                    style={{ touchAction: "none", userSelect: "none" }}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
@@ -328,7 +329,7 @@ export default function AdminHomepagePage() {
                     <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/20 to-black/30 pointer-events-none" />
 
                     {/* Text Overlay on Preview */}
-                    <div className="absolute inset-0 p-4 flex flex-col items-center justify-center text-center">
+                    <div className="absolute inset-0 p-4 flex flex-col items-center justify-center text-center pointer-events-none">
                       <span
                         className="text-[9px] font-light tracking-[0.25em] uppercase mb-1 block drop-shadow-sm transition-colors duration-200"
                         style={{ color: config.heroTextColor || "#FFFFFF", opacity: 0.9 }}
