@@ -42,20 +42,22 @@ export async function POST(req: Request) {
     // Opt-in wide banner/hero profile via ?fit=banner. Full-width hero and
     // category banners need a large, wide source to stay crisp on laptops and
     // Retina; the default (product) pipeline below is portrait-capped, which
-    // leaves banners soft / wrongly cropped. The product path (no param) is
-    // byte-for-byte unchanged.
+    // leaves banners soft. Both use fit:"inside" (whole image preserved, never
+    // cropped) — the banner just allows a larger max box. The product path
+    // (no param) is byte-for-byte unchanged.
     const isBanner = new URL(req.url).searchParams.get("fit") === "banner";
 
     // Super-Fast, Ultra-High Quality WebP pipeline with Sharp:
     // 1. Auto-orient based on EXIF
-    // 2. High-performance resampling
+    // 2. High-performance resampling (fit:"inside" = keep the whole image,
+    //    just cap it at the box — same framing behavior as the product path)
     // 3. Crisp unsharp-mask definition
     // 4. Compact WebP compression for lightning-fast storefront loading
     const processedBuffer = await sharp(rawBuffer)
       .rotate()
       .resize(
         isBanner
-          ? { width: 2560, height: 1440, fit: "cover", withoutEnlargement: true }
+          ? { width: 2560, height: 1440, fit: "inside", withoutEnlargement: true }
           : { width: 1400, height: 1600, fit: "inside", withoutEnlargement: true }
       )
       .sharpen({
