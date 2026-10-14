@@ -18,16 +18,27 @@ const DEFAULT_QUOTE: EditorialQuote = {
 
 interface EditorialSectionProps {
   initialQuote?: EditorialQuote;
+  initialConfig?: {
+    editorialQuote?: string;
+    editorialImage1?: string;
+  };
 }
 
-export default function EditorialSection({ initialQuote }: EditorialSectionProps) {
-  const [quoteData, setQuoteData] = useState<EditorialQuote>(initialQuote || DEFAULT_QUOTE);
+export default function EditorialSection({ initialQuote, initialConfig }: EditorialSectionProps) {
+  const configuredQuote = initialConfig?.editorialQuote?.trim();
+  const [quoteData, setQuoteData] = useState<EditorialQuote>({
+    ...(initialQuote || DEFAULT_QUOTE),
+    ...(configuredQuote ? { quote: configuredQuote } : {}),
+  });
 
   useEffect(() => {
-    if (initialQuote) {
-      setQuoteData(initialQuote);
-    }
-  }, [initialQuote]);
+    setQuoteData({
+      ...(initialQuote || DEFAULT_QUOTE),
+      ...(initialConfig?.editorialQuote?.trim()
+        ? { quote: initialConfig.editorialQuote.trim() }
+        : {}),
+    });
+  }, [initialConfig?.editorialQuote, initialQuote]);
 
   return (
     <section className="py-16 sm:py-20 lg:py-24 bg-[#E8E8E8] text-[#495464] overflow-hidden select-none border-t border-[#BBBFCA]/40">
@@ -59,8 +70,8 @@ export default function EditorialSection({ initialQuote }: EditorialSectionProps
             </h2>
 
             {/* Dynamic AI Psychological Pull-Quote */}
-            <blockquote className="font-serif text-sm sm:text-base text-[#2B3542] italic font-normal leading-relaxed transition-opacity duration-500 opacity-100">
-              &ldquo;{quoteData.quote}&rdquo;
+            <blockquote className="font-serif text-xl sm:text-2xl lg:text-[2rem] text-[#2B3542] italic font-normal leading-[1.25] transition-opacity duration-500 opacity-100">
+              {quoteData.quote}
             </blockquote>
 
             {/* High-Impact Persuasive CTA */}
@@ -79,7 +90,7 @@ export default function EditorialSection({ initialQuote }: EditorialSectionProps
           {/* Right Column: Tactile Ultra-Luxury Material Craftsmanship (No Human, No Shop) */}
           <div className="lg:col-span-7 relative aspect-[4/3] sm:aspect-[16/11] bg-[#BBBFCA]/20 overflow-hidden shadow-sm border border-[#BBBFCA]/30 order-1 lg:order-2 group">
             <Image
-              src="/atelier-still-life.jpg?v=2"
+              src={initialConfig?.editorialImage1 || "/atelier-still-life.jpg?v=2"}
               alt="SHOPY Tactile Material & High-Precision Wool Weave Craftsmanship"
               fill
               loading="lazy"

@@ -271,7 +271,7 @@ export interface HomepageConfig {
   newsletterSubtitle: string;
   heroTextColor?: string;
   heroImageFit?: "cover" | "contain" | "fill";
-  heroImagePosition?: "center" | "top" | "bottom";
+  heroImagePosition?: string;
   heroMobileImage?: string;
   updatedAt?: string;
 }

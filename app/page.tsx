@@ -24,7 +24,10 @@ export default async function HomePage() {
       <Hero initialConfig={config || undefined} />
       <CollectionGrid initialCategories={categories} />
       <FeaturedProducts initialProducts={featuredProducts} initialConfig={config || undefined} />
-      <EditorialSection initialQuote={editorialQuote} />
+      <EditorialSection
+        initialQuote={editorialQuote}
+        initialConfig={config || undefined}
+      />
       <Newsletter />
     </>
   );

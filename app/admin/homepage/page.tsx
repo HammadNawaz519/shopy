@@ -35,7 +35,7 @@ interface HomepageConfig {
   newsletterSubtitle: string;
   heroTextColor?: string;
   heroImageFit?: "cover" | "contain" | "fill";
-  heroImagePosition?: "center" | "top" | "bottom";
+  heroImagePosition?: string;
   heroMobileImage?: string;
 }
 
@@ -81,6 +81,8 @@ export default function AdminHomepagePage() {
   const [uploadingDesktop, setUploadingDesktop] = useState(false);
   const [uploadingMobile, setUploadingMobile] = useState(false);
   const [previewDevice, setPreviewDevice] = useState<"desktop" | "mobile">("desktop");
+  const previewRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{ x: number; y: number; positionX: number; positionY: number } | null>(null);
 
   const fetchConfig = async () => {
     try {
@@ -186,6 +188,37 @@ export default function AdminHomepagePage() {
       ? config.heroMobileImage
       : config.heroImage;
 
+  const parsePosition = (position: string | undefined) => {
+    if (!position || position === "center") return { x: 50, y: 50 };
+    if (position === "top") return { x: 50, y: 0 };
+    if (position === "bottom") return { x: 50, y: 100 };
+    const match = position.match(/^(-?\d+(?:\.\d+)?)%\s+(-?\d+(?:\.\d+)?)%$/);
+    return match
+      ? { x: Number(match[1]), y: Number(match[2]) }
+      : { x: 50, y: 50 };
+  };
+
+  const handlePreviewPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (previewDevice !== "desktop" || (config.heroImageFit || "cover") !== "cover") return;
+    const position = parsePosition(config.heroImagePosition);
+    dragRef.current = { x: event.clientX, y: event.clientY, positionX: position.x, positionY: position.y };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const handlePreviewPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragRef.current || !previewRef.current) return;
+    const bounds = previewRef.current.getBoundingClientRect();
+    const deltaX = ((event.clientX - dragRef.current.x) / bounds.width) * 100;
+    const deltaY = ((event.clientY - dragRef.current.y) / bounds.height) * 100;
+    const positionX = Math.max(0, Math.min(100, dragRef.current.positionX - deltaX));
+    const positionY = Math.max(0, Math.min(100, dragRef.current.positionY - deltaY));
+    setConfig((prev) => ({ ...prev, heroImagePosition: `${positionX.toFixed(1)}% ${positionY.toFixed(1)}%` }));
+  };
+
+  const stopPreviewDrag = () => {
+    dragRef.current = null;
+  };
+
   return (
     <div className="flex-1 flex flex-col bg-[#F4F4F2]">
       <AdminHeader
@@ -270,11 +303,16 @@ export default function AdminHomepagePage() {
 
                   {/* Responsive Preview Box */}
                   <div
+                    ref={previewRef}
+                    onPointerDown={handlePreviewPointerDown}
+                    onPointerMove={handlePreviewPointerMove}
+                    onPointerUp={stopPreviewDrag}
+                    onPointerCancel={stopPreviewDrag}
                     className={`relative w-full bg-[#181a1d] border border-[#BBBFCA]/60 overflow-hidden shadow-sm mx-auto transition-all duration-300 ${
                       previewDevice === "desktop"
                         ? "aspect-video"
                         : "aspect-[9/16] max-w-[280px]"
-                    }`}
+                    } ${previewDevice === "desktop" && config.heroImageFit === "cover" ? "cursor-grab active:cursor-grabbing" : ""}`}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
@@ -283,6 +321,7 @@ export default function AdminHomepagePage() {
                       style={{
                         objectFit: config.heroImageFit || "cover",
                         objectPosition: config.heroImagePosition || "center",
+                        pointerEvents: "none",
                       }}
                       className="w-full h-full filter brightness-[0.94] contrast-[1.02]"
                     />
@@ -318,13 +357,13 @@ export default function AdminHomepagePage() {
                       </div>
                     </div>
 
-                    <div className="absolute top-2 left-2 bg-black/80 text-white text-[9px] uppercase px-2 py-0.5 tracking-wider flex items-center gap-1.5 z-10">
+                    <div className="absolute top-2 left-2 bg-black/80 text-white text-[9px] uppercase px-2 py-0.5 tracking-wider flex items-center gap-1.5 z-10 pointer-events-none">
                       <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                       <span>{previewDevice} view</span>
                     </div>
                   </div>
 
-                  {/* Image Fit & Position Selector (Solves the laptop stretch issue!) */}
+                  {/* Image Fit & Position Selector */}
                   <div className="bg-[#E8E8E8]/70 border border-[#BBBFCA]/40 p-3 space-y-3">
                     <div className="text-[10px] font-semibold uppercase text-[#495464] flex items-center justify-between">
                       <span>Image Fit & Aspect Ratio Control</span>
@@ -358,18 +397,18 @@ export default function AdminHomepagePage() {
                         </label>
                         <select
                           value={config.heroImagePosition || "center"}
-                          onChange={(e) =>
-                            setConfig({
-                              ...config,
-                              heroImagePosition: e.target.value as "center" | "top" | "bottom",
-                            })
-                          }
+                          onChange={(e) => setConfig({ ...config, heroImagePosition: e.target.value })}
                           className="w-full bg-[#F4F4F2] border border-[#BBBFCA] p-1.5 text-xs text-[#495464] rounded-none font-medium cursor-pointer"
                         >
                           <option value="center">Center (Middle)</option>
                           <option value="top">Top (Subject / Face Focus)</option>
                           <option value="bottom">Bottom (Floor / Shoes Focus)</option>
                         </select>
+                        {previewDevice === "desktop" && config.heroImageFit === "cover" && (
+                          <p className="mt-1 text-[9px] text-[#495464]/70">
+                            Drag the laptop preview to move the image crop.
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>
