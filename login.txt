@@ -1,0 +1,349 @@
+================================================================================
+SHOPY (Capacitor) — COMPLETE LOGIN WORKFLOW
+================================================================================
+
+Contents
+  1. Architecture at a glance
+  2. Session model (server)
+  3. Client session state (AuthContext / EnhancedAuthContext)
+  4. Route protection (edge middleware)
+  5. Flow A — Email/password login
+  6. Flow B — Google sign-in, classic WEB flow
+  7. Flow C — Google sign-in, NATIVE (CAPACITOR) flow  [the important one]
+  8. Auto-resume (global NativeGoogleAuthResume)
+  9. Logout
+ 10. Environment variables / dependencies
+
+--------------------------------------------------------------------------------
+1. ARCHITECTURE AT A GLANCE
+--------------------------------------------------------------------------------
+- The app is a Next.js (Vercel) web app. The Android app is a Capacitor shell
+  that does NOT bundle the web app: it loads the live deployed site at runtime.
+    capacitor.config.ts
+      appId "com.shopy.fashion"
+      webDir ".next"   (fallback only)
+      server.url = "https://buyatshopy.vercel.app"   <-- shell loads this
+      androidScheme "https"
+- Consequence: every API call, cookie, and session lives on the LIVE site's
+  origin. The WebView's cookie jar is the session authority.
+- A PWA service worker provides the offline app shell inside the WebView.
+
+Key files:
+  app/login/page.tsx                    login UI (email form + Google button)
+  components/auth/GoogleButton.tsx      Google sign-in (web + native flows)
+  components/auth/NativeGoogleAuthResume.tsx   global native auto-resume
+  context/AuthContext.tsx                basic auth provider (legacy surface)
+  context/EnhancedAuthContext.tsx        ACTIVE provider: offline-aware
+  app/layout.tsx                         mounts EnhancedAuthProvider + NativeGoogleAuthResume
+  middleware.ts                          edge route protection
+  app/api/auth/login | register | me | logout | google | google/handoff | callback/google
+  lib/security/session.ts                JWT session create/verify
+  lib/security/googleAuth.ts            OAuth state, signed native state (HMAC)
+  lib/security/googleAuthFlow.ts        completeGoogleSignIn (code exchange, user upsert)
+  lib/security/nativeOAuthState.ts      one-time handoff records (Redis / memory)
+  android/.../AndroidManifest.xml        shopy://oauth deep link
+  android/.../MainActivity.java         Capacitor BridgeActivity (120Hz WebView)
+  package.json                           @capacitor/core, @capacitor/browser, @capacitor/android
+
+--------------------------------------------------------------------------------
+2. SESSION MODEL (SERVER)
+--------------------------------------------------------------------------------
+File: lib/security/session.ts
+- The session is a stateless, signed JWT (jsonwebtoken) with a 7-day TTL.
+- Cookie name: "shopy_session_id"  (SESSION_COOKIE_NAME)
+  - httpOnly, secure (in production), SameSite=Lax, path=/, maxAge 7 days.
+- createSession(user) signs the JWT with JWT_SECRET (or SESSION_SECRET; in
+  production one of them is REQUIRED — the app throws without it) and caches it
+  in an in-memory Map as a secondary lookup.
+- getSession(token) verifies the JWT; the super-admin email
+  (ADMIN_EMAIL from lib/db/store) is force-promoted to role "admin".
+- A second, JS-readable marker cookie "shopy_client_auth" = "1" (not httpOnly)
+  is set alongside the session so the client can cheaply know "a session likely
+  exists" without calling /api/auth/me.
+
+--------------------------------------------------------------------------------
+3. CLIENT SESSION STATE
+--------------------------------------------------------------------------------
+ACTIVE PROVIDER: context/EnhancedAuthContext.tsx (EnhancedAuthProvider),
+mounted in app/layout.tsx. It publishes on BOTH its own context and the
+original AuthContext, so every useAuth() consumer transparently gets the
+offline-aware implementation.
+
+State & storage layers (fastest first):
+  a. module-level memory cache, revalidated at most every 60 s
+     (REVALIDATION_INTERVAL_MS)
+  b. localStorage "shopy_auth_user" (the user object)
+  c. IndexedDB via lib/storage/indexedDB (storage.auth) — offline cache,
+     5-minute freshness threshold
+  d. marker cookie "shopy_client_auth"
+
+Boot (hydrateUser):
+  1. memory cache if fresh -> done
+  2. IndexedDB/localStorage cache if <5 min old -> show it, revalidate in bg
+  3. no markers at all (no cookie, no cached user) -> guest, no network
+  4. otherwise GET /api/auth/me (authoritative).
+
+Offline behavior:
+  - Connectivity probe: HEAD /api/auth/me with a 3 s abort timeout, checked
+    every 30 s and on window online/offline events; exposes isOffline.
+  - When offline or on network error, refreshUser() serves the cached user
+    instead of logging the user out.
+
+Login/register/verifyRegisterOtp on the provider:
+  - POST /api/auth/... (plain fetch, credentials ride on cookies)
+  - on success: setUser(), offlineStorage.setUserId(id), set the marker
+    cookie, cache the user in IndexedDB + localStorage.
+
+--------------------------------------------------------------------------------
+4. ROUTE PROTECTION (EDGE MIDDLEWARE)
+--------------------------------------------------------------------------------
+File: middleware.ts
+- Matcher: only /admin, /admin/*, /account, /account/* (public pages bypass it).
+- Rule: if the "shopy_session_id" cookie is missing -> redirect to
+  /login?redirect=<safe original path>. Open-redirect defense on the target.
+- No DB / crypto at the edge: the JWT is only fully verified inside API
+  routes and pages via getCurrentUser().
+
+--------------------------------------------------------------------------------
+5. FLOW A — EMAIL / PASSWORD LOGIN
+--------------------------------------------------------------------------------
+Steps:
+  1. User opens /login (app/login/page.tsx). The page uses useAuth() ->
+     login(email, password).
+  2. Provider (EnhancedAuthContext.login) POSTs to /api/auth/login with
+     { email, password }.
+  3. Route app/api/auth/login/route.ts:
+       - rate limit: 20 attempts / 10 min per client IP
+         (lib/security/rateLimit.checkRateLimit)
+       - body validated by LoginSchema (zod, lib/security/validation)
+       - user looked up in the DB (lib/db/store.findUserByEmail)
+       - password checked with verifyPassword (lib/security/auth)
+         -> generic "Invalid email or password." on either failure
+       - on success: createSession(user) -> signed 7-day JWT
+       - response: JSON { success, user } + two cookies set in this WebView:
+           shopy_session_id  = JWT (httpOnly)
+           shopy_client_auth = "1"  (JS-readable marker)
+  4. Client: setUser(), cache (IndexedDB + localStorage + marker cookie),
+     navigate (login page redirects to ?redirect target, /admin, or /account).
+  5. Subsequent requests to /api/* and protected pages carry the session
+     cookie automatically; middleware admits /account and /admin.
+
+Note for the Capacitor shell: because the shell loads the remote URL
+(server.url), all of this runs on https://buyatshopy.vercel.app and the
+cookies live in that origin's WebView cookie jar — exactly the jar the
+native Google flow must write into (see §7).
+
+--------------------------------------------------------------------------------
+6. FLOW B — GOOGLE SIGN-IN, CLASSIC WEB FLOW
+--------------------------------------------------------------------------------
+Trigger: GoogleButton click when NOT on a native platform
+(GoogleButton.onClick: Capacitor.isNativePlatform() ? native : web).
+
+  1. window.location.href = /api/auth/google?redirect=...
+  2. Route app/api/auth/google/route.ts (web mode):
+       - builds the accounts.google.com authorize URL
+         (lib/security/googleAuth.buildGoogleAuthUrl)
+       - CSRF: the OAuth state is written to a short-lived httpOnly cookie
+         "shopy_oauth_state" (10 min)
+       - redirects the browser to Google
+  3. Google redirects back to /api/auth/callback/google?code&state.
+  4. Callback (classic branch, §2b of that route):
+       - verifyOAuthState(state, cookie) -> CSRF check
+       - completeGoogleSignIn(code, config, redirect)
+         (lib/security/googleAuthFlow): exchanges the code with Google,
+         upserts/links the user, creates the session
+       - 302 redirect to destinationPath with:
+           shopy_session_id = JWT, shopy_client_auth = "1"
+           shopy_oauth_state cleared
+  The whole round-trip happens in ONE browser/WebView, so the session cookie
+  lands in the same jar that is viewing the app. Done.
+
+This flow does NOT work inside the Capacitor app: Google's sign-in screen
+refuses embedded WebViews and bounces to the system browser — which is why
+users historically "ended up using the app in Chrome". That problem is
+solved by the native flow below.
+
+--------------------------------------------------------------------------------
+7. FLOW C — GOOGLE SIGN-IN, NATIVE (CAPACITOR) FLOW
+--------------------------------------------------------------------------------
+Why it exists
+  - Google's UI blocks embedded WebViews; in the shell, sign-in must happen
+    in the in-app browser tab (Chrome Custom Tab / SFSafariViewController).
+  - The sign-in tab and the app WebView have SEPARATE cookie jars, so the
+    session cookie the tab's callback sets never reaches the app.
+  - Fix: a ONE-TIME, SERVER-SIDE HANDOFF RECORD. The app's own WebView polls
+    for it, and only then does the server mint the session cookie into the
+    APP's jar.
+
+Actors
+  App WebView (this window)          in-app browser tab (separate jar)
+    |  GoogleButton + poller            Google sign-in UI
+    |--- handoffId (client UUID) ------>|
+    v                                    |
+  /api/auth/google?native=1             Google OAuth exchange
+  /api/auth/google/handoff?handoffId   /api/auth/callback/google
+    (polled every 1.5 s, up to 9 min)   (stores the handoff record)
+
+Step-by-step
+  1. CLICK — GoogleButton.handleNativeGoogleSignIn()
+       [components/auth/GoogleButton.tsx]
+     a. Generates handoffId (crypto.randomUUID; 122-bit entropy).
+     b. PERSISTs it immediately to localStorage under
+        "shopy_google_native_handoff" = { handoffId, redirect, startedAt }
+        (TTL 10 min). This is what makes auto-resume work across app
+        suspend/close (see §8).
+     c. GET /api/auth/google?native=1&handoff=<id>[&redirect=...]
+
+  2. START — app/api/auth/google/route.ts (native branch)
+       - buildSignedNativeState(redirect, handoffId)
+         [lib/security/googleAuth.ts]
+         => state = base64url(payload).HMAC-SHA256(payload, OAuth secret)
+         The state is self-contained (URL-carried) because the tab cannot
+         read the app's CSRF cookie; the handoff id is inside the payload so
+         only THIS app WebView can later claim the result.
+       - Returns JSON { authUrl } (the accounts.google.com authorize URL).
+
+  3. BROWSER — GoogleButton opens the sign-in tab in the branded in-app
+       browser (stays inside the app, no system Chrome bounce):
+         import { Browser } from "@capacitor/browser"
+         await Browser.open({ url: authUrl })
+       - The tab now performs ordinary Google OAuth in its own jar.
+
+  4. USER signs in with Google inside the tab. Google redirects the tab to
+       /api/auth/callback/google?code&state (the HMAC-signed native state).
+
+  5. CALLBACK — app/api/auth/callback/google/route.ts (native branch, §2a)
+       - verifySignedNativeState(state) validates the HMAC + expiry and
+         extracts { redirect, handoff }.
+       - completeGoogleSignIn(code, config, redirect): exchanges the code,
+         upserts/links the user, creates the 7-day session JWT.
+       - rememberNativeHandoff(handoffId, { sessionJwt, destinationPath })
+         [lib/security/nativeOAuthState.ts]
+         => one-time record, 10-minute TTL:
+              Redis (Upstash) when configured — REQUIRED across Vercel
+              instances so the app's poll (a different instance) sees it
+              in-memory Map otherwise (local dev / same instance)
+       - Renders an in-tab "Sign-in complete… Opening the SHOPY app…" page
+         that auto-redirects to the custom scheme  shopy://oauth/complete
+         (with a tap target as fallback). That scheme is declared in
+         android/app/src/main/AndroidManifest.xml so Android pulls the app
+         to the foreground — the app's WebView then completes the pending
+         handoff on its own (this also covers a suspended WebView whose
+         timers are frozen).
+
+  6. POLL — the app's own WebView collects the session:
+       - GoogleButton.pollHandoff(): every 1.5 s, up to 9 min:
+           GET /api/auth/google/handoff?handoffId=<id>
+       - Endpoint behavior (app/api/auth/google/handoff/route.ts):
+           202 { status: "pending" }       record not yet stored -> keep polling
+           200 { status: "complete",         CONSUMED (read+delete):
+                 destinationPath }          - the stored JWT is RE-verified
+                                             - response sets in THIS WebView's
+                                               jar:
+                                                shopy_session_id = JWT (httpOnly)
+                                                shopy_client_auth = "1"
+           409 "handoff_consumed"           a previous poll already took it ->
+                                            probe /api/auth/me; if a session is
+                                            active, navigate and finish
+           400 invalid/expired              record gone -> stop (auto-resume may
+                                            still pick it up from localStorage)
+       - On 200: GoogleButton clears the localStorage record and does
+         window.location.href = destinationPath  -> app now logged in.
+
+  7. If the tab never finishes in the polling window, the localStorage
+       record is KEPT. Returning to the app (visibilitychange / focus) or
+       reopening it triggers auto-resume (§8), which polls the remaining
+       ~10-minute TTL and completes the sign-in with no re-click.
+
+Security properties
+  - handoffId: client-generated UUID, unpredictable
+  - record: one-time (consume = read + delete), 10-min TTL
+  - session JWT re-verified server-side before the cookie is minted
+  - native OAuth state: HMAC-signed, ~10-min expiry, carries no secrets
+  - the sign-in tab can never directly create an app session: it can only
+    store a record keyed by the handoff id it received from the app
+
+--------------------------------------------------------------------------------
+8. AUTO-RESUME — GLOBAL NativeGoogleAuthResume
+--------------------------------------------------------------------------------
+File: components/auth/NativeGoogleAuthResume.tsx, mounted in app/layout.tsx
+(root layout, i.e. every page). Inert in a normal browser; on the native
+shell it completes ANY stored handoff regardless of which page the user
+lands on (e.g. home after a full app restart).
+
+  - Skips pages that own their own resumer (/login, /register — GoogleButton).
+  - On mount and on every visibilitychange/focus where a
+    "shopy_google_native_handoff" record exists: polls the same endpoint
+    every 1.5 s for 9 min; on 200 -> navigate to destinationPath; on
+    409/400 -> probe /api/auth/me and finish or drop the record.
+
+So the possible completion paths for a native Google sign-in are:
+  a. live poll in GoogleButton (usual case)
+  b. refocus of the app (WebView was suspended during the tab sign-in)
+  c. cold restart of the app (NativeGoogleAuthResume picks the record up)
+  d. shopy://oauth/complete deep link waking the app (callback page)
+
+--------------------------------------------------------------------------------
+9. LOGOUT
+--------------------------------------------------------------------------------
+  1. useEnhancedAuth().logout():
+       - clears memory cache, user state, offlineStorage user id
+       - clears IndexedDB auth cache + both localStorage keys + user's
+         offline data (offlineStorage.clearUserData(userId))
+       - clears the "shopy_client_auth" marker cookie
+       - POST /api/auth/logout
+       - hard redirect to "/"
+  2. Server (app/api/auth/logout/route.ts):
+       - revokeSession(current token) — in-memory tombstone
+       - shopy_session_id cookie expired (maxAge 0)
+  Note: the JWT itself is still cryptographically valid until expiry, but
+  any stored pending Google handoff record for this user is abandoned; a
+  fresh sign-in issues a new session.
+
+--------------------------------------------------------------------------------
+10. ENVIRONMENT VARIABLES / DEPENDENCIES
+--------------------------------------------------------------------------------
+  JWT_SECRET or SESSION_SECRET   session signing key (REQUIRED in production)
+  GOOGLE_CLIENT_ID               Google OAuth client id (web + custom tab)
+  GOOGLE_CLIENT_SECRET           Google OAuth client secret
+  Upstash Redis env vars         REQUIRED for native Google sign-in in
+                                 production: the handoff record must survive
+                                 Vercel instance hops between the callback
+                                 instance and the polling instance. Without it
+                                 the native flow degrades to in-memory and may
+                                 time out ("pending" forever).
+  Capabilities: Capacitor 8 (@capacitor/core, @capacitor/browser,
+  @capacitor/android), PWA service worker for offline shell,
+  AndroidManifest deep-link intent-filter: scheme "shopy", host "oauth".
+
+--------------------------------------------------------------------------------
+QUICK SEQUENCE DIAGRAMS
+--------------------------------------------------------------------------------
+Email/password (web or native — identical):
+
+  app/login            /api/auth/login           DB
+     |  POST email+pw        |                    |
+     |---------------------->|  rate-limit+verify |--- findUserByEmail
+     |                       |-------------------->|
+     |  { user } + cookies   |  createSession(JWT) |
+     |<----------------------|<-------------------|
+     |  cache locally + nav   |                    |
+
+Native Google sign-in (Capacitor):
+
+  AppWebView            /api/auth/google      In-app tab (Browser plugin)
+     | 1. click; uuid handoffId               |
+     | 2. GET ?native=1&handoff               |
+     |---------------------------------------> | (tab = separate jar)
+     |<--- { authUrl (HMAC state) }-----------|
+     | 3. Browser.open(authUrl)               |
+     |                              4. user signs in at Google
+     |                                       5. -> /api/auth/callback/google
+     |                                       6. exchange; store handoff
+     |                                       7. "Sign-in complete" page,
+     |                                          shopy://oauth/complete (wakes app)
+     | 8. GET /api/auth/google/handoff?handoffId  (poll 1.5s)
+     |<---- 202 pending ... 200 complete ---- |
+     | 9. session cookie now in APP jar;
+     |    navigate to destinationPath  => LOGGED IN
+================================================================================

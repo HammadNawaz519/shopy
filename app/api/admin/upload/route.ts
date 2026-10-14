@@ -60,15 +60,15 @@ export async function POST(req: Request) {
           ? { width: 3840, height: 2160, fit: "inside", withoutEnlargement: true }
           : { width: 1400, height: 1600, fit: "inside", withoutEnlargement: true }
       )
-      .sharpen({
-        sigma: 1.0,
-        m1: 0.8,
-        m2: 2.0,
-      })
+      .sharpen(
+        isBanner
+          ? { sigma: 1.0, m1: 0.6, m2: 2.0 }
+          : { sigma: 1.0, m1: 0.8, m2: 2.0 }
+      )
       .webp({
-        quality: isBanner ? 90 : 86,
-        effort: 4,
-        smartSubsample: true,
+        quality: isBanner ? 96 : 86,
+        effort: isBanner ? 5 : 4,
+        smartSubsample: isBanner ? false : true,
       })
       .toBuffer();
 

@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { Capacitor } from "@capacitor/core";
 import { Browser } from "@capacitor/browser";
+import { App } from "@capacitor/app";
 
 interface GoogleButtonProps {
   redirect?: string | null;
@@ -388,9 +389,31 @@ export default function GoogleButton({
     };
     document.addEventListener("visibilitychange", onWake);
     window.addEventListener("focus", onWake);
+
+    // ─── Deep-link handler ────────────────────────────────────────────────────
+    // GoogleButton is mounted on /login and /register (where NativeGoogleAuthResume
+    // deliberately defers). When the shopy://oauth/complete deep-link fires while
+    // the user is on one of these pages, appUrlOpen must drive the handoff poll
+    // immediately rather than waiting for the 1.5 s timer.
+    let deepLinkHandle: { remove: () => void } | null = null;
+    App.addListener("appUrlOpen", (event) => {
+      console.log("[GOOGLE-SIGNIN] GoogleButton appUrlOpen", event.url);
+      if (
+        typeof event.url === "string" &&
+        event.url.startsWith("shopy://oauth")
+      ) {
+        resumeStoredHandoff();
+      }
+    })
+      .then((h) => { deepLinkHandle = h; })
+      .catch((e) =>
+        console.warn("[GOOGLE-SIGNIN] appUrlOpen listener failed", e)
+      );
+
     return () => {
       document.removeEventListener("visibilitychange", onWake);
       window.removeEventListener("focus", onWake);
+      deepLinkHandle?.remove();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

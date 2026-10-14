@@ -3,6 +3,7 @@
 import React, { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { Capacitor } from "@capacitor/core";
+import { App } from "@capacitor/app";
 
 /**
  * GLOBAL native Google sign-in resume.
@@ -53,11 +54,20 @@ export default function NativeGoogleAuthResume() {
       pollInFlight.current = true;
       const deadline = Date.now() + POLL_WINDOW_MS;
 
-      const step = async () => {
+      /**
+       * Poll immediately on first call (no leading delay), then every
+       * POLL_INTERVAL_MS. This ensures that when the deep-link wakes the app
+       * we don't burn 1.5 s before the first attempt.
+       */
+      const step = async (isFirstCall = false) => {
         if (Date.now() > deadline) {
           // Keep the record; the next refocus or a GoogleButton mount resumes it.
           pollInFlight.current = false;
           return;
+        }
+        // Add delay only on subsequent calls (not the first immediate one).
+        if (!isFirstCall) {
+          await new Promise<void>((r) => window.setTimeout(r, POLL_INTERVAL_MS));
         }
         try {
           const res = await fetch(
@@ -92,15 +102,15 @@ export default function NativeGoogleAuthResume() {
             pollInFlight.current = false;
             return;
           }
-          // 202 pending (or any other status): keep polling.
-          window.setTimeout(step, POLL_INTERVAL_MS);
+          // 202 / other: keep polling.
+          step();
         } catch {
           // Network blip — keep polling until the deadline.
-          window.setTimeout(step, POLL_INTERVAL_MS);
+          step();
         }
       };
 
-      step();
+      step(true); // first call is immediate
     };
 
     const start = () => {
@@ -110,6 +120,7 @@ export default function NativeGoogleAuthResume() {
     };
 
     start();
+
     const onWake = () => {
       if (typeof document === "undefined" || document.visibilityState !== "visible") return;
       start();
@@ -117,10 +128,34 @@ export default function NativeGoogleAuthResume() {
     document.addEventListener("visibilitychange", onWake);
     window.addEventListener("focus", onWake);
 
+    // ─── Deep-link handler ────────────────────────────────────────────────────
+    // When Android receives the shopy://oauth/complete intent it brings the app
+    // to the foreground and fires appUrlOpen. We must handle it here (in
+    // addition to the visibility listener) because visibilitychange fires AFTER
+    // onResume, and on some OEM ROMs with aggressive process killing the WebView
+    // JS context may not receive the event at all before the deep-link fires.
+    let deepLinkHandle: { remove: () => void } | null = null;
+    App.addListener("appUrlOpen", (event) => {
+      console.log("[GOOGLE-SIGNIN] appUrlOpen", event.url);
+      if (
+        typeof event.url === "string" &&
+        event.url.startsWith("shopy://oauth")
+      ) {
+        // Immediately poll — the handoff record is already in the store.
+        start();
+      }
+    })
+      .then((h) => { deepLinkHandle = h; })
+      .catch((e) =>
+        console.warn("[GOOGLE-SIGNIN] appUrlOpen listener failed", e)
+      );
+
     return () => {
       document.removeEventListener("visibilitychange", onWake);
       window.removeEventListener("focus", onWake);
+      deepLinkHandle?.remove();
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
   return null;

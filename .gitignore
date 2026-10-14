@@ -39,3 +39,6 @@ next-env.d.ts
 # scratch tests
 scratch/
 scripts/scratch/
+
+# root apk duplicate (public/shopy.apk is the tracked deployable asset)
+/shopy.apk

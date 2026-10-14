@@ -269,6 +269,10 @@ export interface HomepageConfig {
   editorialImage2: string;
   newsletterTitle: string;
   newsletterSubtitle: string;
+  heroTextColor?: string;
+  heroImageFit?: "cover" | "contain" | "fill";
+  heroImagePosition?: "center" | "top" | "bottom";
+  heroMobileImage?: string;
   updatedAt?: string;
 }
 
@@ -2593,6 +2597,10 @@ class SupabaseDataStore {
             editorialImage2: r.editorial_image_2 || "/category-tops.jpg",
             newsletterTitle: r.newsletter_title || "Join The Maison Gazette",
             newsletterSubtitle: r.newsletter_subtitle || "Receive private vernissage previews, seasonal lookbooks, and invitation-only atelier dispatches.",
+            heroTextColor: r.hero_text_color || "#FFFFFF",
+            heroImageFit: r.hero_image_fit || "cover",
+            heroImagePosition: r.hero_image_position || "center",
+            heroMobileImage: r.hero_mobile_image || "",
           };
         }
       } catch (err) {
@@ -2615,6 +2623,10 @@ class SupabaseDataStore {
         editorialImage2: "/category-tops.jpg",
         newsletterTitle: "Join The Maison Gazette",
         newsletterSubtitle: "Receive private vernissage previews, seasonal lookbooks, and invitation-only atelier dispatches.",
+        heroTextColor: "#FFFFFF",
+        heroImageFit: "cover",
+        heroImagePosition: "center",
+        heroMobileImage: "",
       };
     }, CACHE_TTL.HOMEPAGE_CONFIG);
   }
@@ -2638,14 +2650,19 @@ class SupabaseDataStore {
       editorialImage2: updates.editorialImage2 !== undefined ? updates.editorialImage2 : current.editorialImage2,
       newsletterTitle: updates.newsletterTitle !== undefined ? updates.newsletterTitle : current.newsletterTitle,
       newsletterSubtitle: updates.newsletterSubtitle !== undefined ? updates.newsletterSubtitle : current.newsletterSubtitle,
+      heroTextColor: updates.heroTextColor !== undefined ? updates.heroTextColor : current.heroTextColor,
+      heroImageFit: updates.heroImageFit !== undefined ? updates.heroImageFit : current.heroImageFit,
+      heroImagePosition: updates.heroImagePosition !== undefined ? updates.heroImagePosition : current.heroImagePosition,
+      heroMobileImage: updates.heroMobileImage !== undefined ? updates.heroMobileImage : current.heroMobileImage,
     };
 
     const res = await query(
       `INSERT INTO homepage_config (
         id, hero_title, hero_subtitle, hero_image, hero_cta_text, hero_cta_link,
         featured_title, featured_subtitle, editorial_tag, editorial_title, editorial_quote,
-        editorial_image_1, editorial_image_2, newsletter_title, newsletter_subtitle, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW())
+        editorial_image_1, editorial_image_2, newsletter_title, newsletter_subtitle,
+        hero_text_color, hero_image_fit, hero_image_position, hero_mobile_image, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, NOW())
       ON CONFLICT (id) DO UPDATE SET
         hero_title = EXCLUDED.hero_title,
         hero_subtitle = EXCLUDED.hero_subtitle,
@@ -2661,6 +2678,10 @@ class SupabaseDataStore {
         editorial_image_2 = EXCLUDED.editorial_image_2,
         newsletter_title = EXCLUDED.newsletter_title,
         newsletter_subtitle = EXCLUDED.newsletter_subtitle,
+        hero_text_color = EXCLUDED.hero_text_color,
+        hero_image_fit = EXCLUDED.hero_image_fit,
+        hero_image_position = EXCLUDED.hero_image_position,
+        hero_mobile_image = EXCLUDED.hero_mobile_image,
         updated_at = NOW()
       RETURNING *;`,
       [
@@ -2679,6 +2700,10 @@ class SupabaseDataStore {
         merged.editorialImage2,
         merged.newsletterTitle,
         merged.newsletterSubtitle,
+        merged.heroTextColor || "#FFFFFF",
+        merged.heroImageFit || "cover",
+        merged.heroImagePosition || "center",
+        merged.heroMobileImage || "",
       ]
     );
 
