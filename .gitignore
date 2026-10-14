@@ -16,6 +16,8 @@
 # misc
 .DS_Store
 *.pem
+*.keystore
+*.jks
 
 # debug
 npm-debug.log*
@@ -37,4 +39,3 @@ next-env.d.ts
 # scratch tests
 scratch/
 scripts/scratch/
-

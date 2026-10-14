@@ -64,6 +64,7 @@ export default function NativeGoogleAuthResume() {
             `/api/auth/google/handoff?handoffId=${encodeURIComponent(handoffId)}`,
             { credentials: "same-origin", cache: "no-store" }
           );
+          console.log(`NATIVE GOOGLE POLL handoffId=${handoffId} status=${res.status}`);
           if (res.status === 200) {
             let data: { status?: string; destinationPath?: string };
             try {
@@ -82,6 +83,9 @@ export default function NativeGoogleAuthResume() {
             if (me?.user) {
               window.localStorage.removeItem(HANDOFF_STORAGE_KEY);
               navigate(me.user.role === "admin" ? "/admin" : redirect || "/account");
+              return;
+            } else if (res.status >= 500) {
+              pollInFlight.current = false;
               return;
             }
             window.localStorage.removeItem(HANDOFF_STORAGE_KEY);

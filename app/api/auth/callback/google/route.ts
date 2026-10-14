@@ -56,6 +56,9 @@ export async function GET(req: Request) {
       });
 
       const config = getGoogleOAuthConfig(origin);
+      console.log(
+        `NATIVE GOOGLE CALLBACK handoffId=${nativeState.handoff || "missing"}`
+      );
       // .catch logs the exact exchange failure (no token/secret), then rethrows so
       // the existing outer catch returns oauth_failed and NO handoff is stored.
       const completed = await completeGoogleSignIn(code, config, nativeState.redirect).catch(

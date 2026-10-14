@@ -36,10 +36,12 @@ export default function Hero({ initialConfig }: HeroProps) {
   const mobileSrc = isDefaultBeige ? "/hero-beige-portrait.jpg" : heroImgSrc;
 
   const heroImgClass =
-    "object-cover object-center transform scale-100 filter brightness-[0.92] contrast-[1.03] transition-transform duration-1000";
+    "object-cover object-center filter brightness-[0.92] contrast-[1.03]";
 
+  // Mobile: full-screen portrait hero (unchanged look, sharper source).
+  // Desktop/laptop: exactly 16:9, so a 16:9 image fills the frame 1:1.
   return (
-    <section className="relative w-full h-screen min-h-[620px] flex items-center justify-center overflow-hidden bg-[#181a1d] select-none">
+    <section className="relative w-full h-screen min-h-[620px] sm:h-auto sm:min-h-0 sm:aspect-video flex items-center justify-center overflow-hidden bg-[#181a1d] select-none">
       {/* Editorial Hero Photography — Minimalist Warm Beige Architectural Luxury */}
       <div className="absolute inset-0 w-full h-full">
         {/* Mobile: portrait-crop asset, no zoom */}
@@ -48,16 +50,18 @@ export default function Hero({ initialConfig }: HeroProps) {
           alt="SHOPY Editorial Campaign"
           fill
           priority
-          sizes="100vw"
+          quality={100}
+          sizes="(min-width: 640px) 100vw, 100vw"
           className={`${heroImgClass} ${isDefaultBeige ? "sm:hidden" : ""}`}
         />
-        {/* Desktop & up: original wide asset (unchanged) */}
+        {/* Desktop & up: original wide asset — hero is 16:9 so it fits 1:1 */}
         {isDefaultBeige && (
           <Image
             src={heroImgSrc}
             alt=""
             fill
             priority
+            quality={100}
             sizes="100vw"
             className={`${heroImgClass} hidden sm:block`}
           />

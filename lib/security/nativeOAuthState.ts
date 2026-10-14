@@ -37,14 +37,15 @@ export async function rememberNativeHandoff(
   handoffId: string,
   record: NativeHandoffRecord
 ): Promise<{ store: "redis" | "memory"; ok: boolean }> {
-  // Always keep an in-memory copy for same-instance reads (local dev / lucky scale).
-  memStore.set(handoffId, record);
-
   const redis = getRedisClient();
   if (!redis) {
-    // Cross-instance Vercel: without a shared Upstash client the record only lives
-    // on the instance that handled the callback, so the app's poll (a different
-    // instance) will keep seeing "pending" and time out.
+    if (process.env.NODE_ENV === "production") {
+      console.error(
+        "[GOOGLE-SIGNIN] REDIS WRITE unavailable in production; refusing in-memory handoff"
+      );
+      throw new Error("Native OAuth handoff storage is not configured");
+    }
+    memStore.set(handoffId, record);
     console.log(
       "[GOOGLE-SIGNIN] REDIS WRITE skipped: no Upstash client configured → in-memory only"
     );
@@ -63,6 +64,12 @@ export async function rememberNativeHandoff(
     });
     return { store: "redis", ok: true };
   } catch (err) {
+    if (process.env.NODE_ENV === "production") {
+      console.error("[GOOGLE-SIGNIN] REDIS WRITE failed in production", {
+        message: (err as Error)?.message,
+      });
+      throw new Error("Native OAuth handoff storage is unavailable");
+    }
     console.warn(
       "[GOOGLE-SIGNIN] REDIS WRITE failed (kept in-memory only)",
       { message: (err as Error)?.message }
@@ -97,9 +104,18 @@ export async function consumeNativeHandoff(
       }
       console.log("[GOOGLE-SIGNIN] CONSUME: redis record malformed");
       return null;
-    } catch {
-      // Redis hiccup: fall through to in-memory (single-instance safe).
+    } catch (err) {
+      if (process.env.NODE_ENV === "production") {
+        console.error("[GOOGLE-SIGNIN] REDIS CONSUME failed in production", {
+          message: (err as Error)?.message,
+        });
+        throw new Error("Native OAuth handoff storage is unavailable");
+      }
     }
+  }
+
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("Native OAuth handoff storage is not configured");
   }
 
   const record = memStore.get(handoffId);
@@ -121,9 +137,17 @@ export async function peekNativeHandoff(handoffId: string): Promise<boolean> {
     try {
       const val = await redis.get(buildCacheKey("oauth-native-handoff", handoffId));
       return val !== null;
-    } catch {
-      // fall through
+    } catch (err) {
+      if (process.env.NODE_ENV === "production") {
+        console.error("[GOOGLE-SIGNIN] REDIS PEEK failed in production", {
+          message: (err as Error)?.message,
+        });
+        throw new Error("Native OAuth handoff storage is unavailable");
+      }
     }
+  }
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("Native OAuth handoff storage is not configured");
   }
   return memStore.has(handoffId);
 }

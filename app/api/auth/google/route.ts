@@ -52,6 +52,10 @@ export async function GET(req: Request) {
     // the session that the tab sign-in produced.
     if (wantsNative) {
       const handoffId = url.searchParams.get("handoff") || "";
+      if (!/^[0-9a-fA-F-]{8,64}$/.test(handoffId)) {
+        console.error("[GOOGLE-SIGNIN] NATIVE START missing or invalid handoff id");
+        return NextResponse.json({ error: "invalid_handoff" }, { status: 400 });
+      }
       const state = buildSignedNativeState(sanitizedRedirect, handoffId);
       const nativeAuthUrl = buildGoogleAuthUrl({
         clientId: config.clientId,

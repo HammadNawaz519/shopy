@@ -122,6 +122,7 @@ export default function GoogleButton({
       }
 
       if (pollRes.status !== lastStatus) {
+        logStep(`NATIVE GOOGLE POLL handoffId=${handoffId} status=${pollRes.status}`);
         logStep("POLL: status", {
           status: pollRes.status,
           meaning:
@@ -179,7 +180,11 @@ export default function GoogleButton({
         clearStoredHandoff();
         return "stopped";
       }
-      // 202 / 404 / 500 → keep waiting until the deadline.
+      if (pollRes.status >= 500) {
+        logStep("POLL: server error", { status: pollRes.status });
+        return "stopped";
+      }
+      // 202 / 404 → keep waiting until the deadline.
     }
     return "pending";
   };
@@ -308,7 +313,10 @@ export default function GoogleButton({
       await browserFinishedListener.remove();
 
       if (outcome === "complete") return; // already navigated away
-      if (outcome === "stopped") return;
+      if (outcome === "stopped") {
+        fail("POLL", "handoff was not completed");
+        return;
+      }
 
       // "pending": the tab never produced a consumable handoff within the
       // window. The record stays persisted — returning to the app (or
