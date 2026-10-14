@@ -87,33 +87,31 @@ export async function GET(req: Request) {
         );
       }
       // Bring the Capacitor app to the foreground so the pending session
-      // completes on its own. The app's global auth-resume picks up the stored
-      // handoff and establishes the logged-in state. Auto-redirect to the custom
-      // scheme (shipped via the APK's manifest); a tap target covers browsers
-      // that block automatic custom-scheme navigation.
+      // completes on its own. This page is rendered in the device's SYSTEM
+      // browser (Chrome), which dispatches the registered shopy:// deep link
+      // (intent-filter in the installed APK's AndroidManifest) back to the
+      // SHOPY app; the app's auth-resume then picks up the stored handoff
+      // and establishes the logged-in state. No manual "return to app"
+      // button — the auto-redirects below do it, and the close attempt
+      // discards the tab so the user is not left sitting in Chrome.
       // Render a page that:
       //  1. Immediately (t=0) attempts the shopy:// redirect for fast CCT impl.
       //  2. At t=800ms retries in case the immediate attempt was blocked by the
-      //     tab's about:blank-or-redirect guard.
+      //     browser's about:blank-or-redirect guard.
       //  3. At t=1200ms tries window.close(); by then Android should have
       //     dispatched the intent and the app should be in the foreground.
-      // The "Open in SHOPY app" link is a safe manual fallback (required by the
-      // spec) but the automatic path above handles the normal case.
       const html = `<!doctype html><html><head><meta charset="utf-8"/><title>SHOPY — Sign In</title></head>
 <body style="margin:0;background:#F4F4F2;font-family:Georgia,serif;color:#495464;display:flex;align-items:center;justify-content:center;height:100vh">
 <div style="text-align:center;padding:2rem;max-width:320px">
 <h1 style="font-weight:300;letter-spacing:.3em">SHOPY</h1>
 <p style="font-size:14px;letter-spacing:.1em;margin-top:1rem">Sign-in complete&hellip;</p>
 <p style="font-size:11px;margin-top:1.5rem">Returning to SHOPY&hellip;</p>
-<a href="shopy://oauth/complete"
-   style="display:inline-block;margin-top:1.5rem;padding:.7rem 1.4rem;background:#495464;color:#F4F4F2;font-size:11px;letter-spacing:.15em;text-transform:uppercase;text-decoration:none;border-radius:2px">
-  Open SHOPY app
-</a>
 <script>
 (function(){
-  // Attempt 1 \u2014 immediate (handles fast Chrome Custom Tab impls)
+  // Attempt 1 \u2014 immediate dispatch: the system browser resolves the
+  // registered shopy:// scheme to the installed SHOPY app and opens it.
   try { window.location.href = "shopy://oauth/complete"; } catch(e){}
-  // Attempt 2 \u2014 delayed retry (handles tabs that block synchronous scheme nav)
+  // Attempt 2 \u2014 delayed retry (covers browsers that block synchronous scheme nav)
   setTimeout(function(){
     try { window.location.href = "shopy://oauth/complete"; } catch(e){}
   }, 800);

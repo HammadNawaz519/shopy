@@ -3,7 +3,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { Capacitor } from "@capacitor/core";
-import { Browser } from "@capacitor/browser";
 import { App } from "@capacitor/app";
 
 interface GoogleButtonProps {
@@ -209,14 +208,18 @@ export default function GoogleButton({
   };
 
   /**
-   * NATIVE (CAPACITOR) FLOW: Google's sign-in screen refuses embedded
-   * WebViews and bounces to the system Chrome — which is why users ended up
-   * "using the app in Chrome". Instead we open Google in the in-app browser
-   * tab (Chrome Custom Tab / SFSafariViewController, stays branded in-app), and
-   * because that tab has a separate cookie jar we hand the issued session back
-   * to the app via a one-time server-side handoff record that this WebView
-   * polls for. The pending record is persisted so sign-in can ALWAYS auto-
-   * complete: on app refocus, or after the app was closed and reopened.
+   * NATIVE (CAPACITOR) FLOW: Google's sign-in UI is only supported in a real
+   * browser, so we open the auth URL in the SYSTEM browser (Chrome / Chrome
+   * Custom Tab). Capacitor routes any navigation to a non-app URL out to the
+   * device's default browser while THIS WebView stays put, so the polling
+   * below keeps running. Because the system browser has a separate cookie jar
+   * from the app, the issued session is handed back via the one-time
+   * server-side handoff record this WebView polls for, and the callback page
+   * auto-redirects to the app's registered shopy:// deep link, which Android
+   * dispatches back to this app (appUrlOpen) so it comes straight to the
+   * foreground and the sign-in finishes automatically. The pending record is
+   * persisted so sign-in can ALWAYS auto-complete: on app refocus, or after
+   * the app was closed and reopened.
    */
   const handleNativeGoogleSignIn = async () => {
     if (loading || loadingRef.current) return;
@@ -288,30 +291,37 @@ export default function GoogleButton({
         return;
       }
 
-      // STEP 3 — BROWSER: open the sign-in tab in the in-app browser.
+      // STEP 3 — BROWSER: open Google in the SYSTEM browser (Chrome /
+      // Chrome Custom Tab). Google blocks embedded in-app WebViews, and the
+      // in-app tab's WebView swallows the final shopy:// deep link (it is
+      // never dispatched to Android) — which left users stranded in Chrome.
+      // Navigating this window to a non-app URL makes Capacitor open it in
+      // the device's default browser while THIS WebView stays put and keeps
+      // polling below. When the callback completes in the system browser,
+      // its auto-redirect to the app's registered shopy://oauth/complete
+      // deep link (intent-filter in android/app/src/main/AndroidManifest.xml)
+      // brings this app to the foreground and fires appUrlOpen, so the poll
+      // (or the listener) finishes the sign-in without any manual step.
       nativeFlowRef.current = true;
-      const browserFinishedListener = await Browser.addListener("browserFinished", () => {
-        logStep("BROWSER: sign-in tab closed; handoff polling continues");
-      });
       try {
-        await Browser.open({ url: authUrl });
-        logStep("BROWSER: Browser.open resolved (tab opened)");
+        window.location.href = authUrl;
+        logStep("BROWSER: opened Google sign-in in system browser; handoff polling continues");
       } catch (browserErr) {
-        await browserFinishedListener.remove();
-        logStep("BROWSER: Browser.open threw", {
+        logStep("BROWSER: failed to open system browser", {
           message: (browserErr as Error)?.message,
         });
-        fail("BROWSER", "in-app browser tab failed to open");
+        fail("BROWSER", "system browser did not open");
         return;
       }
 
-      // STEP 4 — POLL the one-time handoff until the tab sign-in completes.
+      // STEP 4 — POLL the one-time handoff until the system-browser sign-in
+      // completes (the tab sign-in is in the device's default browser, not in
+      // this WebView).
       const outcome = await pollHandoff(
         handoffId,
         Date.now() + 9 * 60 * 1000,
         () => nativeFlowRef.current
       );
-      await browserFinishedListener.remove();
 
       if (outcome === "complete") return; // already navigated away
       if (outcome === "stopped") {
@@ -319,9 +329,9 @@ export default function GoogleButton({
         return;
       }
 
-      // "pending": the tab never produced a consumable handoff within the
-      // window. The record stays persisted — returning to the app (or
-      // reopening it) auto-resumes and finishes the sign-in.
+      // "pending": the system-browser sign-in never produced a consumable
+      // handoff within the window. The record stays persisted — returning to
+      // the app (or reopening it) auto-resumes and finishes the sign-in.
       logStep("POLL: window elapsed, keeping record for auto-resume");
       setDiag("Sign-in in progress — it will finish automatically when you return to SHOPY.");
       setErrorMsg("If you signed in, close the Google tab and go back to the app.");

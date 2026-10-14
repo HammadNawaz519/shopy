@@ -123,7 +123,7 @@ export default function AdminHomepagePage() {
       const formData = new FormData();
       formData.append("file", file);
 
-      const res = await fetch("/api/admin/upload?fit=banner", {
+      const res = await fetch(target === "desktop" ? "/api/admin/upload?fit=hero" : "/api/admin/upload?fit=hero-mobile", {
         method: "POST",
         body: formData,
       });
@@ -131,8 +131,12 @@ export default function AdminHomepagePage() {
       const data = await res.json();
       if (res.ok && data.success && data.url) {
         if (target === "desktop") {
-          setConfig((prev) => ({ ...prev, heroImage: data.url }));
-          showToast("Desktop hero image uploaded and sharpened.", "success");
+          setConfig((prev) => ({
+            ...prev,
+            heroImage: data.variants?.desktop || data.url,
+            heroMobileImage: data.variants?.mobile || prev.heroMobileImage,
+          }));
+          showToast("Hero image optimized into desktop and mobile crops.", "success");
         } else {
           setConfig((prev) => ({ ...prev, heroMobileImage: data.url }));
           showToast("Mobile hero image uploaded and sharpened.", "success");
