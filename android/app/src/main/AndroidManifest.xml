@@ -52,6 +52,29 @@
                 <data android:scheme="shopy" android:host="oauth" />
             </intent-filter>
 
+            <!--
+                HTTPS App Link (universal link). When Chrome has verified
+                https://buyatshopy.vercel.app/.well-known/assetlinks.json
+                (package com.shopy.fashion + the APK's signing cert), any
+                navigation to https://buyatshopy.vercel.app/oauth/... opens
+                THIS app directly instead of rendering the page in the
+                browser — no user gesture needed. This is the reliable
+                return-to-app path for the native Google sign-in: the OAuth
+                callback (running in the system browser) redirects to
+                /oauth/complete and the OS hands the app to the foreground,
+                where the pending handoff finishes the login. The shopy://
+                filter above stays as a secondary fallback.
+            -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="https"
+                    android:host="buyatshopy.vercel.app"
+                    android:pathPrefix="/oauth" />
+            </intent-filter>
+
         </activity>
 
         <provider

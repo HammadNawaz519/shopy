@@ -402,15 +402,19 @@ export default function GoogleButton({
 
     // ─── Deep-link handler ────────────────────────────────────────────────────
     // GoogleButton is mounted on /login and /register (where NativeGoogleAuthResume
-    // deliberately defers). When the shopy://oauth/complete deep-link fires while
-    // the user is on one of these pages, appUrlOpen must drive the handoff poll
-    // immediately rather than waiting for the 1.5 s timer.
+    // deliberately defers). When the OAuth return link fires while the user is on
+    // one of these pages, appUrlOpen must drive the handoff poll immediately
+    // rather than waiting for the 1.5 s timer. The OS delivers the return via
+    // the verified HTTPS App Link (https://…/oauth/complete — autoVerify
+    // intent-filter) and, on older builds, via the shopy://oauth/complete
+    // custom scheme; both must be handled here.
     let deepLinkHandle: { remove: () => void } | null = null;
     App.addListener("appUrlOpen", (event) => {
       console.log("[GOOGLE-SIGNIN] GoogleButton appUrlOpen", event.url);
       if (
         typeof event.url === "string" &&
-        event.url.startsWith("shopy://oauth")
+        (event.url.startsWith("shopy://oauth") ||
+          event.url.includes("/oauth/complete"))
       ) {
         resumeStoredHandoff();
       }

@@ -129,17 +129,21 @@ export default function NativeGoogleAuthResume() {
     window.addEventListener("focus", onWake);
 
     // ─── Deep-link handler ────────────────────────────────────────────────────
-    // When Android receives the shopy://oauth/complete intent it brings the app
-    // to the foreground and fires appUrlOpen. We must handle it here (in
-    // addition to the visibility listener) because visibilitychange fires AFTER
-    // onResume, and on some OEM ROMs with aggressive process killing the WebView
-    // JS context may not receive the event at all before the deep-link fires.
+    // When Android receives the OAuth return intent it brings the app to the
+    // foreground and fires appUrlOpen — either the verified HTTPS App Link
+    // (https://…/oauth/complete, autoVerify intent-filter + assetlinks.json)
+    // or, on older builds, the shopy://oauth/complete custom scheme. We must
+    // handle it here (in addition to the visibility listener) because
+    // visibilitychange fires AFTER onResume, and on some OEM ROMs with
+    // aggressive process killing the WebView JS context may not receive the
+    // event at all before the deep-link fires.
     let deepLinkHandle: { remove: () => void } | null = null;
     App.addListener("appUrlOpen", (event) => {
       console.log("[GOOGLE-SIGNIN] appUrlOpen", event.url);
       if (
         typeof event.url === "string" &&
-        event.url.startsWith("shopy://oauth")
+        (event.url.startsWith("shopy://oauth") ||
+          event.url.includes("/oauth/complete"))
       ) {
         // Immediately poll — the handoff record is already in the store.
         start();

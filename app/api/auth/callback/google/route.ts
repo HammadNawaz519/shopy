@@ -42,13 +42,23 @@ export async function GET(req: Request) {
     }
 
     // 2a. NATIVE (CAPACITOR) BRIDGE: signed URL-carried state. The sign-in
-    //     happened in the in-app browser tab (separate cookie jar), so we
+    //     happened in the system browser (separate cookie jar), so we
     //     complete the Google exchange HERE and hand the issued session to
     //     the app via a one-time handoff record that the app's own WebView
     //     polls at /api/auth/google/handoff and converts into its session.
     const nativeState = verifySignedNativeState(state);
+    if (!nativeState.valid && /^[\w.-]+\.[\w.-]+$/.test(state ?? "")) {
+      // Looks like a signed native state (body.hmac shape) that failed
+      // verification — almost always the 10-minute TTL (user took too long
+      // in the browser). Without this marker the fallthrough to the classic
+      // branch below silently orphans the app (no handoff is stored) while
+      // Chrome may end up logged in instead.
+      console.warn(
+        "[GOOGLE-SIGNIN] CALLBACK: native state FAILED verification (likely 10-min expiry or tampered) — no handoff will be stored; the user must start a fresh sign-in from the app"
+      );
+    }
     if (nativeState.valid) {
-      // [DIAG] The sign-in tab reached the callback. No code/state/token is logged.
+      // [DIAG] The sign-in browser reached the callback. No code/state/token is logged.
       console.log("[GOOGLE-SIGNIN] CALLBACK reached: native state valid", {
         handoffPresent: Boolean(nativeState.handoff),
         handoffLen: nativeState.handoff?.length ?? 0,
@@ -87,42 +97,19 @@ export async function GET(req: Request) {
         );
       }
       // Bring the Capacitor app to the foreground so the pending session
-      // completes on its own. This page is rendered in the device's SYSTEM
-      // browser (Chrome), which dispatches the registered shopy:// deep link
-      // (intent-filter in the installed APK's AndroidManifest) back to the
-      // SHOPY app; the app's auth-resume then picks up the stored handoff
-      // and establishes the logged-in state. No manual "return to app"
-      // button — the auto-redirects below do it, and the close attempt
-      // discards the tab so the user is not left sitting in Chrome.
-      // Render a page that:
-      //  1. Immediately (t=0) attempts the shopy:// redirect for fast CCT impl.
-      //  2. At t=800ms retries in case the immediate attempt was blocked by the
-      //     browser's about:blank-or-redirect guard.
-      //  3. At t=1200ms tries window.close(); by then Android should have
-      //     dispatched the intent and the app should be in the foreground.
-      const html = `<!doctype html><html><head><meta charset="utf-8"/><title>SHOPY — Sign In</title></head>
-<body style="margin:0;background:#F4F4F2;font-family:Georgia,serif;color:#495464;display:flex;align-items:center;justify-content:center;height:100vh">
-<div style="text-align:center;padding:2rem;max-width:320px">
-<h1 style="font-weight:300;letter-spacing:.3em">SHOPY</h1>
-<p style="font-size:14px;letter-spacing:.1em;margin-top:1rem">Sign-in complete&hellip;</p>
-<p style="font-size:11px;margin-top:1.5rem">Returning to SHOPY&hellip;</p>
-<script>
-(function(){
-  // Attempt 1 \u2014 immediate dispatch: the system browser resolves the
-  // registered shopy:// scheme to the installed SHOPY app and opens it.
-  try { window.location.href = "shopy://oauth/complete"; } catch(e){}
-  // Attempt 2 \u2014 delayed retry (covers browsers that block synchronous scheme nav)
-  setTimeout(function(){
-    try { window.location.href = "shopy://oauth/complete"; } catch(e){}
-  }, 800);
-  // Close the tab AFTER the intent has had time to be dispatched
-  setTimeout(function(){
-    try { window.close(); } catch(e){}
-  }, 1200);
-})();
-</script>
-</div></body></html>`;
-      return new NextResponse(html, { status: 200, headers: { "Content-Type": "text/html" } });
+      // completes on its own. This runs in the device's SYSTEM browser
+      // (Chrome). Redirecting to the app's verified HTTPS App Link
+      // (https://buyatshopy.vercel.app/oauth/complete — the autoVerify
+      // intent-filter in the installed APK + the cert declaration in
+      // .well-known/assetlinks.json) makes the OS open the SHOPY app
+      // directly when the app is installed and the link is verified: no
+      // user gesture needed, no "return to app" button, and the user is
+      // not left sitting in Chrome. The app's auth-resume then picks up
+      // the stored handoff and establishes the logged-in state. When the
+      // app is absent or the link is not yet verified, the URL simply
+      // renders the /oauth/complete page as an informational fallback —
+      // returning to the app completes the sign-in on its own.
+      return NextResponse.redirect(new URL("/oauth/complete", origin));
     }
 
     // 2b. CLASSIC WEB FLOW: Validate CSRF State Cookie

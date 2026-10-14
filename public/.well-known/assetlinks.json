@@ -1,0 +1,18 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_url"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.shopy.fashion",
+      "sha256_certificates": [
+        "K5Gh/y7cyZU6mlCCEBbeRlH2RTfSgqVF2kO7t0wiTsY=",
+        "KaN4YRRtC5EA2432twNEJ0yZilCLT6a84ShW0fgv8Oc="
+      ],
+      "url": {
+        "scheme": "https",
+        "host": "buyatshopy.vercel.app",
+        "pathPrefix": "/oauth"
+      }
+    }
+  }
+]
