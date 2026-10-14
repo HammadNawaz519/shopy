@@ -53,6 +53,7 @@ export default function AdminHomepagePage() {
   const { showToast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mobileFileInputRef = useRef<HTMLInputElement>(null);
+  const editorialImageInputRef = useRef<HTMLInputElement>(null);
 
   const [config, setConfig] = useState<HomepageConfig>({
     id: "home_default",
@@ -113,19 +114,25 @@ export default function AdminHomepagePage() {
 
   const handleFileUpload = async (
     e: React.ChangeEvent<HTMLInputElement>,
-    target: "desktop" | "mobile"
+    target: "desktop" | "mobile" | "editorial"
   ) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     if (target === "desktop") setUploadingDesktop(true);
-    else setUploadingMobile(true);
+    else if (target === "mobile") setUploadingMobile(true);
 
     try {
       const formData = new FormData();
       formData.append("file", file);
 
-      const res = await fetch(target === "desktop" ? "/api/admin/upload?fit=hero" : "/api/admin/upload?fit=hero-mobile", {
+      const uploadUrl =
+        target === "desktop"
+          ? "/api/admin/upload?fit=hero"
+          : target === "mobile"
+            ? "/api/admin/upload?fit=hero-mobile"
+            : "/api/admin/upload";
+      const res = await fetch(uploadUrl, {
         method: "POST",
         body: formData,
       });
@@ -138,10 +145,13 @@ export default function AdminHomepagePage() {
             heroImage: data.variants?.desktop || data.url,
             heroMobileImage: data.variants?.mobile || prev.heroMobileImage,
           }));
-          showToast("Hero image optimized into desktop and mobile crops.", "success");
-        } else {
+          showToast("Hero image optimized with an adjustable desktop frame and mobile crop.", "success");
+        } else if (target === "mobile") {
           setConfig((prev) => ({ ...prev, heroMobileImage: data.url }));
           showToast("Mobile hero image uploaded and sharpened.", "success");
+        } else {
+          setConfig((prev) => ({ ...prev, editorialImage1: data.url }));
+          showToast("Editorial section image uploaded and sharpened.", "success");
         }
       } else {
         showToast(data.error || "Image upload failed.", "error");
@@ -150,7 +160,7 @@ export default function AdminHomepagePage() {
       showToast("Network error uploading image.", "error");
     } finally {
       if (target === "desktop") setUploadingDesktop(false);
-      else setUploadingMobile(false);
+      else if (target === "mobile") setUploadingMobile(false);
     }
   };
 
@@ -740,8 +750,23 @@ export default function AdminHomepagePage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-[10px] uppercase font-semibold mb-1 text-[#495464]">
-                      Editorial Image 1 URL
+                      Editorial Image
                     </label>
+                    <input
+                      type="file"
+                      ref={editorialImageInputRef}
+                      onChange={(e) => handleFileUpload(e, "editorial")}
+                      accept="image/*"
+                      className="hidden"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => editorialImageInputRef.current?.click()}
+                      className="w-full mb-1 inline-flex items-center justify-center gap-2 bg-[#495464] text-[#F4F4F2] py-2 px-3 text-[10px] uppercase tracking-wider font-medium hover:bg-[#363E4B] transition-colors cursor-pointer"
+                    >
+                      <Upload className="w-3.5 h-3.5" />
+                      Upload Editorial Image
+                    </button>
                     <input
                       type="text"
                       value={config.editorialImage1}

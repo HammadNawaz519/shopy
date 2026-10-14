@@ -39,9 +39,8 @@ export async function POST(req: Request) {
 
     const rawBuffer = Buffer.from(await file.arrayBuffer());
 
-    // Hero uploads use fixed desktop/mobile crops so one source image cannot
-    // distort between laptop and phone aspect ratios. Category banners and
-    // product uploads keep their existing whole-image resize behavior.
+    // Hero uploads keep a high-resolution desktop source so the storefront can
+    // apply the saved focal position. Mobile still receives a dedicated crop.
     const uploadProfile = new URL(req.url).searchParams.get("fit");
     const isBanner = uploadProfile === "banner";
     const isHero = uploadProfile === "hero";
@@ -54,17 +53,18 @@ export async function POST(req: Request) {
     // 3. Crisp unsharp-mask definition
     // 4. Compact WebP compression for lightning-fast storefront loading
     const oriented = sharp(rawBuffer).rotate();
-    const processedBuffer = isHero || isHeroMobile
+    const processedBuffer = isHeroMobile
       ? await oriented
-          .resize({
-            width: isHero ? 2560 : 1440,
-            height: isHero ? 1440 : 2560,
-            fit: "cover",
-            position: "centre",
-          })
+          .resize({ width: 1440, height: 2560, fit: "cover", position: "centre" })
           .sharpen({ sigma: 1.0, m1: 0.6, m2: 2.0 })
           .webp({ quality: 95, effort: 5, smartSubsample: false })
           .toBuffer()
+      : isHero
+        ? await oriented
+            .resize({ width: 2560, height: 2560, fit: "inside", withoutEnlargement: true })
+            .sharpen({ sigma: 1.0, m1: 0.6, m2: 2.0 })
+            .webp({ quality: 95, effort: 5, smartSubsample: false })
+            .toBuffer()
       : await oriented
           .resize(
             isBanner
@@ -125,7 +125,7 @@ export async function POST(req: Request) {
         variants: { desktop: desktopUrl, mobile: mobileUrl },
         filename,
         size: processedBuffer.length + mobileBuffer.length,
-        message: "Hero image optimized into separate desktop and mobile crops.",
+        message: "Hero image optimized with an adjustable desktop source and mobile crop.",
       });
     }
 

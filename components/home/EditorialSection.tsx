@@ -69,11 +69,6 @@ export default function EditorialSection({ initialQuote, initialConfig }: Editor
               )}
             </h2>
 
-            {/* Dynamic AI Psychological Pull-Quote */}
-            <blockquote className="font-serif text-xl sm:text-2xl lg:text-[2rem] text-[#2B3542] italic font-normal leading-[1.25] transition-opacity duration-500 opacity-100">
-              {quoteData.quote}
-            </blockquote>
-
             {/* High-Impact Persuasive CTA */}
             <div className="pt-2">
               <Link
