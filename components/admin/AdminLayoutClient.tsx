@@ -32,7 +32,10 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
           isMobileOpen: mobileOpen,
         }}
       >
-        <div className="min-h-screen bg-[#E8E8E8]/40 text-[#495464] flex">
+        <div
+          className="min-h-screen bg-[#E8E8E8]/40 text-[#495464] flex"
+          style={{ marginTop: "calc(-1 * env(safe-area-inset-top, 0px))" }}
+        >
           {/* Sidebar */}
           <AdminSidebar mobileOpen={mobileOpen} onCloseMobile={() => setMobileOpen(false)} />
 
