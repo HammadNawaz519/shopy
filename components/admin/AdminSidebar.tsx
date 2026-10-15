@@ -49,7 +49,10 @@ export default function AdminSidebar({ mobileOpen = false, onCloseMobile }: Admi
   const { unseenCount } = useAdminOrderNotification();
 
   const sidebarContent = (
-    <div className="flex flex-col h-full bg-[#181A1D] text-[#F4F4F2] border-r border-[#495464]/40 select-none">
+    <div
+      className="flex flex-col h-full bg-[#181A1D] text-[#F4F4F2] border-r border-[#495464]/40 select-none"
+      style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
+    >
       {/* Brand Header */}
       <div className="p-6 border-b border-[#495464]/40 flex items-center justify-between">
         <Link href="/admin" className="flex items-center gap-3">
@@ -145,11 +148,7 @@ export default function AdminSidebar({ mobileOpen = false, onCloseMobile }: Admi
     <>
       {/* Desktop Sidebar */}
       <aside
-        className="hidden lg:block w-64 sticky flex-shrink-0 z-30"
-        style={{
-          top: "env(safe-area-inset-top, 0px)",
-          height: "calc(100vh - env(safe-area-inset-top, 0px))",
-        }}
+        className="hidden lg:block w-64 h-screen sticky top-0 flex-shrink-0 z-30"
       >
         {sidebarContent}
       </aside>
@@ -157,8 +156,7 @@ export default function AdminSidebar({ mobileOpen = false, onCloseMobile }: Admi
       {/* Mobile Drawer */}
       {mobileOpen && (
         <div
-          className="fixed left-0 right-0 bottom-0 z-50 lg:hidden flex"
-          style={{ top: "env(safe-area-inset-top, 0px)" }}
+          className="fixed inset-0 z-50 lg:hidden flex"
         >
           <div
             className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity"

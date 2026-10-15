@@ -67,8 +67,7 @@ export default function AdminHeader({ title, subtitle, onOpenMobileMenu }: Admin
 
   return (
     <header
-      className="h-16 bg-[#F4F4F2] border-b border-[#BBBFCA]/40 px-4 sm:px-6 flex items-center justify-between sticky z-20 select-none"
-      style={{ top: "env(safe-area-inset-top, 0px)" }}
+      className="h-[calc(4rem+env(safe-area-inset-top,0px))] bg-[#F4F4F2] border-b border-[#BBBFCA]/40 px-4 sm:px-6 pt-[env(safe-area-inset-top,0px)] flex items-center justify-between sticky top-0 z-20 select-none"
     >
       {/* Left: Mobile Toggle & Breadcrumb */}
       <div className="flex items-center gap-3 sm:gap-4">
