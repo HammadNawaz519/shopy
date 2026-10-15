@@ -96,7 +96,7 @@ public class NativeGoogleAuthPlugin extends Plugin {
                                 + (message == null || message.isEmpty() ? "" : ": " + message);
                         android.util.Log.e("NativeGoogleAuth", detail, error);
                         if (error instanceof GetCredentialCancellationException) {
-                            call.reject("Google sign-in was cancelled");
+                            call.reject("Google credential provider cancelled the request (" + detail + ")");
                         } else {
                             call.reject("Google sign-in failed (" + detail + ")");
                         }

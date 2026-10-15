@@ -76,7 +76,9 @@ export default function GoogleButton({
       console.error("[GOOGLE-SIGNIN] failed", error);
       const detail = error instanceof Error ? error.message : String(error);
       const normalizedDetail = detail.toLowerCase();
-      if (normalizedDetail.includes("cancelled")) {
+      if (normalizedDetail.includes("credential provider cancelled")) {
+        setErrorMsg("Google rejected this app configuration. Check the Android OAuth setup.");
+      } else if (normalizedDetail.includes("cancelled")) {
         setErrorMsg("Google sign-in was cancelled.");
       } else if (normalizedDetail.includes("no credential")) {
         setErrorMsg("No Google account is available on this device.");
