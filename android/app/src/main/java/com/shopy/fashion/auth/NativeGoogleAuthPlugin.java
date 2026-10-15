@@ -9,6 +9,7 @@ import androidx.credentials.CredentialManagerCallback;
 import androidx.credentials.GetCredentialRequest;
 import androidx.credentials.GetCredentialResponse;
 import androidx.credentials.exceptions.GetCredentialException;
+import androidx.credentials.exceptions.GetCredentialCancellationException;
 import androidx.credentials.exceptions.NoCredentialException;
 
 import com.getcapacitor.JSObject;
@@ -22,6 +23,7 @@ import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential;
 
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.util.UUID;
 
 @CapacitorPlugin(name = "NativeGoogleAuth")
 public class NativeGoogleAuthPlugin extends Plugin {
@@ -39,6 +41,7 @@ public class NativeGoogleAuthPlugin extends Plugin {
                 .setServerClientId(serverClientId)
                 .setFilterByAuthorizedAccounts(false)
                 .setAutoSelectEnabled(false)
+                .setNonce(generateNonce())
                 .build();
 
         GetCredentialRequest request = new GetCredentialRequest.Builder()
@@ -71,7 +74,9 @@ public class NativeGoogleAuthPlugin extends Plugin {
                     public void onError(@NonNull GetCredentialException error) {
                         if (allowGoogleButtonFallback && error instanceof NoCredentialException) {
                             GetSignInWithGoogleOption googleButtonOption =
-                                    new GetSignInWithGoogleOption.Builder(serverClientId).build();
+                                    new GetSignInWithGoogleOption.Builder(serverClientId)
+                                            .setNonce(generateNonce())
+                                            .build();
                             GetCredentialRequest fallbackRequest = new GetCredentialRequest.Builder()
                                     .addCredentialOption(googleButtonOption)
                                     .build();
@@ -90,7 +95,7 @@ public class NativeGoogleAuthPlugin extends Plugin {
                         String detail = exceptionType
                                 + (message == null || message.isEmpty() ? "" : ": " + message);
                         android.util.Log.e("NativeGoogleAuth", detail, error);
-                        if (exceptionType.contains("Cancellation")) {
+                        if (error instanceof GetCredentialCancellationException) {
                             call.reject("Google sign-in was cancelled");
                         } else {
                             call.reject("Google sign-in failed (" + detail + ")");
@@ -98,6 +103,10 @@ public class NativeGoogleAuthPlugin extends Plugin {
                     }
                 }
         );
+    }
+
+    private String generateNonce() {
+        return UUID.randomUUID().toString();
     }
 
     private void resolveGoogleCredential(PluginCall call, GetCredentialResponse response) {
