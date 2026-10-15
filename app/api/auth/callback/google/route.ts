@@ -96,20 +96,14 @@ export async function GET(req: Request) {
           "[GOOGLE-SIGNIN] CALLBACK: native state had NO handoff id — the app's poll can never complete"
         );
       }
-      // Bring the Capacitor app to the foreground so the pending session
-      // completes on its own. This runs in the device's SYSTEM browser
-      // (Chrome). Redirecting to the app's verified HTTPS App Link
-      // (https://buyatshopy.vercel.app/oauth/complete — the autoVerify
-      // intent-filter in the installed APK + the cert declaration in
-      // .well-known/assetlinks.json) makes the OS open the SHOPY app
-      // directly when the app is installed and the link is verified: no
-      // user gesture needed, no "return to app" button, and the user is
-      // not left sitting in Chrome. The app's auth-resume then picks up
-      // the stored handoff and establishes the logged-in state. When the
-      // app is absent or the link is not yet verified, the URL simply
-      // renders the /oauth/complete page as an informational fallback —
-      // returning to the app completes the sign-in on its own.
-      return NextResponse.redirect(new URL("/oauth/complete", origin));
+      // Return through the app's registered custom scheme. Android dispatches
+      // this URI to MainActivity, which closes the Custom Tab and lets the
+      // WebView consume the one-time handoff. The HTTPS App Link remains in
+      // AndroidManifest.xml as a secondary compatibility path.
+      return new NextResponse(null, {
+        status: 302,
+        headers: { Location: "shopy://oauth/complete" },
+      });
     }
 
     // 2b. CLASSIC WEB FLOW: Validate CSRF State Cookie

@@ -4,6 +4,7 @@ import React, { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { Capacitor } from "@capacitor/core";
 import { App } from "@capacitor/app";
+import { Browser } from "@capacitor/browser";
 
 /**
  * GLOBAL native Google sign-in resume.
@@ -145,6 +146,7 @@ export default function NativeGoogleAuthResume() {
         (event.url.startsWith("shopy://oauth") ||
           event.url.includes("/oauth/complete"))
       ) {
+        Browser.close().catch(() => undefined);
         // Immediately poll — the handoff record is already in the store.
         start();
       }

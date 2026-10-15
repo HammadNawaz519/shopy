@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { Capacitor } from "@capacitor/core";
 import { App } from "@capacitor/app";
+import { Browser } from "@capacitor/browser";
 
 interface GoogleButtonProps {
   redirect?: string | null;
@@ -209,17 +210,19 @@ export default function GoogleButton({
 
   /**
    * NATIVE (CAPACITOR) FLOW: Google's sign-in UI is only supported in a real
-   * browser, so we open the auth URL in the SYSTEM browser (Chrome / Chrome
-   * Custom Tab). Capacitor routes any navigation to a non-app URL out to the
-   * device's default browser while THIS WebView stays put, so the polling
-   * below keeps running. Because the system browser has a separate cookie jar
-   * from the app, the issued session is handed back via the one-time
-   * server-side handoff record this WebView polls for, and the callback page
-   * auto-redirects to the app's registered shopy:// deep link, which Android
-   * dispatches back to this app (appUrlOpen) so it comes straight to the
-   * foreground and the sign-in finishes automatically. The pending record is
-   * persisted so sign-in can ALWAYS auto-complete: on app refocus, or after
-   * the app was closed and reopened.
+   * browser, so the auth URL is opened with the @capacitor/browser plugin's
+   * IN-APP Custom Tab — an overlay rendered on top of THIS app, not a
+   * standalone Chrome launch. SHOPY stays the underlying app
+   * and the polling below keeps running while the overlay is up. Because the
+   * Custom Tab has a separate cookie jar from the app's WebView, the issued
+   * session is handed back via the one-time server-side handoff record this
+   * WebView polls for; the callback then redirects to the app's verified
+   * HTTPS App Link (/oauth/complete, intent-filter in
+   * android/app/src/main/AndroidManifest.xml), which Android dispatches back
+   * to this app (appUrlOpen) so it comes straight to the foreground and the
+   * sign-in finishes automatically. The pending record is persisted so
+   * sign-in can ALWAYS auto-complete: on app refocus, or after the app was
+   * closed and reopened.
    */
   const handleNativeGoogleSignIn = async () => {
     if (loading || loadingRef.current) return;
@@ -291,32 +294,33 @@ export default function GoogleButton({
         return;
       }
 
-      // STEP 3 — BROWSER: open Google in the SYSTEM browser (Chrome /
-      // Chrome Custom Tab). Google blocks embedded in-app WebViews, and the
-      // in-app tab's WebView swallows the final shopy:// deep link (it is
-      // never dispatched to Android) — which left users stranded in Chrome.
-      // Navigating this window to a non-app URL makes Capacitor open it in
-      // the device's default browser while THIS WebView stays put and keeps
-      // polling below. When the callback completes in the system browser,
-      // its auto-redirect to the app's registered shopy://oauth/complete
-      // deep link (intent-filter in android/app/src/main/AndroidManifest.xml)
-      // brings this app to the foreground and fires appUrlOpen, so the poll
-      // (or the listener) finishes the sign-in without any manual step.
+      // STEP 3 — BROWSER: open Google in the IN-APP Custom Tab overlay.
+      // @capacitor/browser on Android opens the URL via Chrome Custom Tabs
+      // (BrowserControllerActivity + CustomTabsIntent in the plugin's
+      // Android source) — an in-app overlay rendered ON TOP of this app:
+      // SHOPY stays the underlying activity, no standalone Chrome launch,
+      // no manual app switch. Google's account UI works in a real browser
+      // context (Custom Tabs), not an embedded WebView, and the overlay's
+      // final redirect to the app's verified App Link (/oauth/complete,
+      // intent-filter in android/app/src/main/AndroidManifest.xml) is
+      // dispatched by Android back to this app (appUrlOpen), so the poll
+      // (or the browserFinished/appUrlOpen listener) finishes the sign-in
+      // without any manual step while THIS WebView keeps polling below.
       nativeFlowRef.current = true;
       try {
-        window.location.href = authUrl;
-        logStep("BROWSER: opened Google sign-in in system browser; handoff polling continues");
+        await Browser.open({ url: authUrl });
+        logStep("BROWSER: opened Google sign-in in in-app Custom Tab; handoff polling continues");
       } catch (browserErr) {
-        logStep("BROWSER: failed to open system browser", {
+        logStep("BROWSER: failed to open in-app Custom Tab", {
           message: (browserErr as Error)?.message,
         });
-        fail("BROWSER", "system browser did not open");
+        fail("BROWSER", "in-app browser did not open");
         return;
       }
 
-      // STEP 4 — POLL the one-time handoff until the system-browser sign-in
-      // completes (the tab sign-in is in the device's default browser, not in
-      // this WebView).
+      // STEP 4 — POLL the one-time handoff until the in-app Custom Tab
+      // sign-in completes (the tab sign-in runs in the Custom Tab overlay,
+      // not in this WebView).
       const outcome = await pollHandoff(
         handoffId,
         Date.now() + 9 * 60 * 1000,
@@ -416,6 +420,7 @@ export default function GoogleButton({
         (event.url.startsWith("shopy://oauth") ||
           event.url.includes("/oauth/complete"))
       ) {
+        Browser.close().catch(() => undefined);
         resumeStoredHandoff();
       }
     })
@@ -424,10 +429,27 @@ export default function GoogleButton({
         console.warn("[GOOGLE-SIGNIN] appUrlOpen listener failed", e)
       );
 
+    // ─── In-app Custom Tab "finished" handler ─────────────────────────────────
+    // When the Google overlay (in-app Custom Tab opened via Browser.open) is
+    // dismissed, Android fires "browserFinished". Resume the stored handoff so
+    // control returns to the SHOPY WebView and any pending sign-in completes.
+    // This complements appUrlOpen (the App-Link fast path) and the
+    // visibilitychange / focus listeners above.
+    let browserFinishedHandle: { remove: () => void } | null = null;
+    Browser.addListener("browserFinished", () => {
+      console.log("[GOOGLE-SIGNIN] GoogleButton browserFinished");
+      resumeStoredHandoff();
+    })
+      .then((h) => { browserFinishedHandle = h; })
+      .catch((e) =>
+        console.warn("[GOOGLE-SIGNIN] browserFinished listener failed", e)
+      );
+
     return () => {
       document.removeEventListener("visibilitychange", onWake);
       window.removeEventListener("focus", onWake);
       deepLinkHandle?.remove();
+      browserFinishedHandle?.remove();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
