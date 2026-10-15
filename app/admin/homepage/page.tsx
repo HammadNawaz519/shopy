@@ -13,6 +13,7 @@ import {
   Palette,
   Check,
   Sparkles,
+  ArrowRight,
 } from "lucide-react";
 import AdminHeader from "@/components/admin/AdminHeader";
 import { useToast } from "@/context/ToastContext";
@@ -752,10 +753,12 @@ export default function AdminHomepagePage() {
                   />
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-4">
+                  {/* Quote section image editor — the image rendered in the
+                      Editorial (quote) section on the storefront */}
                   <div>
                     <label className="block text-[10px] uppercase font-semibold mb-1 text-[#495464]">
-                      Editorial Image
+                      Quote Section Image
                     </label>
                     <input
                       type="file"
@@ -778,17 +781,49 @@ export default function AdminHomepagePage() {
                       onChange={(e) => setConfig({ ...config, editorialImage1: e.target.value })}
                       className="w-full bg-[#E8E8E8] border border-[#BBBFCA] p-2 text-xs font-mono"
                     />
+                    <p className="mt-1 text-[9px] text-[#495464]/70">
+                      Edits the image shown in the quote section below.
+                    </p>
                   </div>
-                  <div>
-                    <label className="block text-[10px] uppercase font-semibold mb-1 text-[#495464]">
-                      Editorial Image 2 URL
-                    </label>
-                    <input
-                      type="text"
-                      value={config.editorialImage2}
-                      onChange={(e) => setConfig({ ...config, editorialImage2: e.target.value })}
-                      className="w-full bg-[#E8E8E8] border border-[#BBBFCA] p-2 text-xs font-mono"
-                    />
+
+                  {/* Live demo — full mockup of the quote (Editorial) section,
+                      mirroring the storefront layout of components/home/EditorialSection.tsx */}
+                  <div className="relative bg-[#E8E8E8] border border-[#BBBFCA]/60 overflow-hidden shadow-sm">
+                    <div className="absolute top-2 left-2 bg-black/80 text-white text-[9px] uppercase px-2 py-0.5 tracking-wider flex items-center gap-1.5 z-10 pointer-events-none">
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      <span>Quote section demo</span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4">
+                      {/* Text column (mirrors the storefront's left column) */}
+                      <div className="flex flex-col justify-center space-y-2.5">
+                        <div className="flex items-center gap-1.5">
+                          <span className="h-1 w-1 rounded-full bg-[#181a1d]" />
+                          <span className="text-[8px] uppercase tracking-[0.2em] text-[#495464]/80 font-semibold font-mono">
+                            {config.editorialTag || "EDITORIAL CAMPAIGN"}
+                          </span>
+                        </div>
+                        <h4 className="font-serif text-[#181a1d] leading-tight text-base">
+                          {config.editorialTitle || "Permanence in Form & Texture"}
+                        </h4>
+                        <p className="text-[10px] leading-relaxed text-[#495464]">
+                          {config.editorialQuote ||
+                            "We reject the cycle of seasonal excess. Each silhouette is engineered with tactile permanence."}
+                        </p>
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#495464] text-[#F4F4F2] text-[8px] tracking-widest uppercase font-medium w-fit">
+                          Claim Your Signature Silhouette
+                          <ArrowRight className="w-3 h-3" />
+                        </span>
+                      </div>
+                      {/* Image column (mirrors the storefront's right column) */}
+                      <div className="relative aspect-[4/3] sm:aspect-auto sm:h-full bg-[#BBBFCA]/20 overflow-hidden border border-[#BBBFCA]/30">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={config.editorialImage1 || "/atelier-still-life.jpg"}
+                          alt="Quote section image demo"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
