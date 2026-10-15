@@ -35,13 +35,12 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     <ToastContext.Provider value={{ showToast }}>
       {children}
       <div
-        className="fixed left-4 right-auto w-[calc(100vw-2rem)] sm:left-auto sm:right-6 sm:w-auto z-[9999] flex flex-col items-center sm:items-end gap-2.5 pointer-events-none"
-        style={{ bottom: "calc(1.5rem + env(safe-area-inset-bottom, 0px))" }}
+        className="fixed top-[calc(env(safe-area-inset-top,0px)+1rem)] right-4 bottom-auto w-auto max-w-[calc(100vw-2rem)] items-end sm:top-auto sm:right-6 sm:bottom-[calc(1.5rem+env(safe-area-inset-bottom,0px))] sm:max-w-none z-[9999] flex flex-col gap-2.5 pointer-events-none"
       >
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className="pointer-events-auto w-full sm:w-auto max-w-md flex items-center justify-between gap-3 bg-[#495464] text-[#F4F4F2] px-4 sm:px-5 py-3.5 shadow-2xl border border-[#BBBFCA]/30 text-xs sm:text-sm tracking-wider uppercase font-light transition-all animate-slideDown select-none"
+            className="pointer-events-auto w-auto max-w-full sm:w-auto sm:max-w-md flex items-center justify-between gap-3 bg-[#495464] text-[#F4F4F2] px-4 sm:px-5 py-3.5 shadow-2xl border border-[#BBBFCA]/30 text-xs sm:text-sm tracking-wider uppercase font-light transition-all animate-slideDown select-none"
           >
             <div className="flex items-center gap-2.5 sm:gap-3 flex-1 min-w-0">
               {toast.type === "success" && <CheckCircle2 className="w-4 h-4 text-[#BBBFCA] flex-shrink-0" />}
