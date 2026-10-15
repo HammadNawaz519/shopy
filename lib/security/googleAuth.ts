@@ -159,7 +159,17 @@ export async function verifyGoogleIdToken(
   }
 
   const data = await response.json();
-  if (data.aud !== expectedAudience || !data.email || data.email_verified !== "true") {
+  const audience = Array.isArray(data.aud) ? data.aud : [data.aud];
+  const emailVerified =
+    data.email_verified === true || data.email_verified === "true";
+  const expiresAt = Number(data.exp);
+  if (
+    !audience.includes(expectedAudience) ||
+    !data.email ||
+    !emailVerified ||
+    !Number.isFinite(expiresAt) ||
+    expiresAt * 1000 <= Date.now()
+  ) {
     throw new Error("Invalid Google ID token");
   }
 

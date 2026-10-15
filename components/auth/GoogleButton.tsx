@@ -48,8 +48,17 @@ export default function GoogleButton({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ idToken: credential.idToken, redirect }),
     });
-    const data = (await response.json()) as { destinationPath?: string; error?: string };
-    if (!response.ok) throw new Error(data.error || "Google sign-in failed");
+    const data = (await response.json()) as {
+      destinationPath?: string;
+      error?: string;
+    };
+    if (!response.ok) {
+      throw new Error(
+        `Server rejected Google credential (${response.status}: ${
+          data.error || "unknown_error"
+        })`
+      );
+    }
     window.location.href = data.destinationPath || "/account";
   };
 
@@ -65,7 +74,12 @@ export default function GoogleButton({
       }
     } catch (error) {
       console.error("[GOOGLE-SIGNIN] failed", error);
-      setErrorMsg("Google sign-in did not complete. Please try again.");
+      const detail = error instanceof Error ? error.message : String(error);
+      setErrorMsg(
+        detail.includes("cancel") || detail.includes("Cancel")
+          ? "Google sign-in was cancelled."
+          : "Google sign-in failed. Please try again."
+      );
       setLoading(false);
     }
   };
