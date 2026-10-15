@@ -144,13 +144,22 @@ export default function AdminSidebar({ mobileOpen = false, onCloseMobile }: Admi
   return (
     <>
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:block w-64 h-screen sticky top-0 flex-shrink-0 z-30">
+      <aside
+        className="hidden lg:block w-64 sticky flex-shrink-0 z-30"
+        style={{
+          top: "env(safe-area-inset-top, 0px)",
+          height: "calc(100vh - env(safe-area-inset-top, 0px))",
+        }}
+      >
         {sidebarContent}
       </aside>
 
       {/* Mobile Drawer */}
       {mobileOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden flex">
+        <div
+          className="fixed left-0 right-0 bottom-0 z-50 lg:hidden flex"
+          style={{ top: "env(safe-area-inset-top, 0px)" }}
+        >
           <div
             className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity"
             onClick={onCloseMobile}
