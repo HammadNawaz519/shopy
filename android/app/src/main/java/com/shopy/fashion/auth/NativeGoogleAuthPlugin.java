@@ -9,6 +9,7 @@ import androidx.credentials.CredentialManagerCallback;
 import androidx.credentials.GetCredentialRequest;
 import androidx.credentials.GetCredentialResponse;
 import androidx.credentials.exceptions.GetCredentialException;
+import androidx.credentials.exceptions.NoCredentialException;
 
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
@@ -16,6 +17,7 @@ import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption;
+import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption;
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential;
 
 import java.util.concurrent.Executor;
@@ -44,6 +46,16 @@ public class NativeGoogleAuthPlugin extends Plugin {
                 .build();
 
         CredentialManager credentialManager = CredentialManager.create(getContext());
+        requestCredential(credentialManager, call, request, serverClientId, true);
+    }
+
+    private void requestCredential(
+            CredentialManager credentialManager,
+            PluginCall call,
+            GetCredentialRequest request,
+            String serverClientId,
+            boolean allowGoogleButtonFallback
+    ) {
         credentialManager.getCredentialAsync(
                 getActivity(),
                 request,
@@ -52,25 +64,27 @@ public class NativeGoogleAuthPlugin extends Plugin {
                 new CredentialManagerCallback<GetCredentialResponse, GetCredentialException>() {
                     @Override
                     public void onResult(GetCredentialResponse response) {
-                        Credential credential = response.getCredential();
-                        if (credential instanceof androidx.credentials.CustomCredential) {
-                            androidx.credentials.CustomCredential customCredential =
-                                    (androidx.credentials.CustomCredential) credential;
-                            if (GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
-                                    .equals(customCredential.getType())) {
-                                GoogleIdTokenCredential googleCredential =
-                                        GoogleIdTokenCredential.createFrom(customCredential.getData());
-                                JSObject result = new JSObject();
-                                result.put("idToken", googleCredential.getIdToken());
-                                call.resolve(result);
-                                return;
-                            }
-                        }
-                        call.reject("Google did not return an ID token");
+                        resolveGoogleCredential(call, response);
                     }
 
                     @Override
                     public void onError(@NonNull GetCredentialException error) {
+                        if (allowGoogleButtonFallback && error instanceof NoCredentialException) {
+                            GetSignInWithGoogleOption googleButtonOption =
+                                    new GetSignInWithGoogleOption.Builder(serverClientId).build();
+                            GetCredentialRequest fallbackRequest = new GetCredentialRequest.Builder()
+                                    .addCredentialOption(googleButtonOption)
+                                    .build();
+                            requestCredential(
+                                    credentialManager,
+                                    call,
+                                    fallbackRequest,
+                                    serverClientId,
+                                    false
+                            );
+                            return;
+                        }
+
                         String message = error.getMessage();
                         String exceptionType = error.getClass().getSimpleName();
                         String detail = exceptionType
@@ -84,5 +98,23 @@ public class NativeGoogleAuthPlugin extends Plugin {
                     }
                 }
         );
+    }
+
+    private void resolveGoogleCredential(PluginCall call, GetCredentialResponse response) {
+        Credential credential = response.getCredential();
+        if (credential instanceof androidx.credentials.CustomCredential) {
+            androidx.credentials.CustomCredential customCredential =
+                    (androidx.credentials.CustomCredential) credential;
+            if (GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
+                    .equals(customCredential.getType())) {
+                GoogleIdTokenCredential googleCredential =
+                        GoogleIdTokenCredential.createFrom(customCredential.getData());
+                JSObject result = new JSObject();
+                result.put("idToken", googleCredential.getIdToken());
+                call.resolve(result);
+                return;
+            }
+        }
+        call.reject("Google did not return an ID token");
     }
 }
