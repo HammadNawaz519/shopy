@@ -15,6 +15,7 @@ import {
   GoogleOAuthConfig,
   exchangeGoogleCode,
   fetchGoogleUserInfo,
+  verifyGoogleIdToken,
 } from "./googleAuth";
 import { isValidRedirectUrl } from "./sanitize";
 
@@ -53,10 +54,27 @@ export async function completeGoogleSignIn(
     throw new Error("email_not_verified");
   }
 
+  return completeGoogleUserSignIn(googleUser, savedRedirect);
+}
+
+export async function completeNativeGoogleSignIn(
+  idToken: string,
+  config: GoogleOAuthConfig,
+  savedRedirect?: string
+): Promise<CompletedGoogleSignIn> {
+  return completeGoogleUserSignIn(
+    await verifyGoogleIdToken(idToken, config.clientId),
+    savedRedirect
+  );
+}
+
+async function completeGoogleUserSignIn(
+  googleUser: Awaited<ReturnType<typeof fetchGoogleUserInfo>>,
+  savedRedirect?: string
+): Promise<CompletedGoogleSignIn> {
+  // Resolve / link in existing SHOPY user database
   const normalizedEmail = googleUser.email.toLowerCase().trim();
   const isSuperAdminEmail = normalizedEmail === ADMIN_EMAIL.toLowerCase().trim();
-
-  // Resolve / link in existing SHOPY user database
   let user = await db.findUserByEmail(normalizedEmail);
 
   if (user) {

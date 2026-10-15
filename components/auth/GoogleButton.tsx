@@ -1,68 +1,19 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useState } from "react";
 import { Loader2 } from "lucide-react";
-import { Capacitor } from "@capacitor/core";
-import { App } from "@capacitor/app";
-import { Browser } from "@capacitor/browser";
+import { Capacitor, registerPlugin } from "@capacitor/core";
 
 interface GoogleButtonProps {
   redirect?: string | null;
   text?: string;
 }
 
-/**
- * Pending native handoffs are persisted so the sign-in can finish automatically:
- *  - If the app's WebView is suspended while the user signs in the Google tab
- *    (iOS freezes background timers), polling resumes when the app regains
- *    focus (visibilitychange / focus).
- *  - If the user closes the app entirely and reopens it, the component mounts
- *    with the stored record and auto-completes + redirects with no re-click.
- */
-const HANDOFF_STORAGE_KEY = "shopy_google_native_handoff";
-const HANDOFF_TTL_MS = 10 * 60 * 1000; // matches the server-side 5-min record TTL + slack
-
-interface StoredHandoff {
-  handoffId: string;
-  redirect: string | null;
-  startedAt: number;
+interface NativeGoogleAuthPlugin {
+  signIn(options: { serverClientId: string }): Promise<{ idToken: string }>;
 }
 
-function readStoredHandoff(): StoredHandoff | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = window.localStorage.getItem(HANDOFF_STORAGE_KEY);
-    if (!raw) return null;
-    const rec = JSON.parse(raw) as Partial<StoredHandoff>;
-    if (!rec || typeof rec.handoffId !== "string" || rec.handoffId.length < 8) return null;
-    const startedAt = typeof rec.startedAt === "number" ? rec.startedAt : 0;
-    if (startedAt > 0 && Date.now() - startedAt > HANDOFF_TTL_MS) {
-      window.localStorage.removeItem(HANDOFF_STORAGE_KEY);
-      return null;
-    }
-    return { handoffId: rec.handoffId, redirect: rec.redirect ?? null, startedAt };
-  } catch {
-    return null;
-  }
-}
-
-function storeHandoff(rec: StoredHandoff) {
-  try {
-    window.localStorage.setItem(HANDOFF_STORAGE_KEY, JSON.stringify(rec));
-  } catch {
-    /* storage full / private mode — polling for the current session still works */
-  }
-}
-
-function clearStoredHandoff() {
-  try {
-    window.localStorage.removeItem(HANDOFF_STORAGE_KEY);
-  } catch {
-    /* ignore */
-  }
-}
-
-type PollOutcome = "complete" | "pending" | "stopped";
+const NativeGoogleAuth = registerPlugin<NativeGoogleAuthPlugin>("NativeGoogleAuth");
 
 export default function GoogleButton({
   redirect,
@@ -70,389 +21,54 @@ export default function GoogleButton({
 }: GoogleButtonProps) {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  // Temporary diagnostics: the OAuth step that last succeeded / failed. Rendered
-  // as a small detail line and mirrored to console.log. Contains no credentials.
-  const [diag, setDiag] = useState<string | null>(null);
-  // Set true once the in-app sign-in tab is open so polling can begin / UI can change.
-  const nativeFlowRef = useRef(false);
-  // Mirrors `loading` for use inside stable callbacks.
-  const loadingRef = useRef(false);
-  // A resume-poll driven by the stored record is in flight.
-  const resumePollRef = useRef(false);
 
-  const logStep = (step: string, detail?: unknown) => {
-    const suffix =
-      detail === undefined
-        ? ""
-        : typeof detail === "string"
-          ? ` ${detail}`
-          : ` ${JSON.stringify(detail)}`;
-    console.log(`[GOOGLE-SIGNIN] ${step}${suffix}`);
+  const handleWebSignIn = () => {
+    const target = redirect
+      ? `/api/auth/google?redirect=${encodeURIComponent(redirect)}`
+      : "/api/auth/google";
+    window.location.href = target;
   };
 
-  /**
-   * Poll the one-time handoff until the sign-in tab completes it.
-   *  - "complete" → caller navigates away (window.location.href already set)
-   *  - "pending"  → deadline reached with no record yet (user may still be signing in)
-   *  - "stopped"  → flow no longer active / record already finished elsewhere
-   */
-  const pollHandoff = async (
-    handoffId: string,
-    deadline: number,
-    isActive: () => boolean
-  ): Promise<PollOutcome> => {
-    let lastStatus: number | null = null;
-    while (Date.now() < deadline) {
-      if (!isActive()) return "stopped";
+  const handleNativeSignIn = async () => {
+    const configResponse = await fetch("/api/auth/google/config", {
+      cache: "no-store",
+    });
+    if (!configResponse.ok) throw new Error("Google sign-in is not configured");
+    const config = (await configResponse.json()) as { clientId?: string };
+    if (!config.clientId) throw new Error("Google sign-in is not configured");
 
-      await new Promise((r) => setTimeout(r, 1500));
+    const credential = await NativeGoogleAuth.signIn({
+      serverClientId: config.clientId,
+    });
+    if (!credential?.idToken) throw new Error("Google did not return a credential");
 
-      let pollRes: Response;
-      try {
-        pollRes = await fetch(
-          `/api/auth/google/handoff?handoffId=${encodeURIComponent(handoffId)}`,
-          {
-            credentials: "same-origin",
-            cache: "no-store",
-            headers: { "Cache-Control": "no-cache" },
-          }
-        );
-      } catch (netErr) {
-        logStep("POLL: fetch threw (retrying)", { message: (netErr as Error)?.message });
-        continue;
-      }
-
-      if (pollRes.status !== lastStatus) {
-        logStep(`NATIVE GOOGLE POLL handoffId=${handoffId} status=${pollRes.status}`);
-        logStep("POLL: status", {
-          status: pollRes.status,
-          meaning:
-            pollRes.status === 200
-              ? "complete"
-              : pollRes.status === 202
-                ? "pending"
-                : pollRes.status === 409
-                  ? "handoff_consumed"
-                  : "other",
-        });
-        lastStatus = pollRes.status;
-      }
-
-      if (pollRes.status === 200) {
-        let data: { status?: string; destinationPath?: string };
-        try {
-          data = await pollRes.json();
-        } catch {
-          logStep("POLL: 200 but body was not JSON");
-          data = {};
-        }
-        if (data?.status === "complete") {
-          logStep("SESSION: created", {
-            destinationPath: data.destinationPath || "/account",
-          });
-          clearStoredHandoff();
-          window.location.href = data.destinationPath || "/account";
-          return "complete";
-        }
-        logStep("POLL: 200 but status !== complete", { got: data?.status });
-        return "stopped";
-      }
-
-      // 409 = another poll already consumed it, 400 = record gone/expired.
-      // If our own WebView is already authenticated (the consumed handoff DID
-      // set the session cookie before), finish from there instead of stalling.
-      if (pollRes.status === 409 || pollRes.status === 400) {
-        logStep("POLL: handoff no longer consumable — probing /api/auth/me");
-        let me: { user?: { role?: string } | null } = {};
-        try {
-          const meRes = await fetch("/api/auth/me", { credentials: "same-origin" });
-          me = await meRes.json();
-        } catch {
-          me = {};
-        }
-        if (me.user) {
-          logStep("SESSION: already active — navigating");
-          const stored = readStoredHandoff();
-          clearStoredHandoff();
-          window.location.href =
-            me.user.role === "admin" ? "/admin" : stored?.redirect || "/account";
-          return "complete";
-        }
-        clearStoredHandoff();
-        return "stopped";
-      }
-      if (pollRes.status >= 500) {
-        logStep("POLL: server error", { status: pollRes.status });
-        return "stopped";
-      }
-      // 202 / 404 → keep waiting until the deadline.
-    }
-    return "pending";
+    const response = await fetch("/api/auth/google/native", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ idToken: credential.idToken, redirect }),
+    });
+    const data = (await response.json()) as { destinationPath?: string; error?: string };
+    if (!response.ok) throw new Error(data.error || "Google sign-in failed");
+    window.location.href = data.destinationPath || "/account";
   };
 
-  /**
-   * CLASSIC WEB FLOW: the whole OAuth round-trip happens in this window,
-   * so the session cookie lands in the same browser that is viewing the app.
-   */
-  const handleGoogleSignIn = () => {
+  const onClick = async () => {
     if (loading) return;
     setLoading(true);
-    loadingRef.current = true;
     setErrorMsg(null);
-
-    let targetUrl = "/api/auth/google";
-    if (redirect) {
-      targetUrl += `?redirect=${encodeURIComponent(redirect)}`;
-    }
-
-    window.location.href = targetUrl;
-  };
-
-  /**
-   * NATIVE (CAPACITOR) FLOW: Google's sign-in UI is only supported in a real
-   * browser, so the auth URL is opened with the @capacitor/browser plugin's
-   * IN-APP Custom Tab — an overlay rendered on top of THIS app, not a
-   * standalone Chrome launch. SHOPY stays the underlying app
-   * and the polling below keeps running while the overlay is up. Because the
-   * Custom Tab has a separate cookie jar from the app's WebView, the issued
-   * session is handed back via the one-time server-side handoff record this
-   * WebView polls for; the callback then redirects to the app's verified
-   * HTTPS App Link (/oauth/complete, intent-filter in
-   * android/app/src/main/AndroidManifest.xml), which Android dispatches back
-   * to this app (appUrlOpen) so it comes straight to the foreground and the
-   * sign-in finishes automatically. The pending record is persisted so
-   * sign-in can ALWAYS auto-complete: on app refocus, or after the app was
-   * closed and reopened.
-   */
-  const handleNativeGoogleSignIn = async () => {
-    if (loading || loadingRef.current) return;
-    setLoading(true);
-    loadingRef.current = true;
-    setErrorMsg(null);
-    setDiag(null);
-
-    // Terminal failure: record which step broke, show the friendly message, stop.
-    const fail = (step: string, reason: string) => {
-      logStep("FAIL", { step, reason });
-      setDiag(`${step}: ${reason}`);
-      setErrorMsg("Sign-in did not complete. Please try again.");
-      setLoading(false);
-      loadingRef.current = false;
-    };
-
     try {
-      // 1. Ask the server for a signed, URL-carried auth URL. The handoff id
-      //    ties this sign-in to THIS WebView so only it can collect the result.
-      const handoffId =
-        typeof crypto !== "undefined" && "randomUUID" in crypto
-          ? crypto.randomUUID()
-          : `h_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-      logStep("START: handoffId created", {
-        length: handoffId.length,
-        prefix: handoffId.slice(0, 8),
-      });
-
-      // Persist immediately so a closed/suspended app can still auto-finish.
-      storeHandoff({ handoffId, redirect: redirect ?? null, startedAt: Date.now() });
-
-      const params = new URLSearchParams({ native: "1", handoff: handoffId });
-      if (redirect) params.set("redirect", redirect);
-
-      // STEP 1 — START: fetch the signed Google auth URL.
-      let startRes: Response;
-      try {
-        startRes = await fetch(`/api/auth/google?${params.toString()}`);
-      } catch (netErr) {
-        logStep("START: fetch threw", { message: (netErr as Error)?.message });
-        fail("START", "network error reaching /api/auth/google");
-        return;
+      if (Capacitor.getPlatform() === "android") {
+        await handleNativeSignIn();
+      } else {
+        handleWebSignIn();
       }
-      if (!startRes.ok) {
-        fail("START", `/api/auth/google returned ${startRes.status}`);
-        return;
-      }
-
-      let startJson: { authUrl?: unknown };
-      try {
-        startJson = await startRes.json();
-      } catch (jsonErr) {
-        logStep("START: response was NOT JSON", {
-          status: startRes.status,
-          contentType: startRes.headers.get("content-type"),
-          message: (jsonErr as Error)?.message,
-        });
-        fail("START", "auth URL request did not return JSON");
-        return;
-      }
-
-      // STEP 2 — GOOGLE URL: validate the returned authorize URL (full URL not logged).
-      const authUrl = startJson.authUrl;
-      const googleHostOk =
-        typeof authUrl === "string" && authUrl.startsWith("https://accounts.google.com/");
-      if (!googleHostOk) {
-        fail("GOOGLE URL", "authUrl missing or not an accounts.google.com URL");
-        return;
-      }
-
-      // STEP 3 — BROWSER: open Google in the IN-APP Custom Tab overlay.
-      // @capacitor/browser on Android opens the URL via Chrome Custom Tabs
-      // (BrowserControllerActivity + CustomTabsIntent in the plugin's
-      // Android source) — an in-app overlay rendered ON TOP of this app:
-      // SHOPY stays the underlying activity, no standalone Chrome launch,
-      // no manual app switch. Google's account UI works in a real browser
-      // context (Custom Tabs), not an embedded WebView, and the overlay's
-      // final redirect to the app's verified App Link (/oauth/complete,
-      // intent-filter in android/app/src/main/AndroidManifest.xml) is
-      // dispatched by Android back to this app (appUrlOpen), so the poll
-      // (or the browserFinished/appUrlOpen listener) finishes the sign-in
-      // without any manual step while THIS WebView keeps polling below.
-      nativeFlowRef.current = true;
-      try {
-        await Browser.open({ url: authUrl });
-        logStep("BROWSER: opened Google sign-in in in-app Custom Tab; handoff polling continues");
-      } catch (browserErr) {
-        logStep("BROWSER: failed to open in-app Custom Tab", {
-          message: (browserErr as Error)?.message,
-        });
-        fail("BROWSER", "in-app browser did not open");
-        return;
-      }
-
-      // STEP 4 — POLL the one-time handoff until the in-app Custom Tab
-      // sign-in completes (the tab sign-in runs in the Custom Tab overlay,
-      // not in this WebView).
-      const outcome = await pollHandoff(
-        handoffId,
-        Date.now() + 9 * 60 * 1000,
-        () => nativeFlowRef.current
-      );
-
-      if (outcome === "complete") return; // already navigated away
-      if (outcome === "stopped") {
-        fail("POLL", "handoff was not completed");
-        return;
-      }
-
-      // "pending": the system-browser sign-in never produced a consumable
-      // handoff within the window. The record stays persisted — returning to
-      // the app (or reopening it) auto-resumes and finishes the sign-in.
-      logStep("POLL: window elapsed, keeping record for auto-resume");
-      setDiag("Sign-in in progress — it will finish automatically when you return to SHOPY.");
-      setErrorMsg("If you signed in, close the Google tab and go back to the app.");
+    } catch (error) {
+      console.error("[GOOGLE-SIGNIN] failed", error);
+      setErrorMsg("Google sign-in did not complete. Please try again.");
       setLoading(false);
-      loadingRef.current = false;
-    } catch (err) {
-      logStep("UNCAUGHT error", { message: (err as Error)?.message });
-      fail("UNCAUGHT", (err as Error)?.message || "unknown error");
     }
   };
-
-  /**
-   * AUTO-RESUME: pick up a persisted handoff without re-clicking. Runs on mount
-   * (covers the closed-then-reopened app) and every time the WebView regains
-   * focus (covers the suspended-while-signing-in case).
-   */
-  const resumeStoredHandoff = () => {
-    if (resumePollRef.current || loadingRef.current) return;
-    const rec = readStoredHandoff();
-    if (!rec) return;
-    resumePollRef.current = true;
-    setLoading(true);
-    loadingRef.current = true;
-    setDiag("Resuming Google sign-in…");
-    logStep("RESUME: polling stored handoff", { age: Date.now() - rec.startedAt });
-    pollHandoff(rec.handoffId, Date.now() + 9 * 60 * 1000, () => resumePollRef.current).then(
-      (outcome) => {
-        if (outcome === "complete") return; // already navigated away
-        resumePollRef.current = false;
-        setLoading(false);
-        loadingRef.current = false;
-        if (outcome === "stopped") {
-          setErrorMsg("Sign-in did not complete. Please try again.");
-        } else {
-          setDiag("Still signing in — finish in the Google tab and it will complete here automatically.");
-          setErrorMsg("Sign-in in progress — it will finish automatically when you return to SHOPY.");
-        }
-      }
-    );
-  };
-
-  const onClick = () => {
-    if (Capacitor.isNativePlatform()) {
-      handleNativeGoogleSignIn();
-    } else {
-      handleGoogleSignIn();
-    }
-  };
-
-  // Safety net: if the component unmounts (navigated away), stop polling.
-  useEffect(() => {
-    return () => {
-      nativeFlowRef.current = false;
-      resumePollRef.current = false;
-    };
-  }, []);
-
-  // Auto-resume on mount + whenever the app's WebView becomes visible/focused.
-  useEffect(() => {
-    if (!Capacitor.isNativePlatform()) return;
-    resumeStoredHandoff();
-    const onWake = () => {
-      if (typeof document === "undefined" || document.visibilityState !== "visible") return;
-      resumeStoredHandoff();
-    };
-    document.addEventListener("visibilitychange", onWake);
-    window.addEventListener("focus", onWake);
-
-    // ─── Deep-link handler ────────────────────────────────────────────────────
-    // GoogleButton is mounted on /login and /register (where NativeGoogleAuthResume
-    // deliberately defers). When the OAuth return link fires while the user is on
-    // one of these pages, appUrlOpen must drive the handoff poll immediately
-    // rather than waiting for the 1.5 s timer. The OS delivers the return via
-    // the verified HTTPS App Link (https://…/oauth/complete — autoVerify
-    // intent-filter) and, on older builds, via the shopy://oauth/complete
-    // custom scheme; both must be handled here.
-    let deepLinkHandle: { remove: () => void } | null = null;
-    App.addListener("appUrlOpen", (event) => {
-      console.log("[GOOGLE-SIGNIN] GoogleButton appUrlOpen", event.url);
-      if (
-        typeof event.url === "string" &&
-        (event.url.startsWith("shopy://oauth") ||
-          event.url.includes("/oauth/complete"))
-      ) {
-        Browser.close().catch(() => undefined);
-        resumeStoredHandoff();
-      }
-    })
-      .then((h) => { deepLinkHandle = h; })
-      .catch((e) =>
-        console.warn("[GOOGLE-SIGNIN] appUrlOpen listener failed", e)
-      );
-
-    // ─── In-app Custom Tab "finished" handler ─────────────────────────────────
-    // When the Google overlay (in-app Custom Tab opened via Browser.open) is
-    // dismissed, Android fires "browserFinished". Resume the stored handoff so
-    // control returns to the SHOPY WebView and any pending sign-in completes.
-    // This complements appUrlOpen (the App-Link fast path) and the
-    // visibilitychange / focus listeners above.
-    let browserFinishedHandle: { remove: () => void } | null = null;
-    Browser.addListener("browserFinished", () => {
-      console.log("[GOOGLE-SIGNIN] GoogleButton browserFinished");
-      resumeStoredHandoff();
-    })
-      .then((h) => { browserFinishedHandle = h; })
-      .catch((e) =>
-        console.warn("[GOOGLE-SIGNIN] browserFinished listener failed", e)
-      );
-
-    return () => {
-      document.removeEventListener("visibilitychange", onWake);
-      window.removeEventListener("focus", onWake);
-      deepLinkHandle?.remove();
-      browserFinishedHandle?.remove();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   return (
     <div>
@@ -465,49 +81,21 @@ export default function GoogleButton({
         {loading ? (
           <>
             <Loader2 className="w-4 h-4 animate-spin text-[#495464]" />
-            <span>Connecting to Google…</span>
+            <span>Signing in with Google…</span>
           </>
         ) : (
           <>
-            {/* Official Google "G" SVG Icon */}
-            <svg
-              className="w-4 h-4 flex-shrink-0"
-              viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                fill="#4285F4"
-              />
-              <path
-                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                fill="#34A853"
-              />
-              <path
-                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                fill="#FBBC05"
-              />
-              <path
-                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                fill="#EA4335"
-              />
+            <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05" />
+              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335" />
             </svg>
             <span className="truncate">{text}</span>
           </>
         )}
       </button>
-      {errorMsg && (
-        <>
-          <p className="text-[11px] tracking-wider text-red-700/80 uppercase mt-2 text-center">
-            {errorMsg}
-          </p>
-          {diag && (
-            <p className="text-[10px] text-red-700/60 mt-1 text-center font-mono break-words">
-              {diag}
-            </p>
-          )}
-        </>
-      )}
+      {errorMsg && <p className="text-[11px] tracking-wider text-red-700/80 uppercase mt-2 text-center">{errorMsg}</p>}
     </div>
   );
 }

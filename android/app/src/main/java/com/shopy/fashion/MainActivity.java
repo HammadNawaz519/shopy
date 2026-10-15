@@ -9,11 +9,13 @@ import android.view.ViewGroup;
 import android.view.WindowManager;
 
 import com.getcapacitor.BridgeActivity;
+import com.shopy.fashion.auth.NativeGoogleAuthPlugin;
 
 public class MainActivity extends BridgeActivity {
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        registerPlugin(NativeGoogleAuthPlugin.class);
         super.onCreate(savedInstanceState);
         requestHighestRefreshRate();
         configureWebViewRendering();
