@@ -2396,15 +2396,25 @@ class SupabaseDataStore {
   }
 
   async getNavigationItems(onlyActive = false): Promise<NavigationItem[]> {
+    // Public navigation is read on every app launch (root layout SSR + API).
+    // Redis-cache it (30 min) with stampede protection; admin mutations
+    // invalidate the key immediately, so edits show up without waiting TTL.
+    // On any error the static fallback below is used and NOT cached.
+    const cacheKey = buildCacheKey("navigation", onlyActive ? "active" : "all");
     try {
-      await this.ensureTablesExist();
-      let sql = `SELECT * FROM navigation_items`;
-      if (onlyActive) {
-        sql += ` WHERE is_active = true`;
-      }
-      sql += ` ORDER BY order_index ASC, name ASC;`;
-      const res = await query(sql);
-      if (res.rows.length > 0) {
+      return await fetchWithStampedeProtection(cacheKey, async () => {
+        await this.ensureTablesExist();
+        let sql = `SELECT * FROM navigation_items`;
+        if (onlyActive) {
+          sql += ` WHERE is_active = true`;
+        }
+        sql += ` ORDER BY order_index ASC, name ASC;`;
+        const res = await query(sql);
+        if (res.rows.length === 0) {
+          // No nav rows is authoritative state: cache the empty list so we
+          // don't re-scan on every request until the first item is created.
+          return [] as NavigationItem[];
+        }
         const rawItems: NavigationItem[] = res.rows.map((r) => ({
           id: r.id,
           name: r.name,
@@ -2440,7 +2450,7 @@ class SupabaseDataStore {
         }
 
         return deduplicated;
-      }
+      }, CACHE_TTL.NAVIGATION);
     } catch (err) {
       console.error("[GET NAV ITEMS ERROR]", err);
     }
@@ -2499,6 +2509,7 @@ class SupabaseDataStore {
         cleanSlug,
       ]
     );
+    redisDelPattern(`${CACHE_VERSION}:navigation:*`).catch(() => {});
     const r = res.rows[0];
     return {
       id: r.id,
@@ -2537,6 +2548,7 @@ class SupabaseDataStore {
       params
     );
     if (res.rows.length === 0) return undefined;
+    redisDelPattern(`${CACHE_VERSION}:navigation:*`).catch(() => {});
     const r = res.rows[0];
     return {
       id: r.id,
@@ -2551,6 +2563,7 @@ class SupabaseDataStore {
   async deleteNavigationItem(id: string): Promise<boolean> {
     await this.ensureTablesExist();
     const res = await query(`DELETE FROM navigation_items WHERE id = $1;`, [id]);
+    redisDelPattern(`${CACHE_VERSION}:navigation:*`).catch(() => {});
     return (res.rowCount || 0) > 0;
   }
 
@@ -2566,6 +2579,7 @@ class SupabaseDataStore {
         );
       }
     });
+    redisDelPattern(`${CACHE_VERSION}:navigation:*`).catch(() => {});
     return true;
   }
 

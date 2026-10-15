@@ -8,6 +8,8 @@ import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
 import MobileMenu from "@/components/layout/MobileMenu";
 import SearchModal from "@/components/search/SearchModal";
+import { useNavigationLinks } from "@/lib/client/navigation";
+import type { NavigationItem } from "@/lib/db/store";
 
 // Defensive deduplication helper to ensure no duplicate links, and remove about/contact/accessories
 const EXCLUDED_NAMES = new Set(["about", "contact", "accessories"]);
@@ -44,7 +46,7 @@ function deduplicateLinks(items: Array<{ name: string; href: string }>): Array<{
   return result;
 }
 
-export default function Navbar() {
+export default function Navbar({ initialNavItems }: { initialNavItems?: NavigationItem[] }) {
   const pathname = usePathname();
   const { totalCount, openCart } = useCart();
   const { user } = useAuth();
@@ -54,8 +56,6 @@ export default function Navbar() {
   const [searchModalOpen, setSearchModalOpen] = useState(false);
 
   const isHome = pathname === "/";
-
-  const [navItems, setNavItems] = useState<Array<{ name: string; href: string }>>([]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -71,26 +71,9 @@ export default function Navbar() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  useEffect(() => {
-    let isMounted = true;
-    const fetchNav = async () => {
-      try {
-        const res = await fetch("/api/navigation", { cache: "no-store" });
-        if (res.ok) {
-          const data = await res.json();
-          if (isMounted && Array.isArray(data.navigation)) {
-            const mapped = data.navigation.map((i: any) => ({ name: i.name, href: i.href }));
-            const deduplicated = deduplicateLinks(mapped);
-            setNavItems(deduplicated);
-          }
-        }
-      } catch {}
-    };
-    fetchNav();
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  // Server-rendered links first; a single shared client fetch only when the
+  // server side had nothing (see lib/client/navigation).
+  const navItems = useNavigationLinks(initialNavItems);
 
   // Do NOT render customer navbar on admin routes
   if (pathname.startsWith("/admin")) {

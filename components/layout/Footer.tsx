@@ -1,13 +1,33 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { Instagram, Facebook, Linkedin, Youtube } from "lucide-react";
+import { useNavigationLinks } from "@/lib/client/navigation";
+import type { NavigationItem } from "@/lib/db/store";
 
-export default function Footer() {
+export default function Footer({ initialNavItems }: { initialNavItems?: NavigationItem[] }) {
   const pathname = usePathname();
+
+  const defaultShopLinks = [
+    { name: "View All", href: "/products" },
+    { name: "Tops", href: "/collections/tops" },
+    { name: "Bottoms", href: "/collections/bottoms" },
+    { name: "Footwear", href: "/collections/footwear" },
+    { name: "Fragrances", href: "/collections/fragrances" },
+    { name: "Co-Ord Sets", href: "/collections/co-ord-sets" },
+    { name: "Accessories", href: "/collections/accessories" },
+  ];
+  // Server-rendered navigation links (Redis-cached); the shared client
+  // fallback in lib/client/navigation only fires if the SSR list was empty.
+  // Keeps the safe default links when navigation cannot be loaded.
+  // (Hook must run BEFORE any conditional return — the component instance
+  // persists across client-side navigations, so the hook count has to be
+  // stable for every pathname.)
+  const navLinks = useNavigationLinks(initialNavItems);
+  const shopLinks = navLinks.length > 0 ? navLinks : defaultShopLinks;
 
   // Do NOT render footer on admin, checkout, account, order-confirmation, auth, and product detail pages
   const noFooterRoutes = [
@@ -24,36 +44,6 @@ export default function Footer() {
   if (noFooterRoutes.some((route) => pathname.startsWith(route))) {
     return null;
   }
-
-  const defaultShopLinks = [
-    { name: "View All", href: "/products" },
-    { name: "Tops", href: "/collections/tops" },
-    { name: "Bottoms", href: "/collections/bottoms" },
-    { name: "Footwear", href: "/collections/footwear" },
-    { name: "Fragrances", href: "/collections/fragrances" },
-    { name: "Co-Ord Sets", href: "/collections/co-ord-sets" },
-    { name: "Accessories", href: "/collections/accessories" },
-  ];
-  const [shopLinks, setShopLinks] = useState(defaultShopLinks);
-
-  useEffect(() => {
-    let active = true;
-    fetch("/api/navigation", { cache: "no-store" })
-      .then((res) => (res.ok ? res.json() : Promise.reject(new Error("Navigation request failed"))))
-      .then((data) => {
-        if (!active || !Array.isArray(data.navigation)) return;
-        const links = data.navigation
-          .filter((item: { name?: string; href?: string }) => item.name && item.href)
-          .map((item: { name: string; href: string }) => ({ name: item.name, href: item.href }));
-        if (links.length > 0) setShopLinks(links);
-      })
-      .catch(() => {
-        // Keep the safe default links when navigation cannot be loaded.
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
 
   const infoLinks = [
     { name: "About SHOPY", href: "/about" },

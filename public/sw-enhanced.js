@@ -114,7 +114,12 @@ self.addEventListener('activate', (event) => {
           .map((name) => caches.delete(name))
       );
       await self.clients.claim();
-      await warmUpCriticalData().catch(() => {});
+      // Warm-up runs AFTER activation completes: awaiting it would delay
+      // clients.claim() (the new worker only takes control after
+      // activation), holding the old worker in control and slowing the
+      // first interception on this version. Fire-and-forget: it still
+      // runs in the background and is never fatal.
+      void warmUpCriticalData().catch(() => {});
     })()
   );
 });

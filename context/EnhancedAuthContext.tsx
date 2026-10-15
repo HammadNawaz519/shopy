@@ -272,25 +272,20 @@ export function EnhancedAuthProvider({ children }: { children: React.ReactNode }
 
     mePromise = (async () => {
       try {
-        // Check connectivity first
-        const isOnline = await checkNetworkConnectivity();
-
-        if (!isOnline && !force) {
-          // Offline mode - use cached data if available
-          const cached = await getCachedUserData();
-          if (cached.user) {
-            console.log("[Auth] Using cached user data (offline mode)");
-            return cached.user;
-          }
-          return null;
-        }
-
-        // Online - validate with server
+        // Validate with the server in ONE bounded request instead of the old
+        // HEAD-then-GET waterfall (2 RTTs at every launch). The catch below
+        // already degrades to the cached/offline path when the network is
+        // down or black-holed, and the abort timeout bounds the wait so a
+        // stalled network can never hang session hydration.
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10_000);
         const res = await fetch("/api/auth/me", {
           headers: {
             "Cache-Control": "no-cache",
           },
+          signal: controller.signal,
         });
+        clearTimeout(timeoutId);
 
         if (res.ok) {
           const data = await res.json();
@@ -338,7 +333,7 @@ export function EnhancedAuthProvider({ children }: { children: React.ReactNode }
     } finally {
       setLoading(false);
     }
-  }, [checkNetworkConnectivity, getCachedUserData, cacheUserData, clearAuthCache]);
+  }, [getCachedUserData, cacheUserData, clearAuthCache]);
 
   // Login function
   const login = async (email: string, password: string) => {

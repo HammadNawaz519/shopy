@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Cormorant_Garamond, Plus_Jakarta_Sans } from "next/font/google";
+import { getCachedNavigationItems, type NavigationItem } from "@/lib/db/store";
 import "./globals.css";
 import { EnhancedAuthProvider } from "@/context/EnhancedAuthContext";
 import { EnhancedCartProvider } from "@/context/EnhancedCartContext";
@@ -76,11 +77,22 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Server-render the navigation items (Redis-cached, 30 min TTL, invalidated
+  // instantly on admin edits) so the Navbar and Footer paint their links on
+  // the very first frame — no client-side /api/navigation fetch on launch.
+  // Fail-safe: any lookup error falls back to the components' own defaults.
+  let navItems: NavigationItem[] = [];
+  try {
+    navItems = (await getCachedNavigationItems(true)) ?? [];
+  } catch {
+    navItems = [];
+  }
+
   return (
     <html lang="en" className={`${cormorant.variable} ${jakarta.variable}`}>
 
@@ -93,11 +105,11 @@ export default function RootLayout({
             <ToastProvider>
               <ClientCacheRevalidator />
               <IdlePrefetcher />
-              <Navbar />
+              <Navbar initialNavItems={navItems} />
               <StatusBarTint />
               <CartDrawer />
               <main className="flex-1">{children}</main>
-              <Footer />
+              <Footer initialNavItems={navItems} />
               <InstallAppPrompt />
             </ToastProvider>
           </EnhancedCartProvider>
