@@ -820,7 +820,7 @@ export default function AdminHomepagePage() {
                         <img
                           src={config.editorialImage1 || "/atelier-still-life.jpg"}
                           alt="Quote section image demo"
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-contain"
                         />
                       </div>
                     </div>

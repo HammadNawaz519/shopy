@@ -90,7 +90,7 @@ export default function EditorialSection({ initialQuote, initialConfig }: Editor
               fill
               loading="lazy"
               sizes="(max-width: 1024px) 100vw, 55vw"
-              className="object-cover object-center transform group-hover:scale-102 transition-transform duration-700 ease-out"
+              className="object-contain object-center transform group-hover:scale-102 transition-transform duration-700 ease-out"
             />
           </div>
 
