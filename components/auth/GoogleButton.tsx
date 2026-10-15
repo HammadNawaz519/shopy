@@ -75,11 +75,15 @@ export default function GoogleButton({
     } catch (error) {
       console.error("[GOOGLE-SIGNIN] failed", error);
       const detail = error instanceof Error ? error.message : String(error);
-      setErrorMsg(
-        detail.includes("cancel") || detail.includes("Cancel")
-          ? "Google sign-in was cancelled."
-          : "Google sign-in failed. Please try again."
-      );
+      const normalizedDetail = detail.toLowerCase();
+      if (normalizedDetail.includes("cancelled")) {
+        setErrorMsg("Google sign-in was cancelled.");
+      } else if (normalizedDetail.includes("no credential")) {
+        setErrorMsg("No Google account is available on this device.");
+      } else {
+        console.error("[GOOGLE-SIGNIN] diagnostic", detail);
+        setErrorMsg("Google sign-in failed. Please try again.");
+      }
       setLoading(false);
     }
   };

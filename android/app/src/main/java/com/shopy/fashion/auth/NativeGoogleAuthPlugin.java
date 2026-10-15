@@ -72,10 +72,15 @@ public class NativeGoogleAuthPlugin extends Plugin {
                     @Override
                     public void onError(@NonNull GetCredentialException error) {
                         String message = error.getMessage();
-                        String detail = error.getClass().getSimpleName()
+                        String exceptionType = error.getClass().getSimpleName();
+                        String detail = exceptionType
                                 + (message == null || message.isEmpty() ? "" : ": " + message);
                         android.util.Log.e("NativeGoogleAuth", detail, error);
-                        call.reject("Google sign-in was cancelled or failed (" + detail + ")");
+                        if (exceptionType.contains("Cancellation")) {
+                            call.reject("Google sign-in was cancelled");
+                        } else {
+                            call.reject("Google sign-in failed (" + detail + ")");
+                        }
                     }
                 }
         );
