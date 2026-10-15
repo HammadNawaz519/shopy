@@ -1,24 +1,34 @@
 package com.shopy.fashion;
 
 import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.os.Build;
 import android.os.Bundle;
+import android.webkit.JavascriptInterface;
+import android.webkit.WebView;
+import android.view.Gravity;
 import android.view.Display;
+import android.view.animation.AlphaAnimation;
 import android.view.Surface;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
+import android.widget.FrameLayout;
+import android.widget.ImageView;
 
 import com.getcapacitor.BridgeActivity;
 import com.shopy.fashion.auth.NativeGoogleAuthPlugin;
 
 public class MainActivity extends BridgeActivity {
+    private ImageView launchOverlay;
+    private boolean launchReady;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(NativeGoogleAuthPlugin.class);
         super.onCreate(savedInstanceState);
         requestHighestRefreshRate();
+        showBrandedLaunchOverlay();
         // Configure immediately (the Bridge inflates the view tree synchronously
         // in super.onCreate) and again on the next frame to cover attach races.
         // The Bridge may only attach the WebView in onResume (before the first
@@ -109,12 +119,64 @@ public class MainActivity extends BridgeActivity {
      * its content and no splash is re-shown. On activity recreation the
      * same transparent-over-splash sequence plays once more.
      */
+    private void showBrandedLaunchOverlay() {
+                    final View content = findViewById(android.R.id.content);
+                    if (!(content instanceof FrameLayout)) return;
+
+                    launchOverlay = new ImageView(this);
+                    launchOverlay.setImageResource(com.shopy.fashion.R.drawable.splash);
+                    launchOverlay.setScaleType(ImageView.ScaleType.CENTER_CROP);
+                    launchOverlay.setBackground(new ColorDrawable(Color.rgb(244, 244, 242)));
+                    launchOverlay.setContentDescription(null);
+                    launchOverlay.setClickable(false);
+
+                    FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT,
+                            ViewGroup.LayoutParams.MATCH_PARENT
+                    );
+                    params.gravity = Gravity.CENTER;
+                    ((FrameLayout) content).addView(launchOverlay, params);
+                }
+
+    private void revealStorefront() {
+                    if (launchReady) return;
+                    launchReady = true;
+                    runOnUiThread(() -> {
+                        if (launchOverlay == null) return;
+                        AlphaAnimation fade = new AlphaAnimation(1f, 0f);
+                        fade.setDuration(220L);
+                        fade.setFillAfter(true);
+                        fade.setAnimationListener(new android.view.animation.Animation.AnimationListener() {
+                            @Override
+                            public void onAnimationStart(android.view.animation.Animation animation) {}
+
+                            @Override
+                            public void onAnimationEnd(android.view.animation.Animation animation) {
+                                ViewGroup parent = (ViewGroup) launchOverlay.getParent();
+                                if (parent != null) parent.removeView(launchOverlay);
+                                launchOverlay = null;
+                            }
+
+                            @Override
+                            public void onAnimationRepeat(android.view.animation.Animation animation) {}
+                        });
+                        launchOverlay.startAnimation(fade);
+                    });
+                }
+
+                private final class LaunchScreenBridge {
+                    @JavascriptInterface
+                    public void markReady() {
+                        revealStorefront();
+                    }
+                }
     private void configureWebViewRendering(View root) {
         try {
             final android.webkit.WebView wv = findWebView(root);
             if (wv == null) return;
             try {
                 wv.setBackgroundColor(Color.TRANSPARENT);
+                wv.addJavascriptInterface(new LaunchScreenBridge(), "AndroidLaunchScreen");
                 if (wv.getSettings() != null) {
                     wv.getSettings().setOffscreenPreRaster(true);
                 }
