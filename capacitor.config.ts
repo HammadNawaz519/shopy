@@ -3,26 +3,30 @@ import type { CapacitorConfig } from "@capacitor/cli";
 /**
  * SHOPY Atelier — Capacitor native shell config.
  *
- * This does NOT modify the web app / UI. It wraps the already-built SHOPY site
- * in native Android (and optionally iOS) shells.
+ * The APK now boots into the instant-launch shell (cap-shell/), a local
+ * copy of the real landing page built from the same components, styles and
+ * assets as the production app (see scripts/build-cap-shell.mjs). First
+ * paint needs no network at all.
  *
- * Why `server.url` is set: SHOPY is a Next.js app whose API routes, middleware,
- * Supabase/Redis and ISR all run on the server (Vercel). A static `webDir`
- * bundle cannot carry that backend, so the native shell loads the live deployed
- * site. The PWA service worker we ship then provides the offline app shell and
- * cached data inside the WebView.
+ * The live application (https://buyatshopy.vercel.app) remains the source
+ * of truth: the shell's links and the /api fetch retargeting in
+ * local-shell/live.ts hand off to it, where all routes, session cookies,
+ * Supabase auth, cart, checkout, the service worker and deep links keep
+ * working exactly as before. `server.url` is deliberately NOT set: with a
+ * remote URL the shell would load the slow remote document first and the
+ * local landing layer would never get the first frame.
  */
 const config: CapacitorConfig = {
   // Unique app id (reverse-DNS). CHANGE to your own before publishing, e.g.
   // match your Play Store package / domain.
   appId: "com.shopy.fashion",
   appName: "SHOPY Atelier",
-  // Next.js build output. With server.url set, the shell loads the remote URL
-  // at runtime and this folder is only used as a fallback asset source.
-  webDir: ".next",
+  // Instant-launch landing layer, built by `npm run build:cap`
+  // (next build + scripts/build-cap-shell.mjs).
+  webDir: "cap-shell",
   server: {
-    // Your live production site (the shell wraps this URL at runtime).
-    url: "https://buyatshopy.vercel.app",
+    // Local assets are served over https so the WebView treats the shell
+    // like a normal secure origin (localStorage, service workers, canvas).
     androidScheme: "https",
   },
   android: {

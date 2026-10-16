@@ -1,0 +1,26 @@
+/*
+ * Instant-launch shell styles.
+ *
+ * Utility classes come from app/globals.css (same Tailwind pipeline +
+ * config as the web app, so generated utilities are identical). This file
+ * supplies what the Next.js runtime normally supplies:
+ *
+ *  - the brand font CSS variables. `next/font` would set these on <html>
+ *    (class __variable_*); the shell ships the same woff2 files
+ *    (fonts.css, generated from the current .next build) and points the
+ *    variables at them, plus a metric-safe generic fallback stack.
+ *  - zero-flash hardening: the document background matches the native
+ *    window/splash (#F4F4F2), so no frame ever renders white.
+ */
+
+:root {
+  --font-cormorant:
+    "Cormorant Garamond", "Times New Roman", Georgia, serif;
+  --font-jakarta:
+    "Plus Jakarta Sans", "Helvetica Neue", Arial, system-ui, sans-serif;
+}
+
+html,
+body {
+  background-color: #f4f4f2;
+}

@@ -133,3 +133,43 @@ adb shell am start -W -n com.shopy.fashion/.MainActivity
 # Web-side first-meaningful-paint proxy inside the app: devtools/WebView tracing,
 # or `adb shell dumpsys activity startuptime`
 ```
+
+## 9. v2 — APK-local instant landing shell (2026-10-16)
+
+Requirement: tap → the **actual existing SHOPY landing page** appears
+immediately from the APK (no white frame, no splash icon, no fake loading
+screen), with the real application continuing in the background as the
+source of truth.
+
+### Architecture
+
+| Layer | What | Where |
+|---|---|---|
+| `local-shell/` | Shell entry (`main.tsx`) rendering the exact landing tree — `Hero`, `CollectionGrid`, `FeaturedProducts`, `EditorialSection`, `Newsletter`, `Navbar`, `StatusBarTint`, `Footer` — plus `providers.tsx` (slim `AuthContext`/`CartContext` publishers, reusing the exported context objects), `shims/` for `next/image`, `next/link`, `next/navigation` (links map onto the live app), `live.ts` (retargets relative `/api/*` fetches at the live origin + pre-warms its immutable static assets), `use-landing-data.ts` (build-time snapshot → in-place live refresh, never replaces non-empty data), `timeline.ts` (`[shopy]` logcat milestones) | `local-shell/*` |
+| `scripts/build-cap-shell.mjs` | Bundles the shell with esbuild (aliases + `@/` paths), runs the **same** Tailwind/PostCSS pipeline over `app/globals.css`, extracts the brand `@font-face` rules + woff2 files from the current `.next` build, bundles the landing images from `public/`, and embeds a live data snapshot (production APIs when reachable, else the static catalog fallback from `lib/data/products`) | `cap-shell/` (gitignored build output) |
+| `capacitor.config.ts` | `webDir: "cap-shell"`, **no** `server.url` — the WebView boots into the local landing page; `androidScheme: "https"` kept for a secure local origin | |
+| `lib/cors.ts` + 7 public API routes | Additive `Access-Control-Allow-Origin: *` (no credentials) on the public GETs the shell refreshes: `/api/navigation`, `/api/homepage`, `/api/categories`, `/api/products`, `/api/search`, `/api/editorial/quote`, `/api/newsletter` (POST + OPTIONS preflight). Session-bearing routes untouched. | |
+
+### Handoff model
+
+- **First frame**: APK assets only — bundled fonts, landing images, CSS,
+  JS, data snapshot. No network. (`timeline` marks: `js-start`,
+  `render-start`, `first-frame`, `interactive`.)
+- **Background, post-paint**: `fetch` patch + `refreshLandingData()`
+  update the page in place; `warmRemoteApp()` pre-caches the live app's
+  immutable `/_next/static` chunks into the WebView's disk cache.
+- **User interaction** (nav links, CTAs, product cards, bag, search,
+  newsletter, account): the `next/link`/fetch shims navigate/retarget to
+  `https://buyatshopy.vercel.app` — where the real app's providers restore
+  session cookies + Supabase auth, the personal cart, checkout, the PWA
+  service worker, deep links and all routes, all unmodified.
+- **Offline**: the shell stays fully usable on bundled data; the real app
+  still loads when the network returns.
+
+### Verification pipeline
+
+`npm run cap:android` = `next build` → `node scripts/build-cap-shell.mjs`
+→ `cap sync android`; then `gradlew.bat assembleDebug/Release` in
+`android/`. Device checks: cold/warm launch first frame, offline launch,
+online handoff, Google OAuth/deep links. Logcat:
+`adb logcat -s chromium | grep shopy` prints the `[shopy] timeline` line.
