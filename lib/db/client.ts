@@ -12,25 +12,36 @@ declare global {
   var __shopy_pg_pool: Pool | undefined;
 }
 
-if (process.env.NODE_ENV === "production") {
-  pool = new Pool({
+function createPool(): Pool {
+  const p = new Pool({
     connectionString,
     ssl: { rejectUnauthorized: false },
-    max: 20,
-    idleTimeoutMillis: 60000,
+    // Supabase's pooler (port 6543) has a small SHARED connection cap. A
+    // client-side max of 20 — multiplied across N Vercel serverless instances
+    // — exhausts it and surfaces as "FATAL: too many clients already" (the
+    // "max client limit reached" error). Keep the client pool small; the
+    // pooler multiplexes connections for us.
+    max: 5,
+    idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 10000,
     keepAlive: true,
+    // A runaway/queued query can't hold a pooled connection forever and starve
+    // the whole pool (a frequent cause of "too many clients already").
+    statement_timeout: 30000,
   });
+  // Idle connections that drop (pooler resets, network blips) otherwise throw
+  // unhandled 'error' events and can crash a request / serverless instance.
+  p.on("error", (err) => {
+    console.error("[PG POOL] idle client error:", err.message);
+  });
+  return p;
+}
+
+if (process.env.NODE_ENV === "production") {
+  pool = createPool();
 } else {
   if (!global.__shopy_pg_pool) {
-    global.__shopy_pg_pool = new Pool({
-      connectionString,
-      ssl: { rejectUnauthorized: false },
-      max: 20,
-      idleTimeoutMillis: 60000,
-      connectionTimeoutMillis: 10000,
-      keepAlive: true,
-    });
+    global.__shopy_pg_pool = createPool();
   }
   pool = global.__shopy_pg_pool;
 }

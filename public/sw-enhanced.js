@@ -14,7 +14,7 @@
 // older `shopy-pwa-v*` caches) without touching unrelated browser storage.
 
 const CACHE_NAMESPACE = 'shopy-pwa';
-const VERSION = 'v3';
+const VERSION = 'v5';
 
 const CACHE_NAMES = {
   // Immutable, content-hashed build assets: cache-first.
@@ -129,10 +129,16 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Only same-origin GETs are eligible for any caching decision. Everything
-  // else (POST/PATCH/DELETE, cross-origin, other methods) is left untouched so
-  // it always reaches the network — mutations and checkouts can never be faked.
-  if (request.method !== 'GET' || url.origin !== self.location.origin) {
+  // Cross-origin images (Supabase storage / CDN) are the ONE exception to the
+  // "same-origin only" rule: cache them (opaque) so live-app photography
+  // survives offline. Everything else cross-origin is left network-only.
+  if (url.origin !== self.location.origin) {
+    if (request.method === 'GET' && isCrossOriginImage(url)) {
+      event.respondWith(cacheFirstOpaque(request, CACHE_NAMES.STATIC));
+    }
+    return;
+  }
+  if (request.method !== 'GET') {
     return;
   }
 
@@ -152,6 +158,14 @@ self.addEventListener('fetch', (event) => {
   // imagery appears while remaining usable offline.
   if (url.pathname.startsWith('/_next/image')) {
     event.respondWith(staleWhileRevalidate(event, request, CACHE_NAMES.RUNTIME));
+    return;
+  }
+
+  // Content-addressed media (/api/media/<id>) is immutable (same id = same
+  // bytes forever, Cache-Control: immutable). Cache-first so it is served
+  // offline reliably - not only after a first network request.
+  if (url.pathname.startsWith('/api/media/')) {
+    event.respondWith(cacheFirst(request, CACHE_NAMES.STATIC));
     return;
   }
 
@@ -207,6 +221,40 @@ function isStaticAsset(url) {
     return true;
   }
   return false;
+}
+
+// A cross-origin URL worth caching for offline use: imagery only (Supabase
+// storage, Cloudinary/CDN photo hosts, …). By extension or by image-ish path
+// segment. Never cache cross-origin data/APIs here.
+function isCrossOriginImage(url) {
+  return (
+    /\.(png|jpe?g|gif|webp|avif|svg|ico)(\?|$)/i.test(url.pathname + (url.search || '')) ||
+    /\/(storage|image|images|media|photo|photos|img|picsum|images\.cdn)\//i.test(url.pathname)
+  );
+}
+
+// Cache-first for cross-origin images. Opaque responses (no-cors) still carry
+// their bytes, so a cached copy renders offline even though its status is 0.
+function cacheFirstOpaque(request, cacheName) {
+  return caches.match(request).then((cached) => {
+    if (cached) {
+      fetch(request).then((res) => {
+        if (res && (res.ok || res.type === 'opaque')) {
+          caches.open(cacheName).then((cache) => cache.put(request, res.clone())).catch(() => {});
+        }
+      }).catch(() => {});
+      return cached;
+    }
+    return fetch(request)
+      .then((res) => {
+        if (res && (res.ok || res.type === 'opaque')) {
+          const clone = res.clone();
+          caches.open(cacheName).then((cache) => cache.put(request, clone)).catch(() => {});
+        }
+        return res;
+      })
+      .catch(() => new Response('', { status: 503 }));
+  });
 }
 
 // --- Strategies ---
@@ -310,10 +358,7 @@ function navigateWithShellFallback(request, cacheName) {
     )
     .then((document) => {
       if (!document) {
-        return new Response('You are offline. Reconnect to continue.', {
-          status: 503,
-          headers: { 'Content-Type': 'text/html' },
-        });
+        return offlinePage();
       }
       const documentPath = new URL(document.url, request.url).pathname +
         new URL(document.url, request.url).search;
@@ -346,18 +391,57 @@ function injectOfflineTarget(response, targetPath) {
     .catch(() => response);
 }
 
+// Branded "you're offline" page served when a navigation has no cached copy and
+// there is no network. Reads like a not-found page but is explicitly about the
+// connection, so the user knows to reconnect rather than think the page is gone.
+function offlinePage() {
+  const html = `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F4F4F2">
+<title>SHOPY - Offline</title>
+<style>
+  html,body{background:#F4F4F2;margin:0}
+  *{box-sizing:border-box}
+  .wrap{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:56px 24px;color:#495464;font-family:'Plus Jakarta Sans',system-ui,-apple-system,sans-serif}
+  .brand{font-family:'Cormorant Garamond',Georgia,serif;font-size:44px;letter-spacing:.05em;font-weight:500}
+  .tag{font-size:11px;letter-spacing:.32em;text-transform:uppercase;opacity:.65;margin:14px 0 30px}
+  .msg{max-width:340px;margin:0 auto;font-size:14px;line-height:1.75;opacity:.8}
+  .sep{width:40px;height:1px;background:#BBBFCA;margin:34px auto 0;opacity:.5}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="brand">SHOPY</div>
+    <div class="tag">You are offline</div>
+    <p class="msg">We couldn't load this page because there's no internet connection. Reconnect and try again - your last-viewed store content is kept safe for when you're back online.</p>
+    <div class="sep"></div>
+  </div>
+</body>
+</html>`;
+  return new Response(html, { status: 503, headers: { 'Content-Type': 'text/html' } });
+}
+
 // --- Warm up public data on activation (best-effort, never fatal) ---
 async function warmUpCriticalData() {
   const endpoints = ['/api/categories', '/api/homepage', '/api/navigation', '/api/products'];
-  await Promise.allSettled(
-    endpoints.map((path) =>
+  await Promise.allSettled([
+    // Home document: so the offline shell-fallback + cold open have a real page.
+    fetch('/', { credentials: 'same-origin' }).then((res) => {
+      if (res && res.ok) {
+        return caches.open(CACHE_NAMES.PAGES).then((cache) => cache.put(new Request('/'), res.clone()));
+      }
+    }),
+    ...endpoints.map((path) =>
       fetch(path, { credentials: 'same-origin' }).then((res) => {
         if (res && res.ok) {
           return caches.open(CACHE_NAMES.RUNTIME).then((cache) => cache.put(new Request(path), res.clone()));
         }
       })
-    )
-  );
+    ),
+  ]);
 }
 
 // --- Offline catalog warming (driven by the client, runs while online) ---
@@ -402,6 +486,51 @@ async function warmOfflinePaths(paths) {
   return { warmed, failed };
 }
 
+// Re-pull the home document + key storefront data so offline shows the LATEST,
+// then evict the oldest cache entries ("store the new, remove the old"). Runs
+// in the background; offline it no-ops and the last-known cache still serves.
+async function refreshOnlineAndPrune() {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+  const targets = [
+    ['/', CACHE_NAMES.PAGES],
+    ['/api/homepage', CACHE_NAMES.RUNTIME],
+    ['/api/categories', CACHE_NAMES.RUNTIME],
+    ['/api/products', CACHE_NAMES.RUNTIME],
+    ['/api/navigation', CACHE_NAMES.RUNTIME],
+  ];
+  await Promise.allSettled(
+    targets.map(async ([path, cacheName]) => {
+      try {
+        const res = await fetch(path, { method: 'GET', credentials: 'same-origin' });
+        if (!res || !res.ok) return;
+        const cache = await caches.open(cacheName);
+        await cache.put(path, res.clone());
+      } catch {
+        /* offline / not fatal */
+      }
+    })
+  );
+  // Evict the oldest entries so the cache holds the freshest content.
+  await Promise.allSettled([
+    pruneCache(CACHE_NAMES.RUNTIME, 60),
+    pruneCache(CACHE_NAMES.PAGES, 40),
+    pruneCache(CACHE_NAMES.FLIGHT, 60),
+  ]);
+}
+
+// Keep only the most recent `keep` keys of a cache (Cache API returns keys in
+// insertion order, so the oldest are first and get evicted first).
+async function pruneCache(cacheName, keep) {
+  try {
+    const cache = await caches.open(cacheName);
+    const keys = await cache.keys();
+    const toDelete = keys.slice(0, Math.max(0, keys.length - keep));
+    await Promise.all(toDelete.map((k) => cache.delete(k)));
+  } catch {
+    /* never fatal */
+  }
+}
+
 // --- Messaging: let the app control updates and cache lifecycle ---
 self.addEventListener('message', (event) => {
   const { data } = event || {};
@@ -425,6 +554,13 @@ self.addEventListener('message', (event) => {
         });
     });
     return;
+  }
+
+  // App came to the foreground online (or loaded while online): pull the
+  // freshest home + key data, store it, and evict the oldest cache entries so
+  // the NEXT offline session shows this new content, not the old snapshot.
+  if (data.type === 'REFRESH_ONLINE') {
+    void refreshOnlineAndPrune();
   }
 
   if (data.data && data.data.type === 'CLEAR_CACHE') {

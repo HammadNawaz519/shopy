@@ -67,7 +67,15 @@ export default function GoogleButton({
     setLoading(true);
     setErrorMsg(null);
     try {
-      if (Capacitor.getPlatform() === "android") {
+      // Use the in-app native Google CredentialManager only when the native
+      // plugin is actually reachable (Capacitor bridge + plugin header present
+      // on this page). On a page where it isn't (e.g. the live app opened where
+      // the native header wasn't injected), fall back to the real web-OAuth
+      // flow instead of surfacing a "sign-in failed" error.
+      const canUseNative =
+        Capacitor.getPlatform() === "android" &&
+        Capacitor.isPluginAvailable("NativeGoogleAuth");
+      if (canUseNative) {
         await handleNativeSignIn();
       } else {
         handleWebSignIn();

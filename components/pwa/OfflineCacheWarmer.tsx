@@ -88,6 +88,29 @@ async function buildCatalogPaths(): Promise<string[]> {
 }
 
 export default function OfflineCacheWarmer() {
+  // "As the app opens (~1s) / comes to the foreground / comes back online,
+  // refresh the home + key data, store the fresh copy and evict the old cache
+  // so the NEXT offline session shows the newest content."
+  useEffect(() => {
+    if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
+    const post = () => {
+      if (!navigator.onLine) return;
+      const c = navigator.serviceWorker.controller;
+      if (c) c.postMessage({ type: "REFRESH_ONLINE" });
+    };
+    const open = window.setTimeout(post, 1000);
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") window.setTimeout(post, 800);
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("online", post);
+    return () => {
+      window.clearTimeout(open);
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("online", post);
+    };
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
 
