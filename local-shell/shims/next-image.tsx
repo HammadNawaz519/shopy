@@ -18,6 +18,7 @@
  * sampling untainted, exactly like the real app's /_next/image responses do.
  */
 import React from "react";
+import { resolveMediaUrl } from "../media";
 
 export interface ImageProps {
   src: string;
@@ -55,9 +56,13 @@ export default function Image({
       }
     : {};
 
+  // Resolve media that the local shell does not bundle to the live origin so
+  // it loads after the first frame instead of 404ing on the local origin.
+  const resolvedSrc = resolveMediaUrl(src);
+
   return (
     <img
-      src={src}
+      src={resolvedSrc}
       alt={alt}
       loading={loading ?? (priority ? "eager" : "lazy")}
       decoding="async"

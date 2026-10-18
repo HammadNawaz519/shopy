@@ -256,6 +256,71 @@ async function buildSnapshot() {
   return snapshot;
 }
 
+/**
+ * Download the landing page's live media into the APK so the FIRST screen
+ * renders its important images without the network (airplane mode).
+ *
+ * The live snapshot references media by the app's relative paths
+ * (`/api/media/…`) — which 404 on the local shell origin. We fetch each one
+ * from the live application and store it under the same relative path with
+ * `/api/` stripped (`/media/…`), then rewrite the snapshot so those images
+ * resolve to the bundled local copy. Everything is non-fatal: a file that
+ * cannot be downloaded (network down at build time, 404, empty) is simply left
+ * as its `/api/media/…` path, which `local-shell/media.ts` retargets to the
+ * live origin at runtime — so the shell still works, just loading that image
+ * over the network after the first frame instead of offline.
+ *
+ * Returns a Map of bundled `ref → localPath`, used to rewrite the snapshot.
+ */
+async function bundleMedia(snapshot) {
+  const refRe = /\/api\/(?:media|images)\/[A-Za-z0-9._-]+/g;
+  const refs = Array.from(new Set(JSON.stringify(snapshot).match(refRe) || []));
+  const map = new Map();
+  let copied = 0;
+
+  for (const ref of refs) {
+    const localPath = ref.replace(/^\/api\//, "/"); // /media/med_…  /images/…
+    const dest = path.join(OUT, localPath);
+    if (existsSync(dest)) {
+      map.set(ref, localPath);
+      continue; // kept from a previous build
+    }
+    try {
+      const res = await fetch(`${PROD_URL}${ref}`, { redirect: "follow" });
+      if (!res.ok) {
+        log(`media ${ref} → HTTP ${res.status} (not bundled; loads live at runtime)`);
+        continue;
+      }
+      const buf = Buffer.from(await res.arrayBuffer());
+      if (buf.length === 0) {
+        log(`media ${ref} → empty (not bundled; loads live at runtime)`);
+        continue;
+      }
+      mkdirSync(path.dirname(dest), { recursive: true });
+      writeFileSync(dest, buf);
+      map.set(ref, localPath);
+      copied++;
+      log(`media ${ref} → bundled (${(buf.length / 1024).toFixed(0)} kB)`);
+    } catch (err) {
+      log(`media ${ref} download failed: ${err.message} (loads live at runtime)`);
+    }
+  }
+  log(`media: ${refs.length} ref(s), ${copied} bundled, ${refs.length - copied} fall back to live`);
+  return { map, refs };
+}
+
+/** Rewrite bundled media refs in the snapshot object to their local `/media/…` paths. */
+function deepReplaceMedia(node, map) {
+  if (typeof node === "string") return map.get(node) ?? node;
+  if (Array.isArray(node)) return node.map((n) => deepReplaceMedia(n, map));
+  if (node && typeof node === "object") {
+    const out = {};
+    for (const key of Object.keys(node)) out[key] = deepReplaceMedia(node[key], map);
+    return out;
+  }
+  return node;
+}
+
 /** The current build's immutable static assets (same content-hashed names as
  *  the production deployment of this source tree). */
 function remoteStaticList() {
@@ -356,9 +421,16 @@ async function main() {
   mkdirSync(OUT, { recursive: true });
 
   log(`building instant-launch shell → ${path.relative(ROOT, OUT)}`);
-  const snapshot = await buildSnapshot();
+  const rawSnapshot = await buildSnapshot();
   buildFontsCss();
   bundleLandingImages();
+  // Download the landing media into the APK and point the bundled snapshot at
+  // those local copies so the first screen renders its important images without
+  // the network. Un-bundled refs keep their /api/media path and are retargeted
+  // to the live origin at runtime (local-shell/media.ts) — never the first frame.
+  const { map } = await bundleMedia(rawSnapshot);
+  const snapshot = deepReplaceMedia(rawSnapshot, map);
+  writeFileSync(path.join(OUT, "snapshot.json"), JSON.stringify(snapshot, null, 2));
   await bundleShell(snapshot);
   writeIndexHtml();
   log("done.");

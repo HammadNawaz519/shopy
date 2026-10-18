@@ -28,6 +28,18 @@ const config: CapacitorConfig = {
     // Local assets are served over https so the WebView treats the shell
     // like a normal secure origin (localStorage, service workers, canvas).
     androidScheme: "https",
+    // Keep the live application's origin inside the SAME WebView instead of
+    // handing it off to an external browser. By default the Capacitor bridge
+    // launches any cross-origin URL in the system browser (ACTION_VIEW), which
+    // is why SHOPY links were opening Chrome. Listing the live origin here makes
+    // every navigation to it — products, categories, search, cart, account,
+    // checkout, and the Google sign-in callback — resolve in-app, where the
+    // real routes, session, Supabase auth and the native Google plugin keep
+    // working. Genuinely foreign origins (social links, unrelated sites, the
+    // Google consent screen) are NOT listed, so they still open in the browser.
+    // This only decides where cross-origin links navigate; it never gates the
+    // first frame, so the ~0.3s local startup is unchanged.
+    allowNavigation: ["buyatshopy.vercel.app"],
   },
   android: {
     // Launch background to match the SHOPY design (app shell, not the web UI).
