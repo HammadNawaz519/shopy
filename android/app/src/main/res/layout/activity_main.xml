@@ -6,7 +6,11 @@
     android:layout_height="match_parent"
     tools:context=".MainActivity">
 
+    <!-- Background pinned to the SHOPY surface (#F4F4F2) so the moment the
+         WebView attaches, before the first page paint, it is already the
+         app's own background — no white/black/grey surface can show through. -->
     <WebView
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        android:layout_height="match_parent"
+        android:background="@color/ic_launcher_background" />
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

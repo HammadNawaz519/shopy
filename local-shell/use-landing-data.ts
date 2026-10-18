@@ -10,17 +10,17 @@
 import { useCallback, useEffect, useState } from "react";
 import { installApiFetchPatch, refreshLandingData, warmRemoteApp } from "./live";
 import { mark } from "./timeline";
-import type { ShellSnapshot } from "./defaults-source";
+import { staticFallbackSnapshot, type ShellSnapshot } from "./defaults-source";
 
 declare const __SHOPY_SHELL_SNAPSHOT__: string;
 
-function parseSnapshot(): ShellSnapshot | null {
+function parseSnapshot(): ShellSnapshot {
   try {
     const parsed = JSON.parse(__SHOPY_SHELL_SNAPSHOT__);
-    if (!parsed || typeof parsed !== "object") return null;
+    if (!parsed || typeof parsed !== "object") return staticFallbackSnapshot();
     return parsed as ShellSnapshot;
   } catch {
-    return null;
+    return staticFallbackSnapshot();
   }
 }
 

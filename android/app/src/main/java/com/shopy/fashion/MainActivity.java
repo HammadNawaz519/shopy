@@ -12,9 +12,12 @@ import com.shopy.fashion.auth.NativeGoogleAuthPlugin;
 public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
-        registerPlugin(NativeGoogleAuthPlugin.class);
+        // Documented AndroidX order: install the (neutral, background-only)
+        // splash window FIRST, before the activity inflates its content. It
+        // auto-dismisses on the first drawn frame of the WebView — no timer.
         SplashScreen.installSplashScreen(this);
         super.onCreate(savedInstanceState);
+        registerPlugin(NativeGoogleAuthPlugin.class);
         requestHighestRefreshRate();
     }
 

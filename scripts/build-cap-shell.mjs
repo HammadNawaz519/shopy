@@ -47,9 +47,20 @@ function repoPathsPlugin() {
     name: "shopy-repo-paths",
     setup(build) {
       build.onResolve({ filter: /^@\// }, (args) => {
+        const basePath = path.join(ROOT, args.path.slice(2));
+        const resolvedPath = [
+          basePath,
+          `${basePath}.tsx`,
+          `${basePath}.ts`,
+          `${basePath}.jsx`,
+          `${basePath}.js`,
+          path.join(basePath, "index.tsx"),
+          path.join(basePath, "index.ts"),
+          path.join(basePath, "index.jsx"),
+          path.join(basePath, "index.js"),
+        ].find((candidate) => existsSync(candidate));
         return {
-          path: path.join(ROOT, args.path.slice(2)),
-          kind: args.kind,
+          path: resolvedPath || basePath,
           external: false,
         };
       });

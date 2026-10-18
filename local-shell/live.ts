@@ -59,6 +59,9 @@ export function installApiFetchPatch(): void {
 }
 
 async function safeFetchJson(url: string, init?: RequestInit) {
+  if (!originalFetch) {
+    throw new Error("Fetch is unavailable in this environment");
+  }
   const res = await originalFetch(url, { ...init, mode: "cors", credentials: "omit" });
   if (!res.ok) throw new Error(`${url} → ${res.status}`);
   return res.json();

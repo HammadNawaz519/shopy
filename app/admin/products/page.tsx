@@ -1040,9 +1040,9 @@ export default function AdminProductsPage() {
                     {formData.colors.map((col, cIdx) => (
                       <div
                         key={cIdx}
-                        className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 p-2 bg-[#E8E8E8] border border-[#BBBFCA]"
+                        className="flex flex-col gap-2.5 p-2 bg-[#E8E8E8] border border-[#BBBFCA]"
                       >
-                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2 min-w-0">
                           {/* Hex Color Picker */}
                           <input
                             type="color"
@@ -1058,7 +1058,7 @@ export default function AdminProductsPage() {
                             value={col.name}
                             onChange={(e) => handleUpdateColor(cIdx, "name", e.target.value)}
                             placeholder="Color Name (e.g. Light or Dark)"
-                            className="h-8 flex-1 bg-[#F4F4F2] border border-[#BBBFCA] px-2.5 text-xs text-[#495464] focus:outline-none focus:border-[#495464]"
+                            className="h-8 min-w-[9rem] flex-[1_1_12rem] bg-[#F4F4F2] border border-[#BBBFCA] px-2.5 text-xs text-[#495464] focus:outline-none focus:border-[#495464]"
                           />
 
                           {/* Hex String */}
@@ -1079,14 +1079,14 @@ export default function AdminProductsPage() {
                           </button>
                         </div>
 
-                        <div className="flex items-center gap-2 flex-shrink-0 justify-between sm:justify-end">
+                        <div className="flex flex-wrap items-center gap-2 min-w-0 w-full sm:justify-end">
                           <span className="text-[9px] uppercase tracking-wider text-[#495464]/70 font-semibold whitespace-nowrap">
                             Assigned Photo:
                           </span>
                           <select
                             value={col.imageUrl || ""}
                             onChange={(e) => handleUpdateColor(cIdx, "imageUrl", e.target.value)}
-                            className="h-8 bg-[#F4F4F2] border border-[#BBBFCA] px-2 text-[10px] text-[#495464] font-medium focus:outline-none focus:border-[#495464] max-w-[160px] sm:max-w-[200px]"
+                            className="h-8 min-w-0 flex-1 sm:flex-none bg-[#F4F4F2] border border-[#BBBFCA] px-2 text-[10px] text-[#495464] font-medium focus:outline-none focus:border-[#495464] w-full sm:w-auto max-w-full sm:max-w-[200px]"
                           >
                             <option value="">None (Uses Primary Photo)</option>
                             {formData.images.map((img, imgIdx) => (

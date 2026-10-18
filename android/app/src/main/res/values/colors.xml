@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Kept in sync with capacitor.config.ts android.backgroundColor so the
+         status bar, launch window and WebView surface are all the SHOPY
+         background (#F4F4F2) — no white/black/grey frame between the OS
+         splash and the first WebView paint. Capacitor's `cap sync` merges
+         android.backgroundColor into this file (colorPrimary). -->
+    <color name="colorPrimary">#F4F4F2</color>
+    <color name="colorPrimaryDark">#F4F4F2</color>
+    <color name="colorAccent">#F4F4F2</color>
+</resources>
