@@ -1,71 +1,83 @@
+```bat
 @echo off
 setlocal EnableExtensions
-rem =============================================================================
-rem  SHOPY - build the APK and hand you a clean "shopy.apk".  NO DEVICE.
-rem
-rem  What it does (all local, no USB / no adb / no device):
-rem    [1/3] rebuild the local cap-shell (images + landing media)
-rem    [2/3] sync into the Android project + build the debug APK (local JDK 21)
-rem    [3/3] copy the result to  D:\VS Code\Shopy\Web\shopy.apk  (overwrites
-rem          any previous shopy.apk each run)
-rem
-rem  Run:
-rem      cd "D:\VS Code\Shopy\Web"
-rem      .\make-shopy-apk.bat
-rem
-rem  Then just take "shopy.apk" and move it to your phone (or anywhere) - you
-rem  install it there yourself. This script never touches a device.
-rem
-rem  NOTE: the node/capacitor/gradle calls use "< nul" so they don't swallow
-rem        the rest of this script (the npx bug). The sync is run via node
-rem        directly instead of npx for the same reason.
-rem =============================================================================
+
+rem ============================================================
+rem SHOPY - Build a fresh APK and copy it to the Web main folder
+rem Output: D:\VS Code\Shopy\Web\shopy.apk
+rem ============================================================
 
 cd /d "%~dp0"
+if errorlevel 1 goto :fail
+
 set "JAVA_HOME=D:\Claude\Tools\jdk21x\jdk-21.0.12.1+1"
 set "PATH=%JAVA_HOME%\bin;%PATH%"
-set "APK=android\app\build\outputs\apk\debug\app-debug.apk"
 
+set "APK=%~dp0android\app\build\outputs\apk\debug\app-debug.apk"
+set "OUT=%~dp0shopy.apk"
+
+echo.
 echo ============================================================
-echo  [1/3] Building cap-shell (images + landing media)
+echo [1/4] Building cap-shell
 echo ============================================================
-node scripts\build-cap-shell.mjs < nul
+
+cmd /c "node scripts\build-cap-shell.mjs"
 if errorlevel 1 goto :fail
 
 echo.
 echo ============================================================
-echo  [2/3] Sync + build APK (JDK 21)
+echo [2/4] Syncing Capacitor Android
 echo ============================================================
-node node_modules\@capacitor\cli\bin\capacitor sync android < nul
+
+cmd /c "node node_modules\@capacitor\cli\bin\capacitor sync android"
 if errorlevel 1 goto :fail
 
-java -version
-pushd android
-call gradlew.bat assembleDebug < nul
-set "GRC=%ERRORLEVEL%"
-popd
-if not "%GRC%"=="0" goto :fail
+echo.
+echo ============================================================
+echo [3/4] Clean build - generating a fresh APK
+echo ============================================================
+
+cmd /c "cd /d ""%~dp0android"" && gradlew.bat clean assembleDebug"
+if errorlevel 1 goto :fail
+
 if not exist "%APK%" (
-    echo Built APK not found: "%APK%"
+    echo ERROR: Build APK was not found.
+    echo Expected: "%APK%"
     goto :fail
 )
 
 echo.
 echo ============================================================
-echo  [3/3] Packaging as shopy.apk
+echo [4/4] Copying APK to the Web main folder
 echo ============================================================
-copy /y "%APK%" "shopy.apk"
+
+copy /y "%APK%" "%OUT%"
 if errorlevel 1 goto :fail
+
+if not exist "%OUT%" (
+    echo ERROR: Output APK was not created.
+    goto :fail
+)
+
+for %%A in ("%OUT%") do set "SZ=%%~zA"
 
 echo.
 echo ============================================================
-echo  DONE. No device was used.
-echo  Your APK is:  D:\VS Code\Shopy\Web\shopy.apk
-echo  Move that file to your phone and install it there.
+echo SUCCESS - FRESH APK CREATED
+echo.
+echo Output: "%OUT%"
+echo Size:   %SZ% bytes
+echo.
+echo The previous Web\shopy.apk has been replaced.
 echo ============================================================
+
 exit /b 0
 
 :fail
 echo.
-echo BUILD FAILED - see the messages above.
+echo ============================================================
+echo BUILD FAILED - APK WAS NOT SUCCESSFULLY COPIED
+echo Check the errors above.
+echo ============================================================
 exit /b 1
+```
