@@ -1079,14 +1079,14 @@ export default function AdminProductsPage() {
                           </button>
                         </div>
 
-                        <div className="flex flex-wrap items-center gap-2 min-w-0 w-full sm:justify-end">
-                          <span className="text-[9px] uppercase tracking-wider text-[#495464]/70 font-semibold whitespace-nowrap">
+                        <div className="grid w-full min-w-0 grid-cols-1 items-center gap-2 sm:grid-cols-[auto,minmax(0,1fr),auto,auto]">
+                          <span className="min-w-0 text-[9px] uppercase tracking-wider text-[#495464]/70 font-semibold sm:whitespace-nowrap">
                             Assigned Photo:
                           </span>
                           <select
                             value={col.imageUrl || ""}
                             onChange={(e) => handleUpdateColor(cIdx, "imageUrl", e.target.value)}
-                            className="h-8 min-w-0 flex-1 sm:flex-none bg-[#F4F4F2] border border-[#BBBFCA] px-2 text-[10px] text-[#495464] font-medium focus:outline-none focus:border-[#495464] w-full sm:w-auto max-w-full sm:max-w-[200px]"
+                            className="h-8 w-full min-w-0 bg-[#F4F4F2] border border-[#BBBFCA] px-2 text-[10px] text-[#495464] font-medium focus:outline-none focus:border-[#495464] sm:max-w-[200px]"
                           >
                             <option value="">None (Uses Primary Photo)</option>
                             {formData.images.map((img, imgIdx) => (
