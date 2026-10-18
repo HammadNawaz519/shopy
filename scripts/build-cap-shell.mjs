@@ -416,6 +416,59 @@ function writeIndexHtml() {
   writeFileSync(path.join(OUT, "index.html"), html);
 }
 
+/**
+ * The local offline page, loaded by `server.errorPath` whenever a main-frame
+ * navigation fails (airplane mode / no data / DNS / Vercel outage). It is a
+ * fully self-contained file inside the APK (inline CSS, no network), so it can
+ * never show the Android/WebView "Webpage not available" page. It offers a way
+ * back to the cached local home and a retry.
+ */
+function writeOfflineHtml() {
+  const html = `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=5, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#F4F4F2" />
+    <title>SHOPY — Offline</title>
+    <style>
+      html,body{background:#F4F4F2;margin:0;height:100%}
+      *{box-sizing:border-box}
+      .wrap{min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:56px 28px;color:#495464;font-family:'Plus Jakarta Sans',system-ui,-apple-system,sans-serif}
+      .brand{font-family:'Cormorant Garamond',Georgia,serif;font-size:46px;letter-spacing:.06em;font-weight:500}
+      .tag{font-size:11px;letter-spacing:.34em;text-transform:uppercase;opacity:.6;margin:14px 0 26px}
+      .msg{max-width:340px;margin:0 auto 30px;font-size:14px;line-height:1.8;opacity:.85}
+      .actions{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+      button{font-family:inherit;font-size:11px;letter-spacing:.18em;text-transform:uppercase;padding:12px 22px;border-radius:2px;border:1px solid #BBBFCA;background:#fff;color:#495464;cursor:pointer;transition:opacity .2s}
+      button:active{opacity:.6}
+      button.primary{background:#181a1d;color:#fff;border-color:#181a1d}
+      .sep{width:44px;height:1px;background:#BBBFCA;margin:0 auto 24px;opacity:.5}
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="brand">SHOPY</div>
+      <div class="tag">You're offline</div>
+      <p class="msg">
+        This page isn't available right now because there's no internet
+        connection. Pages you've already opened are still available offline.
+      </p>
+      <div class="actions">
+        <button class="primary" onclick="location.assign('/')">Go to Home</button>
+        <button onclick="location.reload()">Try Again</button>
+      </div>
+      <div class="sep"></div>
+    </div>
+  </body>
+</html>
+`;
+  writeFileSync(path.join(OUT, "offline.html"), html);
+  log("offline.html written (local offline fallback)");
+}
+
 async function main() {
   rmSync(OUT, { recursive: true, force: true });
   mkdirSync(OUT, { recursive: true });
@@ -433,6 +486,7 @@ async function main() {
   writeFileSync(path.join(OUT, "snapshot.json"), JSON.stringify(snapshot, null, 2));
   await bundleShell(snapshot);
   writeIndexHtml();
+  writeOfflineHtml();
   log("done.");
 }
 

@@ -11,7 +11,7 @@
  * bundle, build-time data snapshot). Everything that touches the
  * network happens after paint and is allowed to fail.
  */
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 
 // Install the /api/* retargeting before anything else in this module graph
@@ -46,18 +46,42 @@ function ShellPage() {
   const navigation = data?.navigation ?? [];
   const quote = data?.quote ?? null;
 
+  // Paint the critical path first — Navbar + status-bar tint + the full-screen
+  // Hero — and mount everything below the fold only AFTER the first frame
+  // settles (on idle, or ~immediately). Those sections are off-screen on the
+  // first frame, so deferring them shrinks the critical render to just the
+  // hero with NO visible UI change. This is what gets the first frame as close
+  // to 0 as the local shell allows without adding a splash or a timer.
+  const [deferred, setDeferred] = useState(false);
+  useEffect(() => {
+    const run = () => setDeferred(true);
+    const idle = (window as any).requestIdleCallback as
+      | ((cb: () => void, opts?: { timeout?: number }) => number)
+      | undefined;
+    if (idle) {
+      const id = idle(run, { timeout: 400 });
+      return () => (window as any).cancelIdleCallback?.(id);
+    }
+    const t = window.setTimeout(run, 0);
+    return () => window.clearTimeout(t);
+  }, []);
+
   return (
     <>
       <Navbar initialNavItems={navigation} />
       <StatusBarTint />
       <main className="flex-1">
         <Hero initialConfig={homepage} />
-        <CollectionGrid initialCategories={categories} />
-        <FeaturedProducts initialProducts={products} initialConfig={homepage} />
-        <EditorialSection initialQuote={quote} initialConfig={homepage} />
-        <Newsletter />
+        {deferred ? (
+          <>
+            <CollectionGrid initialCategories={categories} />
+            <FeaturedProducts initialProducts={products} initialConfig={homepage} />
+            <EditorialSection initialQuote={quote} initialConfig={homepage} />
+            <Newsletter />
+          </>
+        ) : null}
       </main>
-      <Footer initialNavItems={navigation} />
+      {deferred ? <Footer initialNavItems={navigation} /> : null}
     </>
   );
 }

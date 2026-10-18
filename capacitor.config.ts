@@ -40,6 +40,13 @@ const config: CapacitorConfig = {
     // This only decides where cross-origin links navigate; it never gates the
     // first frame, so the ~0.3s local startup is unchanged.
     allowNavigation: ["buyatshopy.vercel.app"],
+    // When a main-frame navigation fails (offline, DNS, Vercel outage, a
+    // route the service worker can't serve), load the LOCAL offline page from
+    // the cap-shell instead of the Android/WebView "Webpage not available".
+    // The page lives at cap-shell/offline.html, so it is always in the APK and
+    // works with airplane mode / no data / no Wi-Fi. Never gates the first
+    // frame — it only runs when a navigation errors.
+    errorPath: "offline.html",
   },
   android: {
     // Launch background to match the SHOPY design (app shell, not the web UI).

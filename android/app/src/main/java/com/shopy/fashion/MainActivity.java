@@ -3,21 +3,23 @@ package com.shopy.fashion;
 import android.os.Bundle;
 import android.view.Display;
 import android.view.WindowManager;
-import android.webkit.WebView;
 
 import androidx.core.splashscreen.SplashScreen;
+import androidx.webkit.WebViewCompat;
 
 import com.getcapacitor.Bridge;
 import com.getcapacitor.BridgeActivity;
 import com.getcapacitor.JSExport;
-import com.getcapacitor.WebViewListener;
 import com.shopy.fashion.auth.NativeGoogleAuthPlugin;
+
+import java.util.HashSet;
+import java.util.Set;
 
 public class MainActivity extends BridgeActivity {
     // The live application origin. The instant-launch shell boots from the
     // local origin (https://localhost); everything the user taps deep into the
     // store loads this origin in the SAME WebView.
-    private static final String REMOTE_ORIGINS = "buyatshopy.vercel.app";
+    private static final String REMOTE_ORIGIN = "https://buyatshopy.vercel.app";
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -27,7 +29,7 @@ public class MainActivity extends BridgeActivity {
         SplashScreen.installSplashScreen(this);
         super.onCreate(savedInstanceState);
         registerPlugin(NativeGoogleAuthPlugin.class);
-        injectNativeBridgeForRemoteOrigin();
+        extendNativeBridgeToRemoteOrigin();
         requestHighestRefreshRate();
     }
 
@@ -40,50 +42,48 @@ public class MainActivity extends BridgeActivity {
      * cross-origin page: it still has the {@code androidBridge} Java interface
      * (set at the WebView level) but NOT the Capacitor JS runtime
      * ({@code Capacitor.nativePromise/nativeCallback}) nor the native plugin
-     * headers. So {@code registerPlugin("NativeGoogleAuth")} on the live pages
+     * headers, so {@code registerPlugin("NativeGoogleAuth")} on the live pages
      * found no implementation and the button threw "sign-in failed".
      *
-     * We therefore re-inject the native bridge + the NativeGoogleAuth header on
-     * every load of the live origin. This happens on the live pages only — it
-     * never touches the local shell's start script or its first frame, so the
-     * ~0.3s startup is unaffected.
+     * We re-register a document-start script for BOTH the local origin and the
+     * live origin. The script carries the native-bridge runtime + the
+     * NativeGoogleAuth header. The local shell uses no Capacitor native
+     * plugins, so replacing the start script with this lighter one does not
+     * affect the ~0.3s first frame (the first frame is the shell's own HTML/
+     * CSS/JS, not the bridge). The start script runs before page scripts, so
+     * the header is present by the time the live app's registerPlugin() runs.
      */
-    private void injectNativeBridgeForRemoteOrigin() {
+    private void extendNativeBridgeToRemoteOrigin() {
         final Bridge bridge = getBridge();
         if (bridge == null) {
             return;
         }
         try {
-            bridge.addWebViewListener(new WebViewListener() {
-                @Override
-                public void onPageCommitVisible(WebView view, String url) {
-                    if (url != null && url.contains(REMOTE_ORIGINS)) {
-                        injectNativeBridge(view);
-                    }
-                }
-            });
-        } catch (Throwable ignored) {
-            // Best-effort; the live app also has a web-OAuth fallback.
-        }
-    }
+            final String script;
+            try {
+                String globalJs = JSExport.getGlobalJS(this, false, bridge.isDevMode());
+                String nativeBridgeJs = JSExport.getBridgeJS(this);
+                String nativeGoogleHeader =
+                    "(function(){try{" +
+                    "var c=window.Capacitor=window.Capacitor||{};" +
+                    "c.PluginHeaders=c.PluginHeaders||[];" +
+                    "if(!c.PluginHeaders.some(function(h){return h&&h.name==='NativeGoogleAuth';})){c.PluginHeaders.push({name:'NativeGoogleAuth',methods:[{name:'signIn',rtype:'promise'}]});}" +
+                    "}catch(e){}})();";
+                script = globalJs + "\n" + nativeBridgeJs + "\n" + nativeGoogleHeader;
+            } catch (Throwable t) {
+                return; // can't build the bridge script — leave Capacitor's original intact
+            }
 
-    private void injectNativeBridge(WebView webView) {
-        try {
-            // The same native-bridge runtime Capacitor injects into the shell,
-            // which wires window.Capacitor.nativePromise/nativeCallback to the
-            // androidBridge Java interface already present on every page.
-            String nativeBridgeJs = JSExport.getBridgeJS(getApplicationContext());
-            // Expose the native Google plugin to @capacitor/core's
-            // registerPlugin() (it resolves a native method from PluginHeaders).
-            String pluginHeadersJs =
-                "(function(){try{" +
-                "var c=window.Capacitor=window.Capacitor||{};" +
-                "c.PluginHeaders=c.PluginHeaders||[];" +
-                "if(!c.PluginHeaders.some(function(h){return h&&h.name==='NativeGoogleAuth';})){c.PluginHeaders.push({name:'NativeGoogleAuth',methods:[{name:'signIn',rtype:'promise'}]});}" +
-                "}catch(e){}})();";
-            webView.evaluateJavascript(nativeBridgeJs + "\n" + pluginHeadersJs, null);
+            Set<String> origins = new HashSet<>();
+            String local = bridge.getLocalUrl();
+            if (local != null && !local.trim().isEmpty()) {
+                origins.add(local);
+            }
+            origins.add(REMOTE_ORIGIN);
+
+            WebViewCompat.addDocumentStartJavaScript(bridge.getWebView(), script, origins);
         } catch (Throwable ignored) {
-            // Best-effort; the live app also has a web-OAuth fallback.
+            // Never break startup; the live app also has a web-OAuth fallback.
         }
     }
 
