@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableExtensions
 rem =============================================================================
-rem  SHOPY - ONE-CLICK: build cap-shell - sync - build APK (JDK 21) - install/replace
+rem  SHOPY - ONE-CLICK: build Next.js - sync - build APK (JDK 21) - install/replace
 rem
 rem  Uses your LOCAL tools:
 rem    JDK 21 : D:\Claude\Tools\jdk21x\jdk-21.0.12.1+1   (required by Capacitor 8)
@@ -25,9 +25,9 @@ set "ADB=D:\Claude\Tools\android-sdk\platform-tools\adb.exe"
 set "APK=%~dp0android\app\build\outputs\apk\debug\app-debug.apk"
 
 echo ============================================================
-echo  [1/4] Building cap-shell (images + landing media)
+echo  [1/4] Building the Next.js app (fresh .next fallback)
 echo ============================================================
-node scripts\build-cap-shell.mjs < nul
+node node_modules\next\dist\bin\next build < nul
 if errorlevel 1 goto :fail
 
 echo.

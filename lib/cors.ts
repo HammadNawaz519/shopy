@@ -1,12 +1,10 @@
 /**
  * CORS support for the public, read-only SHOPY APIs.
  *
- * The Android instant-launch shell (cap-shell/) serves the landing page from
- * APK assets on the WebView's local origin. Its reused components keep
- * calling the same relative `/api/*` endpoints the web app does; the shell
- * retargets those calls at the live origin, so the public GET routes answer
- * with permissive CORS. The data they serve is already public (no cookies,
- * no credentials — the shell omits them explicitly), which is why
+ * The Android Capacitor shell can call these relative `/api/*` endpoints
+ * from its local WebView origin (APK asset fallback pages). The public GET
+ * routes therefore answer with permissive CORS. The data they serve is
+ * already public (no cookies, no credentials), which is why
  * `Access-Control-Allow-Origin: *` is safe here and no credentials
  * headers are ever needed.
  *

@@ -1,12 +1,15 @@
-```bat
 @echo off
 setlocal EnableExtensions
 
 rem ============================================================
-rem SHOPY - Build a fresh APK and replace the old public APK
+rem SHOPY - Build a FULL APK and replace the old public APK
 rem Project: D:\VS Code\Shopy\Web
 rem Output:  D:\VS Code\Shopy\Web\public\shopy.apk
 rem No device or ADB required.
+rem
+rem The local shell (cap-shell / local-shell) has been removed.
+rem The APK now loads the live site (server.url) as a full
+rem Capacitor app - see capacitor.config.ts.
 rem ============================================================
 
 cd /d "%~dp0"
@@ -20,10 +23,10 @@ set "OUT=%~dp0public\shopy.apk"
 
 echo.
 echo ============================================================
-echo [1/4] Building cap-shell
+echo [1/4] Building the Next.js app (fresh .next fallback)
 echo ============================================================
 
-cmd /c "node scripts\build-cap-shell.mjs"
+cmd /c "node node_modules\next\dist\bin\next build < nul"
 if errorlevel 1 goto :fail
 
 echo.
@@ -70,7 +73,7 @@ for %%A in ("%OUT%") do set "SZ=%%~zA"
 
 echo.
 echo ============================================================
-echo SUCCESS - FRESH SHOPY APK CREATED
+echo SUCCESS - FRESH FULL SHOPY APK CREATED
 echo ============================================================
 echo.
 echo APK path:
@@ -92,4 +95,3 @@ echo Check the errors above.
 echo The old destination APK has not been intentionally deleted.
 echo ============================================================
 exit /b 1
-```
