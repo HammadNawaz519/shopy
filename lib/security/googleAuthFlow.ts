@@ -62,8 +62,18 @@ export async function completeNativeGoogleSignIn(
   config: GoogleOAuthConfig,
   savedRedirect?: string
 ): Promise<CompletedGoogleSignIn> {
+  // The in-app CredentialManager sign-in issues the token to the ANDROID
+  // OAuth client (serverClientId = config.androidClientId); the classic web
+  // callback may still produce tokens for the web client. Accept exactly
+  // these two of our own client ids — nothing else.
+  const acceptedAudiences = [config.androidClientId, config.clientId].filter(
+    (value): value is string => !!value
+  );
+  if (acceptedAudiences.length === 0) {
+    throw new Error("Invalid Google ID token");
+  }
   return completeGoogleUserSignIn(
-    await verifyGoogleIdToken(idToken, config.clientId),
+    await verifyGoogleIdToken(idToken, acceptedAudiences),
     savedRedirect
   );
 }

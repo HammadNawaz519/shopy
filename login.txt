@@ -65,9 +65,21 @@ It uses Jetpack Credential Manager with Google Identity Services
 GetGoogleIdOption. The plugin returns only the Google ID token through the
 Capacitor bridge. No Google client secret is shipped to Android.
 
-The browser-visible client ID is fetched from /api/auth/google/config and is
-used as the Credential Manager serverClientId. The server verifies the token
-against the configured GOOGLE_CLIENT_ID before creating a session.
+The /api/auth/google/config endpoint returns BOTH the web client id and
+GOOGLE_ANDROID_CLIENT_ID (exposed as androidClientId). The in-app button uses
+the ANDROID client id as the Credential Manager serverClientId; the server
+verifies the returned ID token against the configured Google client ids
+(android first, web as fallback) before creating a session.
+
+One-time setup for the native flow (in-app "Please try again" errors mean
+this is not done yet):
+  1) Google Cloud Console > Credentials (project: shopy-new): create an
+     OAuth client of type ANDROID with package name com.shopy.fashion and
+     the SHA-1 of the APK signing key (make-shopy-apk.bat prints the
+     debug-keystore SHA-1 in its step [5/5]).
+  2) Vercel environment: add GOOGLE_ANDROID_CLIENT_ID = that client id.
+Until step 2 lands, the button falls back to the classic web flow instead
+of showing a sign-in error.
 
 5. SERVER FILES
 ---------------

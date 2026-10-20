@@ -185,3 +185,72 @@ html.shopy-splash-skip #shopy-splash-overlay {
     display: table-footer-group;
   }
 }
+
+/* ============================================================
+   SHOPY boot indicator
+   ----------------------------------------------------------------
+   Shown ONLY when the first HTML has not painted within ~450 ms
+   (cold app launch, slow network). An inline script in the root
+   layout injects #shopy-boot after that delay and removes it on
+   DOMContentLoaded, so fast and service-worker-cached launches
+   never see it. Same brand colors as the native launch screen.
+   ============================================================ */
+#shopy-boot {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #F4F4F2;
+  opacity: 1;
+  transition: opacity 0.35s ease;
+}
+
+#shopy-boot.shopy-boot-hide {
+  opacity: 0;
+  pointer-events: none;
+}
+
+#shopy-boot .sb-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+
+#shopy-boot .sb-ring {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 2px solid rgba(73, 84, 100, 0.18);
+  border-top-color: #495464;
+  animation: sb-spin 0.9s linear infinite;
+}
+
+#shopy-boot .sb-word {
+  font-family: var(--font-cormorant), "Cormorant Garamond", Georgia, serif;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  color: #495464;
+}
+
+@keyframes sb-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #shopy-boot .sb-ring {
+    animation: none;
+  }
+}
+
+@media print {
+  #shopy-boot {
+    display: none !important;
+  }
+}

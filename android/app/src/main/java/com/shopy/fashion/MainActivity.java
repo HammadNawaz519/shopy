@@ -26,6 +26,12 @@ public class MainActivity extends BridgeActivity {
         // Documented AndroidX order: install the (neutral, background-only)
         // splash window FIRST, before the activity inflates its content. It
         // auto-dismisses on the first drawn frame of the WebView — no timer.
+        //
+        // Note: core-splashscreen 1.2.0 exposes no public "finish early"
+        // API, so the handoff is driven by that first frame. The frame is
+        // fast on warm starts; on a fresh install the app still pays one
+        // remote fetch of the live site, which the PWA service worker
+        // caches so the SECOND launch is the fast one.
         SplashScreen.installSplashScreen(this);
         super.onCreate(savedInstanceState);
         registerPlugin(NativeGoogleAuthPlugin.class);

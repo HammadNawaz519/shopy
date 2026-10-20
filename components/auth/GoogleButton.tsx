@@ -29,16 +29,20 @@ export default function GoogleButton({
     window.location.href = target;
   };
 
-  const handleNativeSignIn = async () => {
+  const fetchGoogleConfig = async () => {
     const configResponse = await fetch("/api/auth/google/config", {
       cache: "no-store",
     });
     if (!configResponse.ok) throw new Error("Google sign-in is not configured");
-    const config = (await configResponse.json()) as { clientId?: string };
-    if (!config.clientId) throw new Error("Google sign-in is not configured");
+    return (await configResponse.json()) as {
+      clientId?: string;
+      androidClientId?: string;
+    };
+  };
 
+  const handleNativeSignIn = async (serverClientId: string) => {
     const credential = await NativeGoogleAuth.signIn({
-      serverClientId: config.clientId,
+      serverClientId,
     });
     if (!credential?.idToken) throw new Error("Google did not return a credential");
 
@@ -69,14 +73,29 @@ export default function GoogleButton({
     try {
       // Use the in-app native Google CredentialManager only when the native
       // plugin is actually reachable (Capacitor bridge + plugin header present
-      // on this page). On a page where it isn't (e.g. the live app opened where
-      // the native header wasn't injected), fall back to the real web-OAuth
-      // flow instead of surfacing a "sign-in failed" error.
+      // on this page) AND the server has the Android OAuth client id
+      // configured (GOOGLE_ANDROID_CLIENT_ID) — the native provider only
+      // issues tokens for that Android client, never for the web client id.
+      // When either is missing we take the classic web-OAuth flow instead of
+      // surfacing a "sign-in failed" error.
       const canUseNative =
         Capacitor.getPlatform() === "android" &&
         Capacitor.isPluginAvailable("NativeGoogleAuth");
+
+      let nativeClientId = "";
       if (canUseNative) {
-        await handleNativeSignIn();
+        try {
+          const config = await fetchGoogleConfig();
+          nativeClientId = (config.androidClientId || "").trim();
+        } catch {
+          // Config unreachable (e.g. offline on first load): fall through to
+          // the web flow, which redirects server-side and re-resolves config.
+          nativeClientId = "";
+        }
+      }
+
+      if (nativeClientId) {
+        await handleNativeSignIn(nativeClientId);
       } else {
         handleWebSignIn();
       }

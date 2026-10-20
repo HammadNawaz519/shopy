@@ -10,6 +10,14 @@ export interface GoogleOAuthConfig {
   clientId: string;
   clientSecret: string;
   redirectUri: string;
+  /**
+   * Android OAuth client ID (type: Android in Google Cloud Console, registered
+   * with the Capacitor package name + signing-certificate SHA-1). Used as the
+   * serverClientId of the in-app CredentialManager sign-in. Optional — when
+   * unset the native path has nothing to validate against and the button
+   * falls back to the classic web flow.
+   */
+  androidClientId?: string;
 }
 
 export interface GoogleUserInfo {
@@ -33,6 +41,7 @@ function cleanEnv(value: string | undefined, fallback: string = ""): string {
 export function getGoogleOAuthConfig(requestOrigin?: string): GoogleOAuthConfig {
   const clientId = cleanEnv(process.env.GOOGLE_CLIENT_ID);
   const clientSecret = cleanEnv(process.env.GOOGLE_CLIENT_SECRET);
+  const androidClientId = cleanEnv(process.env.GOOGLE_ANDROID_CLIENT_ID);
 
   const configuredOrigin = cleanEnv(process.env.APP_URL);
   const isLocalOrigin = (value: string) =>
@@ -59,6 +68,7 @@ export function getGoogleOAuthConfig(requestOrigin?: string): GoogleOAuthConfig 
     clientId,
     clientSecret,
     redirectUri,
+    androidClientId: androidClientId || undefined,
   };
 }
 
@@ -149,7 +159,7 @@ export async function fetchGoogleUserInfo(accessToken: string): Promise<GoogleUs
 
 export async function verifyGoogleIdToken(
   idToken: string,
-  expectedAudience: string
+  expectedAudience: string | string[]
 ): Promise<GoogleUserInfo> {
   const response = await fetch(
     `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`
@@ -160,11 +170,14 @@ export async function verifyGoogleIdToken(
 
   const data = await response.json();
   const audience = Array.isArray(data.aud) ? data.aud : [data.aud];
+  const acceptedAudiences = Array.isArray(expectedAudience)
+    ? expectedAudience
+    : [expectedAudience];
   const emailVerified =
     data.email_verified === true || data.email_verified === "true";
   const expiresAt = Number(data.exp);
   if (
-    !audience.includes(expectedAudience) ||
+    !acceptedAudiences.some((item) => audience.includes(item)) ||
     !data.email ||
     !emailVerified ||
     !Number.isFinite(expiresAt) ||

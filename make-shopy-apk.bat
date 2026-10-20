@@ -10,6 +10,10 @@ rem
 rem The local shell (cap-shell / local-shell) has been removed.
 rem The APK now loads the live site (server.url) as a full
 rem Capacitor app - see capacitor.config.ts.
+rem
+rem Step [5/5] prints the signing certificate SHA-1 used for
+rem this APK. Register it (with package name com.shopy.fashion)
+rem in Google Cloud Console to make in-app Google sign-in work.
 rem ============================================================
 
 cd /d "%~dp0"
@@ -23,7 +27,7 @@ set "OUT=%~dp0public\shopy.apk"
 
 echo.
 echo ============================================================
-echo [1/4] Building the Next.js app (fresh .next fallback)
+echo [1/5] Building the Next.js app (fresh .next fallback)
 echo ============================================================
 
 cmd /c "node node_modules\next\dist\bin\next build < nul"
@@ -31,18 +35,18 @@ if errorlevel 1 goto :fail
 
 echo.
 echo ============================================================
-echo [2/4] Syncing Capacitor Android
+echo [2/5] Syncing Capacitor Android
 echo ============================================================
 
-cmd /c "node node_modules\@capacitor\cli\bin\capacitor sync android"
+cmd /c "node node_modules\@capacitor\cli\bin\capacitor sync android < nul"
 if errorlevel 1 goto :fail
 
 echo.
 echo ============================================================
-echo [3/4] Cleaning and building a fresh Android APK
+echo [3/5] Cleaning and building a fresh Android APK
 echo ============================================================
 
-cmd /c "cd /d ""%~dp0android"" && gradlew.bat clean assembleDebug"
+cmd /c "cd /d ""%~dp0android"" && gradlew.bat clean assembleDebug < nul"
 if errorlevel 1 goto :fail
 
 if not exist "%APK%" (
@@ -53,7 +57,7 @@ if not exist "%APK%" (
 
 echo.
 echo ============================================================
-echo [4/4] Replacing the old APK in Web\public
+echo [4/5] Replacing the old APK in Web\public
 echo ============================================================
 
 if not exist "%~dp0public" (
@@ -72,6 +76,42 @@ if not exist "%OUT%" (
 for %%A in ("%OUT%") do set "SZ=%%~zA"
 
 echo.
+echo ============================================================
+echo [5/5] Signing certificate (SHA-1) of THIS APK
+echo ============================================================
+rem This build signs with Gradle's default debug keystore, auto-created on
+rem the first build. Check the standard user location first, then the SDK
+rem root. The SHA-1 printed below is what Google Cloud Console must know
+rem for in-app Google sign-in. If the keystore file is ever deleted or the
+rem build runs on another machine, a new fingerprint is generated and the
+rem console entry must be updated.
+set "KEYSTORE="
+if exist "%USERPROFILE%\.android\debug.keystore" (
+    set "KEYSTORE=%USERPROFILE%\.android\debug.keystore"
+) else if exist "D:\Claude\Tools\android-sdk\.android\debug.keystore" (
+    set "KEYSTORE=D:\Claude\Tools\android-sdk\.android\debug.keystore"
+)
+rem NOTE: the ">" below stays a plain redirect on purpose. If it is ever
+rem caret-escaped inside this block, keytool receives the literal text
+rem 2>nul as an argument and dies with an Illegal option error.
+if defined KEYSTORE (
+    echo  Signing key: %KEYSTORE%
+    "%JAVA_HOME%\bin\keytool" -list -v -keystore "%KEYSTORE%" -storepass android 2>nul | findstr /i "SHA1:"
+) else (
+    echo  Debug keystore not found yet. Gradle creates it on the first
+    echo  build. Run this script once more and the fingerprint prints here.
+)
+echo.
+echo  To make in-app Google sign-in work (one-time setup):
+echo   1) Google Cloud Console ^> Credentials (project: shopy-new)
+echo      - Add / update an OAuth client of type ANDROID
+echo      - Package name: com.shopy.fashion
+echo      - SHA-1 fingerprint: the one printed above
+echo   2) Vercel dashboard ^> buyatshopy ^> Settings ^> Environment Variables
+echo      - Add GOOGLE_ANDROID_CLIENT_ID = ^<the Android client id from step 1^>
+echo      (The existing GOOGLE_CLIENT_ID web flow is unchanged.)
+echo.
+
 echo ============================================================
 echo SUCCESS - FRESH FULL SHOPY APK CREATED
 echo ============================================================
