@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 import { SESSION_COOKIE_NAME } from "./lib/security/constants";
 
 /**
- * SHOPY Edge Middleware — Vercel Edge Optimized
+ * SHOPY Edge Middleware  Vercel Edge Optimized
  *
  * Performance Characteristics:
  * - Zero execution for public pages, static assets, images, and API routes.
