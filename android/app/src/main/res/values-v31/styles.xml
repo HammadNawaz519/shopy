@@ -2,7 +2,9 @@
 <resources>
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">@color/ic_launcher_background</item>
-        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher_foreground</item>
+        <!-- SHOPY label-box wordmark (public/logo.svg rasterized at build
+             time by scripts/make-splash-icon.mjs into drawable-nodpi). -->
+        <item name="windowSplashScreenAnimatedIcon">@drawable/shopy_splash_logo</item>
         <item name="postSplashScreenTheme">@style/AppTheme.NoActionBar</item>
     </style>
 </resources>

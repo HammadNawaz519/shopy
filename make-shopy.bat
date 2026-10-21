@@ -4,12 +4,13 @@ setlocal EnableExtensions
 rem ============================================================
 rem  SHOPY - ONE-CLICK "MAKE SHOPY" (builds EVERYTHING)
 rem
-rem  [1/6] Build the Next.js app            (fresh .next fallback)
-rem  [2/6] Capacitor sync android           (native shell + assets)
-rem  [3/6] Gradle clean + assembleDebug     (JDK 21, fresh APK)
-rem  [4/6] REPLACE the old public\shopy.apk
-rem  [5/6] If your phone is plugged in: uninstall + install it
-rem  [6/6] Print the signing SHA-1 (Google Cloud registration)
+rem  [1/7] Build the Next.js app            (fresh .next fallback)
+rem  [2/7] Capacitor sync android           (native shell + assets)
+rem  [3/7] Render public\logo.svg -> splash icon PNG (sharp)
+rem  [4/7] Gradle clean + assembleDebug     (JDK 21, fresh APK)
+rem  [5/7] REPLACE the old public\shopy.apk
+rem  [6/7] If your phone is plugged in: uninstall + install it
+rem  [7/7] Print the signing SHA-1 (Google Cloud registration)
 rem
 rem  Usage: double-click, or from any folder:
 rem      cd "D:\VS Code\Shopy\Web"
@@ -41,7 +42,7 @@ if not exist "node_modules" (
 
 echo.
 echo ============================================================
-echo  [1/6] Building the Next.js app (fresh .next fallback)
+echo  [1/7] Building the Next.js app (fresh .next fallback)
 echo ============================================================
 
 rem NOTE: the "< nul" keeps node/gradle from swallowing the next lines
@@ -51,7 +52,7 @@ if errorlevel 1 goto :fail
 
 echo.
 echo ============================================================
-echo  [2/6] Syncing the Capacitor Android shell
+echo  [2/7] Syncing the Capacitor Android shell
 echo ============================================================
 
 cmd /c "node node_modules\@capacitor\cli\bin\capacitor sync android < nul"
@@ -59,7 +60,15 @@ if errorlevel 1 goto :fail
 
 echo.
 echo ============================================================
-echo  [3/6] Clean + build a FRESH debug APK (JDK 21)
+echo  [3/7] Rendering public\logo.svg to the splash icon PNG
+echo ============================================================
+
+cmd /c "node scripts\make-splash-icon.mjs < nul"
+if errorlevel 1 goto :fail
+
+echo.
+echo ============================================================
+echo  [4/7] Clean + build a FRESH debug APK (JDK 21)
 echo ============================================================
 
 cmd /c "cd /d ""%~dp0android"" && gradlew.bat clean assembleDebug < nul"
@@ -73,7 +82,7 @@ if not exist "%APK%" (
 
 echo.
 echo ============================================================
-echo  [4/6] REPLACING the old APK  (public\shopy.apk)
+echo  [5/7] REPLACING the old APK  (public\shopy.apk)
 echo ============================================================
 
 if not exist "%~dp0public" (
@@ -91,7 +100,7 @@ echo   OK - %OUT%  (%SZ% bytes)
 
 echo.
 echo ============================================================
-echo  [5/6] Install on your phone (if plugged in)
+echo  [6/7] Install on your phone (if plugged in)
 echo ============================================================
 
 if not exist "%ADB%" (
@@ -129,13 +138,13 @@ if errorlevel 1 goto :fail
 
 echo.
 echo   INSTALLED. Cold-launch the SHOPY icon and test:
-echo     - splash releases on first frame, logo exits with a ~0.3s scale+fade
+echo     - cream splash with the SHOPY label-box logo, releases on first frame
 echo     - Google sign-in button (logcat tag "NativeGoogleAuth" shows registered=true)
 echo     - offline: cached pages open instantly, uncached shows the 404-styled offline page
 
 echo.
 echo ============================================================
-echo  [6/6] Signing certificate (SHA-1) of THIS APK
+echo  [7/7] Signing certificate (SHA-1) of THIS APK
 echo ============================================================
 goto :sha1
 
@@ -162,10 +171,10 @@ if defined KEYSTORE (
     echo  Run this script once more and the SHA-1 prints here.
 )
 
-rem Web-side changes (e.g. public\sw-enhanced.js offline page) only reach the
-rem app after a Vercel deploy, because the APK loads the live site:
+rem Web-side changes (offline page, admin DB panel, service worker) only reach
+rem the app after a Vercel deploy, because the APK loads the live site:
 echo.
-echo  REMEMBER: web changes (offline page, service worker) deploy via git:
+echo  REMEMBER: web changes deploy via git:
 echo      git add -A ^&^& git commit -m "shopy update" ^&^& git push
 echo      (Vercel auto-deploys; the service worker picks it up on next app load)
 
@@ -176,7 +185,7 @@ echo ============================================================
 echo.
 echo  APK path:      %OUT%
 echo  APK size:      %SZ% bytes
-echo  Install:       "%ADB%" install -r "%OUT%"   ^(if step [5/6] skipped^)
+echo  Install:       "%ADB%" install -r "%OUT%"   ^(if step [6/7] skipped^)
 echo.
 exit /b 0
 
