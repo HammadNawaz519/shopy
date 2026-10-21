@@ -10,7 +10,7 @@ import { Download, X, Smartphone } from "lucide-react";
  *
  * Replaces the old PWA (add-to-home-screen) install flow: the button at the
  * bottom of the page and this popup now both point at the real Android APK
- * download (/shopy.apk) instead of a PWA install prompt.
+ * download (GitHub Releases asset) instead of a PWA install prompt.
  */
 export default function InstallAppPrompt() {
   const [show, setShow] = useState(false);
@@ -79,8 +79,9 @@ export default function InstallAppPrompt() {
 
             <div className="mt-3.5 flex items-center gap-2.5">
               <a
-                href="/shopy.apk"
-                download="shopy.apk"
+                href="https://github.com/HammadNawaz519/shopy/releases/latest/download/shopy.apk"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 bg-[#495464] hover:bg-[#363E4B] text-white text-[10px] uppercase tracking-[0.2em] px-4 py-2 font-light transition-all"
               >
                 <Download className="w-3 h-3" />

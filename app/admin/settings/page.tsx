@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Settings, Save, Loader2, CheckCircle2, ShieldCheck, UserX } from "lucide-react";
+import { Settings, Save, Loader2, CheckCircle2, ShieldCheck, UserX, Trash2 } from "lucide-react";
 import AdminHeader from "@/components/admin/AdminHeader";
 import { useToast } from "@/context/ToastContext";
 
@@ -30,9 +30,12 @@ export default function AdminSettingsPage() {
     bankPaymentInstructions: "Please transfer the exact total order amount to the bank account above and share screenshot on WhatsApp with your Order ID for instant payment verification.",
   });
 
-  // COD blocklist (saved independently via /api/admin/blocked-users)
-  const [blockedEmails, setBlockedEmails] = useState("");
-  const [blockedSaving, setBlockedSaving] = useState(false);
+  // COD blocklist (saved independently via /api/admin/blocked-users).
+  // Adding/removing is instant: each action pushes the whole list to the
+  // server, so the block applies to the store immediately.
+  const [blockedList, setBlockedList] = useState<string[]>([]);
+  const [newBlockedEmail, setNewBlockedEmail] = useState("");
+  const [blockedBusy, setBlockedBusy] = useState(false);
 
   useEffect(() => {
     async function fetchSettings() {
@@ -45,7 +48,7 @@ export default function AdminSettingsPage() {
         const bRes = await fetch("/api/admin/blocked-users");
         if (bRes.ok) {
           const bData = await bRes.json();
-          setBlockedEmails((bData.emails || []).join("\n"));
+          setBlockedList(bData.emails || []);
         }
       } catch {
         // ignore
@@ -56,30 +59,52 @@ export default function AdminSettingsPage() {
     fetchSettings();
   }, []);
 
-  const handleBlockedSave = async () => {
-    setBlockedSaving(true);
+  // Replace the whole blocklist server-side; returns true on success.
+  const saveBlockedList = async (list: string[]) => {
     try {
-      const emails = blockedEmails
-        .split(/[\n,]/)
-        .map((s) => s.trim().toLowerCase())
-        .filter(Boolean);
       const res = await fetch("/api/admin/blocked-users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ emails }),
+        body: JSON.stringify({ emails: list }),
       });
       const data = await res.json();
       if (res.ok && data.success) {
-        setBlockedEmails((data.emails || emails).join("\n"));
-        showToast("Blocked users updated - these emails can no longer order via Cash on Delivery.", "success");
-      } else {
-        showToast(data.error || "Failed to update blocked users.", "error");
+        setBlockedList(data.emails || list);
+        return true;
       }
+      showToast(data.error || "Failed to update blocked users.", "error");
+      return false;
     } catch {
       showToast("Network error saving blocked users.", "error");
-    } finally {
-      setBlockedSaving(false);
+      return false;
     }
+  };
+
+  const handleAddBlocked = async () => {
+    const email = newBlockedEmail.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      showToast("Enter a valid email address to block.", "error");
+      return;
+    }
+    if (blockedList.includes(email)) {
+      showToast("That email is already blocked.", "info");
+      setNewBlockedEmail("");
+      return;
+    }
+    setBlockedBusy(true);
+    const ok = await saveBlockedList([...blockedList, email]);
+    setBlockedBusy(false);
+    if (ok) {
+      setNewBlockedEmail("");
+      showToast(`${email} is now blocked from Cash on Delivery.`, "success");
+    }
+  };
+
+  const handleRemoveBlocked = async (email: string) => {
+    setBlockedBusy(true);
+    const ok = await saveBlockedList(blockedList.filter((e) => e !== email));
+    setBlockedBusy(false);
+    if (ok) showToast(`${email} can use Cash on Delivery again.`, "success");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -402,45 +427,85 @@ export default function AdminSettingsPage() {
             </div>
           </div>
 
-          {/* Section 4: COD Blocklist */}
+          {/* Section 4: COD Blocklist - email input on top, blocked-users
+              list (orders-style rows) underneath. */}
           <div className="pt-6 border-t border-[#BBBFCA]/40">
             <div className="border-b border-[#BBBFCA]/30 pb-4 mb-6">
               <h2 className="font-serif text-xl font-medium text-[#495464]">Blocked Users (COD)</h2>
               <p className="text-xs text-[#495464]/60 uppercase tracking-widest mt-0.5">
-                Customers on this list cannot order via Cash on Delivery - card only.
+                Emails on this list are blocked from ordering via Cash on Delivery.
               </p>
             </div>
 
-            <div className="text-xs space-y-3">
-              <label className="block">
-                <span className="block text-[10px] uppercase font-semibold text-[#495464] mb-1">
-                  Blocked Emails (one per line, or comma-separated)
-                </span>
-                <textarea
-                  rows={4}
-                  placeholder={"e.g.\ncustomer@gmail.com\nanother@shopy.com"}
-                  value={blockedEmails}
-                  onChange={(e) => setBlockedEmails(e.target.value)}
-                  className="w-full bg-[#E8E8E8] border border-[#BBBFCA] p-3 font-mono text-[11px] text-[#495464]"
+            <div className="text-xs space-y-4">
+              {/* 1. Add email */}
+              <div className="flex flex-col sm:flex-row gap-2.5">
+                <input
+                  type="email"
+                  placeholder="customer@gmail.com"
+                  value={newBlockedEmail}
+                  onChange={(e) => setNewBlockedEmail(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleAddBlocked();
+                    }
+                  }}
+                  className="flex-1 bg-[#E8E8E8] border border-[#BBBFCA] px-3 py-2.5 font-mono text-[11px] text-[#495464] placeholder:text-[#495464]/35"
                 />
-              </label>
+                <button
+                  type="button"
+                  onClick={handleAddBlocked}
+                  disabled={blockedBusy || !newBlockedEmail.trim()}
+                  className="inline-flex items-center justify-center gap-2 bg-[#8B2C2C] text-[#F4F4F2] px-5 py-2.5 text-[10px] uppercase tracking-widest font-semibold hover:bg-[#7A2525] transition-colors disabled:opacity-40"
+                >
+                  <UserX className="w-3.5 h-3.5" />
+                  {blockedBusy ? "Saving..." : "Block From COD"}
+                </button>
+              </div>
+
+              {/* 2. Blocked users list (orders-style rows) */}
+              <div className="space-y-2">
+                {blockedList.length === 0 ? (
+                  <div className="bg-[#E8E8E8]/40 border border-[#BBBFCA]/40 px-4 py-5 text-center">
+                    <span className="text-[10px] uppercase tracking-[0.2em] text-[#495464]/50 font-mono">
+                      No blocked users yet
+                    </span>
+                  </div>
+                ) : (
+                  blockedList.map((email) => (
+                    <div
+                      key={email}
+                      className="flex items-center justify-between gap-3 bg-[#E8E8E8]/60 border border-[#BBBFCA]/40 px-3.5 py-2.5 animate-fadeIn"
+                    >
+                      <div className="min-w-0">
+                        <p className="font-mono text-[11px] font-semibold text-[#495464] truncate">{email}</p>
+                        <p className="text-[9px] uppercase tracking-widest text-[#495464]/55 mt-0.5">
+                          Blocked From Cash On Delivery
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveBlocked(email)}
+                        disabled={blockedBusy}
+                        title="Unblock this email"
+                        className="shrink-0 p-2 text-[#8B2C2C] hover:bg-[#8B2C2C] hover:text-[#F4F4F2] transition-colors disabled:opacity-40"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+
               <p className="text-[10px] text-[#495464]/60 leading-relaxed">
-                These customers can still buy with card. Their Cash-on-Delivery orders are
-                rejected and the checkout steers them to card payment.
+                Blocked customers are still able to place orders with Bank Transfer / Raast -
+                only Cash on Delivery is rejected for them, instantly, on every order attempt.
               </p>
             </div>
           </div>
 
-          <div className="pt-6 border-t border-[#BBBFCA]/30 flex flex-wrap justify-end gap-3">
-            <button
-              type="button"
-              onClick={handleBlockedSave}
-              disabled={blockedSaving}
-              className="inline-flex items-center gap-2 border border-[#8B2C2C]/60 text-[#8B2C2C] px-5 py-3 text-xs uppercase tracking-widest font-medium hover:bg-[#8B2C2C] hover:text-[#F4F4F2] transition-colors disabled:opacity-50"
-            >
-              <UserX className="w-4 h-4" />
-              <span>{blockedSaving ? "Updating..." : "Save Blocked Users"}</span>
-            </button>
+          <div className="pt-6 border-t border-[#BBBFCA]/30 flex justify-end">
             <button
               type="submit"
               disabled={saving}

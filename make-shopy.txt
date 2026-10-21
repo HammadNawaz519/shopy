@@ -192,15 +192,21 @@ make-shopy.bat step comments; nothing in this file is mobile-side.)
                           checklist.
 
   DOWNLOAD PATH for the end user:
-    - public/ is deployed to Vercel, so the APK is served statically at:
-        https://buyatshopy.vercel.app/shopy.apk
-      (this URL is shared/QR'd; the site itself has no download button).
+    - The APK is published on GitHub Releases (asset "shopy.apk" on the
+      "Shopy" release) and the site's download buttons (footer, mobile menu,
+      install popup) all point at the direct asset URL:
+        https://github.com/HammadNawaz519/shopy/releases/latest/download/shopy.apk
+      "latest" always resolves to the newest release - update the asset on
+      GitHub and the site's download follows automatically, no Vercel
+      redeploy needed for the APK itself.
+    - public\shopy.apk is gitignored and no longer served by the web app
+      (the Vercel copy is no longer a download source).
     - The APK loads the LIVE site https://buyatshopy.vercel.app at runtime
       (capacitor.config.ts server.url; allowNavigation keeps the origin in-
       app). Consequence: WEB changes (offline page, admin DB panel, ...)
       reach installed apps ONLY AFTER the git push -> Vercel deploy;
-      NATIVE changes require the make-shopy.bat rebuild + install/update of
-      public\shopy.apk.
+      NATIVE changes require the make-shopy.bat rebuild + re-uploading the
+      shopy.apk asset to the GitHub release.
     - The service worker takes over the new sw-enhanced.js automatically on
       the next app load (SKIP_WAITING), so no reinstall is needed for the
       web-only changes.
