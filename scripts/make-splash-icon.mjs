@@ -1,13 +1,15 @@
-// Copies the chosen splash icon (Icon-3.png) into the Android res tree so
-// the splash theme's windowSplashScreenAnimatedIcon always resolves.
+// Copies the chosen splash icon (Icon-3-splash-512.png, 512x512 square,
+// transparent background) into the Android res tree so the splash theme's
+// windowSplashScreenAnimatedIcon always resolves.
 //
 //   node scripts/make-splash-icon.mjs
 //
-// Source : Icon-3.png            (project root - swap this file to change the
+// Source : Icon-3-splash-512.png (project root - swap this file to change the
 //                                   splash icon; kept as a copy so res/ never
 //                                   points outside the native tree)
 // Output : android/app/src/main/res/drawable-nodpi/shopy_splash_logo.png
-//          (nodpi = shown at native size, never density-scaled)
+//          (nodpi = shown at native size, never density-scaled; the system
+//           then fits it into its 96dp centered box)
 //
 // The splash background stays the app cream (#F4F4F2,
 // res/values/ic_launcher_background.xml).
@@ -17,7 +19,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-const srcPath = path.join(root, "Icon-3.png");
+const srcPath = path.join(root, "Icon-3-splash-512.png");
 const outDir = path.join(root, "android", "app", "src", "main", "res", "drawable-nodpi");
 const outPath = path.join(outDir, "shopy_splash_logo.png");
 const staleVector = path.join(root, "android", "app", "src", "main", "res", "drawable", "shopy_splash_logo.xml");
