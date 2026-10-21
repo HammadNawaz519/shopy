@@ -19,6 +19,15 @@ export default function AdminSettingsPage() {
     inventoryAlertThreshold: 5,
     orderNotifications: true,
     codEnabled: true,
+    bankTransferEnabled: true,
+    bankAccountHolder: "SHOPY Retail Private Limited",
+    bankAccountTitle: "SHOPY Main Operations",
+    bankName: "Meezan Bank Limited",
+    bankAccountNumber: "01020304050607",
+    bankIban: "PK12MEZN0001020304050607",
+    bankRaastId: "03001234567",
+    bankPaymentContact: "+92 300 1234567",
+    bankPaymentInstructions: "Please transfer the exact total order amount to the bank account above and share screenshot on WhatsApp with your Order ID for instant payment verification.",
   });
 
   // COD blocklist (saved independently via /api/admin/blocked-users)
@@ -251,18 +260,149 @@ export default function AdminSettingsPage() {
                 </div>
               </label>
 
-              <div className="p-4 bg-[#E8E8E8] border border-[#BBBFCA]">
-                <span className="font-semibold uppercase tracking-wider text-[#495464] block">
-                  Card (Stripe)
-                </span>
-                <span className="text-[10px] text-[#495464]/70 block mt-0.5">
-                  Activated on the server (Vercel) via STRIPE_SECRET_KEY - not a store setting.
-                </span>
+              <label className="flex items-start gap-3 p-4 bg-[#E8E8E8] border border-[#BBBFCA] cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={settings.bankTransferEnabled ?? true}
+                  onChange={(e) => setSettings({ ...settings, bankTransferEnabled: e.target.checked })}
+                  className="mt-1 accent-[#495464]"
+                />
+                <div>
+                  <span className="font-semibold uppercase tracking-wider text-[#495464] block">
+                    Bank Transfer / Raast
+                  </span>
+                  <span className="text-[10px] text-[#495464]/70 block mt-0.5">
+                    Allow direct bank transfers and instant Raast payments.
+                  </span>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          {/* Section 3: Online Banking & Bank Transfer Details */}
+          <div className="pt-6 border-t border-[#BBBFCA]/40">
+            <div className="border-b border-[#BBBFCA]/30 pb-4 mb-6">
+              <h2 className="font-serif text-xl font-medium text-[#495464]">Bank Transfer / Raast Details</h2>
+              <p className="text-xs text-[#495464]/60 uppercase tracking-widest mt-0.5">
+                These details are shown to customers when selecting &ldquo;Bank Transfer / Raast&rdquo; at checkout.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-xs">
+              <div>
+                <label className="block text-[10px] uppercase font-semibold text-[#495464] mb-1">
+                  Account Holder Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. SHOPY Retail Private Limited"
+                  value={settings.bankAccountHolder || ""}
+                  onChange={(e) => setSettings({ ...settings, bankAccountHolder: e.target.value })}
+                  className="w-full bg-[#E8E8E8] border border-[#BBBFCA] px-3 py-2.5 font-medium text-[#495464]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] uppercase font-semibold text-[#495464] mb-1">
+                  Account Title / Operations
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. SHOPY Main Operations"
+                  value={settings.bankAccountTitle || ""}
+                  onChange={(e) => setSettings({ ...settings, bankAccountTitle: e.target.value })}
+                  className="w-full bg-[#E8E8E8] border border-[#BBBFCA] px-3 py-2.5 font-medium text-[#495464]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] uppercase font-semibold text-[#495464] mb-1">
+                  Bank Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Meezan Bank Limited / HBL / Standard Chartered"
+                  value={settings.bankName || ""}
+                  onChange={(e) => setSettings({ ...settings, bankName: e.target.value })}
+                  className="w-full bg-[#E8E8E8] border border-[#BBBFCA] px-3 py-2.5 font-medium text-[#495464]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] uppercase font-semibold text-[#495464] mb-1">
+                  Account Number *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. 01020304050607"
+                  value={settings.bankAccountNumber || ""}
+                  onChange={(e) => setSettings({ ...settings, bankAccountNumber: e.target.value })}
+                  className="w-full bg-[#E8E8E8] border border-[#BBBFCA] px-3 py-2.5 font-mono text-[#495464]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] uppercase font-semibold text-[#495464] mb-1">
+                  IBAN Number *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. PK12MEZN0001020304050607"
+                  value={settings.bankIban || ""}
+                  onChange={(e) => setSettings({ ...settings, bankIban: e.target.value.toUpperCase() })}
+                  className="w-full bg-[#E8E8E8] border border-[#BBBFCA] px-3 py-2.5 font-mono uppercase text-[#495464]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] uppercase font-semibold text-[#495464] mb-1">
+                  Raast ID / Mobile Number
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. 03001234567"
+                  value={settings.bankRaastId || ""}
+                  onChange={(e) => setSettings({ ...settings, bankRaastId: e.target.value })}
+                  className="w-full bg-[#E8E8E8] border border-[#BBBFCA] px-3 py-2.5 font-mono text-[#495464]"
+                />
+                <p className="text-[10px] text-[#495464]/60 mt-1">For instant Raast P2M/P2P transfers.</p>
+              </div>
+
+              <div>
+                <label className="block text-[10px] uppercase font-semibold text-[#495464] mb-1">
+                  Payment Verification Contact (WhatsApp / Phone) *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. +92 300 1234567"
+                  value={settings.bankPaymentContact || ""}
+                  onChange={(e) => setSettings({ ...settings, bankPaymentContact: e.target.value })}
+                  className="w-full bg-[#E8E8E8] border border-[#BBBFCA] px-3 py-2.5 text-[#495464]"
+                />
+                <p className="text-[10px] text-[#495464]/60 mt-1">Contact where clients send payment transfer screenshots.</p>
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="block text-[10px] uppercase font-semibold text-[#495464] mb-1">
+                  Payment Instructions &amp; Transfer Notice
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder="Instructions displayed to customer when placing a Bank Transfer / Raast order..."
+                  value={settings.bankPaymentInstructions || ""}
+                  onChange={(e) => setSettings({ ...settings, bankPaymentInstructions: e.target.value })}
+                  className="w-full bg-[#E8E8E8] border border-[#BBBFCA] p-3 text-xs text-[#495464]"
+                />
               </div>
             </div>
           </div>
 
-          {/* Section 3: COD Blocklist */}
+          {/* Section 4: COD Blocklist */}
           <div className="pt-6 border-t border-[#BBBFCA]/40">
             <div className="border-b border-[#BBBFCA]/30 pb-4 mb-6">
               <h2 className="font-serif text-xl font-medium text-[#495464]">Blocked Users (COD)</h2>

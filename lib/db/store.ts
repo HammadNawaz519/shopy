@@ -1356,25 +1356,9 @@ class SupabaseDataStore {
     const isBankTransfer =
       orderData.paymentMethod === "bank_transfer" ||
       orderData.paymentMethod === "online";
-    const isCard = orderData.paymentMethod === "card";
-    const paymentMethod: PaymentMethod = isBankTransfer
-      ? "bank_transfer"
-      : isCard
-        ? "card"
-        : "cod";
-    // Card orders are RECEIVED (PENDING) until Stripe confirms the payment
-    // via webhook, which upgrades them to CONFIRMED + PAID. COD orders are
-    // confirmed at placement time.
-    const initialStatus: OrderStatus = isBankTransfer
-      ? "VERIFYING_PAYMENT"
-      : isCard
-        ? "PENDING"
-        : "CONFIRMED";
-    const initialPaymentStatus: PaymentStatus = isBankTransfer
-      ? "PENDING_VERIFICATION"
-      : isCard
-        ? "PENDING"
-        : "UNPAID";
+    const paymentMethod: PaymentMethod = isBankTransfer ? "bank_transfer" : "cod";
+    const initialStatus: OrderStatus = isBankTransfer ? "VERIFYING_PAYMENT" : "CONFIRMED";
+    const initialPaymentStatus: PaymentStatus = isBankTransfer ? "PENDING_VERIFICATION" : "UNPAID";
 
     let paymentDetails: OrderPaymentDetails | undefined = undefined;
     if (isBankTransfer) {
@@ -1399,9 +1383,7 @@ class SupabaseDataStore {
         changedAt: nowIso,
         note: isBankTransfer
           ? "Order placed awaiting payment verification"
-          : isCard
-            ? "Order received via card - awaiting Stripe payment confirmation"
-            : "Order confirmed via Cash on Delivery",
+          : "Order confirmed via Cash on Delivery",
       },
     ];
 
@@ -2408,105 +2390,6 @@ class SupabaseDataStore {
   private _tablesInitialized = false;
   private _initPromise: Promise<void> | null = null;
 
-  /**
-   * Stripe webhook helper: record a card-payment result on the order.
-   *  - "PAID":   order PENDING -> CONFIRMED, payment_status PAID, and the
-   *              Stripe payment intent id is attached to payment_details.
-   *              (Admin analytics count orders from CONFIRMED onward.)
-   *  - "FAILED": payment_status FAILED, order stays PENDING (received).
-   */
-  async updateOrderStatusAndPayment(
-    orderId: string,
-    paymentStatus: "PAID" | "FAILED",
-    stripePaymentIntentId?: string
-  ): Promise<OrderRecord | undefined> {
-    const id = String(orderId || "").trim();
-    if (!id) return undefined;
-
-    const normPayment: PaymentStatus = paymentStatus === "PAID" ? "PAID" : "FAILED";
-    const nowIso = new Date().toISOString();
-
-    await transaction(async (client) => {
-      const lockRes = await client.query(`SELECT * FROM orders WHERE id = $1 FOR UPDATE;`, [id]);
-      const row: any = lockRes.rows[0];
-      if (!row) return;
-
-      const confirmedNow = normPayment === "PAID" && row.status === "PENDING";
-      const nextStatus: OrderStatus = confirmedNow ? "CONFIRMED" : (row.status as OrderStatus);
-
-      const parseHistory = (value: unknown): any[] => {
-        if (Array.isArray(value)) return value;
-        if (typeof value === "string" && value.trim()) {
-          try {
-            const parsed = JSON.parse(value);
-            return Array.isArray(parsed) ? parsed : [];
-          } catch {
-            return [];
-          }
-        }
-        return [];
-      };
-
-      const orderHistory = parseHistory(row.order_history);
-      if (confirmedNow) {
-        orderHistory.push({
-          status: "CONFIRMED",
-          previousStatus: row.status,
-          changedBy: "Stripe Webhook",
-          changedAt: nowIso,
-          note: "Order confirmed - Stripe payment received",
-        });
-      }
-
-      const paymentHistory = parseHistory(row.payment_history);
-      paymentHistory.push({
-        status: normPayment,
-        previousStatus: row.payment_status || "PENDING",
-        changedBy: "Stripe Webhook",
-        changedAt: nowIso,
-        note: stripePaymentIntentId
-          ? `Stripe ${normPayment === "PAID" ? "payment captured" : "payment failed"} (${stripePaymentIntentId})`
-          : `Stripe payment ${normPayment.toLowerCase()}`,
-      });
-
-      let details: Record<string, unknown> = {};
-      if (row.payment_details) {
-        try {
-          details =
-            typeof row.payment_details === "string"
-              ? JSON.parse(row.payment_details || "{}")
-              : { ...row.payment_details };
-        } catch {
-          details = {};
-        }
-      }
-      if (stripePaymentIntentId) {
-        details.stripePaymentIntentId = stripePaymentIntentId;
-      }
-
-      await client.query(
-        `UPDATE orders
-          SET status = $2,
-              payment_status = $3,
-              order_history = $4,
-              payment_history = $5,
-              payment_details = $6,
-              updated_at = NOW()
-          WHERE id = $1;`,
-        [
-          id,
-          nextStatus,
-          normPayment,
-          JSON.stringify(orderHistory),
-          JSON.stringify(paymentHistory),
-          JSON.stringify(details),
-        ]
-      );
-    });
-
-    return this.getOrderById(id);
-  }
-
   // ------------------------------------------------------------------
   // COD blocklist (admin-managed): these emails cannot use Cash on
   // Delivery - /api/orders rejects their COD attempts with 403
@@ -3082,8 +2965,8 @@ class SupabaseDataStore {
     await this.ensureTablesExist();
     // Analytics only count orders that are CONFIRMED or beyond. "Received"
     // states (PENDING, VERIFYING_PAYMENT, AWAITING_PAYMENT_VERIFICATION) and
-    // CANCELLED/REFUNDED are excluded, so card orders enter the numbers only
-    // after the Stripe webhook confirms the payment.
+    // CANCELLED/REFUNDED are excluded, so bank-transfer orders enter the
+    // numbers only once they are confirmed - not just when received.
     const CONFIRMED_SQL = `o.status IN ('CONFIRMED','PREPARING','PROCESSING','SHIPPED','OUT_FOR_DELIVERY','DELIVERED')`;
     const [overviewRes, catBreakdownRes, statusRes, topProductsRes] = await Promise.all([
       query(`
