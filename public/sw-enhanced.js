@@ -392,8 +392,10 @@ function injectOfflineTarget(response, targetPath) {
 }
 
 // Branded "you're offline" page served when a navigation has no cached copy and
-// there is no network. Reads like a not-found page but is explicitly about the
-// connection, so the user knows to reconnect rather than think the page is gone.
+// there is no network. It replicates the 404 page (app/not-found.tsx) exactly:
+// same #F4F4F2 canvas, the architectural dashed-circle frame, serif center word,
+// mono eyebrow, hairline divider and the same two CTAs — only the copy makes
+// clear this is a connection problem, not a missing page.
 function offlinePage() {
   const html = `<!doctype html>
 <html lang="en">
@@ -405,19 +407,57 @@ function offlinePage() {
 <style>
   html,body{background:#F4F4F2;margin:0}
   *{box-sizing:border-box}
-  .wrap{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:56px 24px;color:#495464;font-family:'Plus Jakarta Sans',system-ui,-apple-system,sans-serif}
-  .brand{font-family:'Cormorant Garamond',Georgia,serif;font-size:44px;letter-spacing:.05em;font-weight:500}
-  .tag{font-size:11px;letter-spacing:.32em;text-transform:uppercase;opacity:.65;margin:14px 0 30px}
-  .msg{max-width:340px;margin:0 auto;font-size:14px;line-height:1.75;opacity:.8}
-  .sep{width:40px;height:1px;background:#BBBFCA;margin:34px auto 0;opacity:.5}
+  .wrap{min-height:100vh;width:100%;display:flex;align-items:center;justify-content:center;padding:48px 20px;color:#495464;font-family:'Plus Jakarta Sans',system-ui,-apple-system,sans-serif;-webkit-user-select:none;user-select:none;overflow-y:auto}
+  .inner{max-width:36rem;width:100%;margin:auto;display:flex;flex-direction:column;align-items:center;text-align:center;position:relative;z-index:1}
+  .frame{position:relative;width:16rem;height:16rem;display:flex;align-items:center;justify-content:center;margin-bottom:1.5rem}
+  @media (min-width:640px){.frame{width:16rem;height:16rem}}
+  .eyebrow{display:flex;align-items:center;gap:.5rem;margin-bottom:.75rem}
+  .eyebrow .dot{height:6px;width:6px;border-radius:9999px;background:#495464;flex-shrink:0}
+  .eyebrow .label{font-size:10px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.25em;text-transform:uppercase;color:rgba(73,84,100,.8);font-weight:600}
+  @media (min-width:640px){.eyebrow .label{font-size:11px}}
+  .divider{width:3rem;height:1px;background:rgba(187,191,202,.7);margin:.5rem 0}
+  .msg{font-size:12px;line-height:1.75;text-transform:uppercase;letter-spacing:.04em;color:rgba(73,84,100,.75);max-width:28rem;margin:0 auto 2rem}
+  @media (min-width:640px){.msg{font-size:13px}}
+  .actions{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;width:100%;max-width:20rem}
+  @media (min-width:640px){.actions{flex-direction:row;gap:1rem;max-width:none}}
+  .btn{width:100%;display:inline-flex;align-items:center;justify-content:center;gap:.75rem;padding:.875rem 1.75rem;font-size:11px;text-transform:uppercase;letter-spacing:.22em;font-weight:500;cursor:pointer;text-decoration:none;transition:all .3s;box-shadow:0 1px 2px 0 rgba(0,0,0,.05)}
+  @media (min-width:640px){.btn{width:auto}}
+  .btn.primary{background:#495464;color:#F4F4F2}
+  .btn.primary:hover{background:#363E4B}
+  .btn.ghost{border:1px solid rgba(73,84,100,.4);background:transparent;color:#495464}
+  .btn.ghost:hover{border-color:#495464;background:rgba(73,84,100,.05)}
 </style>
 </head>
 <body>
   <div class="wrap">
-    <div class="brand">SHOPY</div>
-    <div class="tag">You are offline</div>
-    <p class="msg">We couldn't load this page because there's no internet connection. Reconnect and try again - your last-viewed store content is kept safe for when you're back online.</p>
-    <div class="sep"></div>
+    <div class="inner">
+      <!-- Architectural circle frame (same geometry as the 404 page) -->
+      <div class="frame">
+        <svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;color:#495464">
+          <circle cx="100" cy="100" r="94" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4 4" opacity="0.2"/>
+          <line x1="100" y1="8" x2="100" y2="192" stroke="currentColor" stroke-width="0.75" opacity="0.15"/>
+          <line x1="8" y1="100" x2="192" y2="100" stroke="currentColor" stroke-width="0.75" opacity="0.15"/>
+          <circle cx="100" cy="100" r="62" stroke="currentColor" stroke-width="0.75" opacity="0.15"/>
+          <text x="100" y="92" text-anchor="middle" dominant-baseline="central" fill="#495464"
+                font-family="'Cormorant Garamond',Georgia,serif" font-size="40"
+                font-weight="300" letter-spacing="-1">OFFLINE</text>
+        </svg>
+      </div>
+
+      <div class="eyebrow">
+        <span class="dot"></span>
+        <span class="label">Offline &bull; You are offline</span>
+      </div>
+
+      <div class="divider"></div>
+
+      <p class="msg">No internet connection, so this page can't load right now. Reconnect and try again — your last-viewed store content is kept safe for when you're back online.</p>
+
+      <div class="actions">
+        <a class="btn primary" href="/">Back to Home</a>
+        <button class="btn ghost" type="button" onclick="(function(){if(history.length>1){history.back()}else{location.replace('/')}})">Go Back</button>
+      </div>
+    </div>
   </div>
 </body>
 </html>`;

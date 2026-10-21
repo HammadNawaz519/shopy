@@ -25,18 +25,51 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         // Documented AndroidX order: install the (neutral, background-only)
         // splash window FIRST, before the activity inflates its content. It
-        // auto-dismisses on the first drawn frame of the WebView — no timer.
-        //
-        // Note: core-splashscreen 1.2.0 exposes no public "finish early"
-        // API, so the handoff is driven by that first frame. The frame is
-        // fast on warm starts; on a fresh install the app still pays one
-        // remote fetch of the live site, which the PWA service worker
-        // caches so the SECOND launch is the fast one.
+        // auto-dismisses on the first drawn frame of the WebView — no timer,
+        // no artificial hold, so the splash never adds to launch time.
+        // Documented AndroidX order: install the splash window FIRST, before
+        // the activity inflates its content. The splash releases the instant
+        // the WebView draws its first frame (no timer, no artificial hold —
+        // "0 second" launch), and the system then plays its default ~250 ms
+        // icon cross-fade out of the branded logo (values/styles.xml now
+        // points windowSplashScreenAnimatedIcon at @mipmap/ic_launcher_foreground
+        // instead of the old 1x1 transparent icon), which sits inside the
+        // requested 0.2-0.4 s icon-animation window. We do NOT customize the
+        // exit listener: core-splashscreen 1.2.0's listener API changed and
+        // the default timing is already what this app wants.
         SplashScreen.installSplashScreen(this);
         super.onCreate(savedInstanceState);
         registerPlugin(NativeGoogleAuthPlugin.class);
+        verifyNativeGoogleAuthRegistered();
         extendNativeBridgeToRemoteOrigin();
         requestHighestRefreshRate();
+    }
+
+    /**
+     * Guarantee the NativeGoogleAuth plugin is actually in this Bridge's plugin
+     * map. If the Class-based registration in {@code registerPlugin(...)}
+     * silently failed (Capacitor catches PluginLoadException and only logs
+     * it), every JS call from the live pages dies with the bridge error
+     * "unable to find plugin : NativeGoogleAuth". Retry with an instance-based
+     * registration (which skips the failing step) and log the outcome under
+     * the NativeGoogleAuth tag so logcat pins the exact state.
+     */
+    private void verifyNativeGoogleAuthRegistered() {
+        final String tag = "NativeGoogleAuth";
+        try {
+            if (getBridge() != null && getBridge().getPlugin("NativeGoogleAuth") != null) {
+                android.util.Log.d(tag, "registered=true");
+                return;
+            }
+            getBridge().registerPluginInstance(new NativeGoogleAuthPlugin());
+            android.util.Log.d(
+                    tag,
+                    "registered="
+                            + (getBridge() != null
+                                    && getBridge().getPlugin("NativeGoogleAuth") != null));
+        } catch (Throwable t) {
+            android.util.Log.e(tag, "registration failed", t);
+        }
     }
 
     /**

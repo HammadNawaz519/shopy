@@ -124,20 +124,18 @@ public class NativeGoogleAuthPlugin extends Plugin {
         if (error instanceof NoCredentialException) {
             return true;
         }
-        String type = error.getType();
-        String message = error.getMessage();
-        String haystack = ((type == null ? "" : type) + " " + (message == null ? "" : message))
-                .toLowerCase();
+        // INTERNAL_ERROR / UNKNOWN provider failures: the provider's type names
+        // surface in the exception / cause chain messages. Deliberately built
+        // only from the Throwable base API (message + cause chain) because the
+        // exception surface of androidx.credentials 1.x alphas changes between
+        // releases (no getStatusCode()/getType() guarantees here).
+        String haystack = describeCredentialError(error).toLowerCase();
         return haystack.contains("internal") || haystack.contains("unknown");
     }
 
     private String describeCredentialError(GetCredentialException error) {
         StringBuilder sb = new StringBuilder();
         sb.append(error.getClass().getSimpleName());
-        String type = error.getType();
-        if (type != null && !type.isEmpty()) {
-            sb.append(" type=").append(type);
-        }
         String message = error.getMessage();
         if (message != null && !message.isEmpty()) {
             sb.append(": ").append(message);
