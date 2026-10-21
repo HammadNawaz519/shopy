@@ -195,7 +195,7 @@ export default function Footer({ initialNavItems }: { initialNavItems?: Navigati
           <span>© 2026 SHOPY — ALL RIGHTS RESERVED</span>
           <div className="flex items-center gap-6">
             <a
-              href="https://github.com/HammadNawaz519/shopy/releases/download/Shopy/shopy.apk"
+              href="https://github.com/HammadNawaz519/shopy/releases/latest/download/shopy.apk"
               target="_blank"
               rel="noopener noreferrer"
               className="hover:text-[#495464] transition-colors underline-offset-4 hover:underline"

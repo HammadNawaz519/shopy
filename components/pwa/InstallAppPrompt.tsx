@@ -30,10 +30,15 @@ export default function InstallAppPrompt() {
     const open = () => setShow(true);
     window.addEventListener("shopy:open-install-prompt", open);
 
-    // Dismissal is remembered for 7 days.
+    // Dismissal is remembered: mobile re-offers after 24h (the download
+    // prompt matters most there), desktop after 7 days.
     const dismissedAt = localStorage.getItem("shopy_apk_prompt_dismissed");
-    const sevenDays = 7 * 24 * 60 * 60 * 1000;
-    if (!dismissedAt || Date.now() - parseInt(dismissedAt, 10) > sevenDays) {
+    const isMobile =
+      window.matchMedia("(max-width: 767px)").matches ||
+      (typeof window.navigator.maxTouchPoints === "number" &&
+        window.navigator.maxTouchPoints > 1);
+    const reOfferMs = isMobile ? 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000;
+    if (!dismissedAt || Date.now() - parseInt(dismissedAt, 10) > reOfferMs) {
       timerRef.current = setTimeout(() => setShow(true), 3000);
     }
 
@@ -79,7 +84,7 @@ export default function InstallAppPrompt() {
 
             <div className="mt-3.5 flex items-center gap-2.5">
               <a
-                href="https://github.com/HammadNawaz519/shopy/releases/download/Shopy/shopy.apk"
+                href="https://github.com/HammadNawaz519/shopy/releases/latest/download/shopy.apk"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 bg-[#495464] hover:bg-[#363E4B] text-white text-[10px] uppercase tracking-[0.2em] px-4 py-2 font-light transition-all"
