@@ -19,6 +19,7 @@ import {
   ExternalLink,
   X,
   LogOut,
+  UserX,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useAdminOrderNotification } from "@/context/AdminOrderNotificationContext";
@@ -37,6 +38,7 @@ const navItems = [
   { name: "Homepage", href: "/admin/homepage", icon: Layers },
   { name: "Inventory", href: "/admin/inventory", icon: Boxes },
   { name: "Customers", href: "/admin/customers", icon: Users },
+  { name: "Blocked", href: "/admin/blocked-users", icon: UserX },
   { name: "Discounts", href: "/admin/discounts", icon: Percent },
   { name: "Reviews", href: "/admin/reviews", icon: Star },
   { name: "Analytics", href: "/admin/analytics", icon: TrendingUp },

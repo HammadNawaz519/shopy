@@ -101,7 +101,7 @@ export default function MobileMenu({
         {/* Bottom Drawer Footer */}
         <div className="pt-6 border-t border-[#BBBFCA]/30 space-y-4">
           <Link
-            href="https://github.com/HammadNawaz519/shopy/releases/latest/download/shopy.apk"
+            href="https://github.com/HammadNawaz519/shopy/releases/download/Shopy/shopy.apk"
             target="_blank"
             rel="noopener noreferrer"
             onClick={onClose}
