@@ -1,0 +1,222 @@
+================================================================================
+SHOPY — WEB FOLDER FLOW (build, deploy, auth, offline, APK download)
+Scope: D:\VS Code\Shopy\Web only. (The Android shell is covered in
+make-shopy.bat step comments; nothing in this file is mobile-side.)
+================================================================================
+
+1. FOLDER TOPOLOGY (what lives in Web\)
+--------------------------------------------------------------------------------
+- app/            Next.js App Router: pages, admin UI, API routes (route.ts),
+                  PWA manifests, error/not-found/offline surfaces.
+- components/     Client components: auth/ (GoogleButton), admin/ (header with
+                  the DB pill + reset, layout, nav), pwa/ (service worker
+                  register, offline cache warmer, idle prefetcher, offline
+                  recovery), home/, common/ (client cache revalidator).
+- context/        AuthContext + EnhancedAuthContext (user/session state),
+                  ToastContext, cart, etc.
+- lib/
+  - lib/db/       PostgreSQL engine: client.ts (pg Pool, Supabase pooler),
+                  store.ts (query helpers, storage metrics), schema.sql.
+  - lib/security/ googleAuth.ts (+Flow), session.ts (JWT cookie),
+                  rateLimit.ts (Upstash Redis), sanitize.ts, headers.ts.
+  - lib/sheets/   Google Apps Script sync mirror (non-blocking business mirror).
+  - lib/redis.ts  Upstash Redis client (rate limiting).
+- public/         Static assets served at the site root: logo.svg,
+                  sw-enhanced.js (the PWA service worker), sw.js (legacy
+                  fallback worker), shopy.apk (the built app package),
+                  icons, hero/category photos.
+- scripts/        Node utilities: make-splash-icon.mjs (splash icon),
+                  clear-all-db.mjs, apply-migrations.mjs, seed data, etc.
+- capacitor.config.ts + android/ + ios/ — native shell config (the APK loads
+                  the LIVE site; see section 6).
+- make-shopy.bat / make-shopy-apk.bat / build-and-install.bat — build
+  workflows. make-shopy.bat is the single entry point now.
+
+2. WEB BUILD + DEPLOY FLOW
+--------------------------------------------------------------------------------
+  a) `npm install` once (node_modules; sharp, next, @capacitor/*, pg, ...).
+  b) `next build` -> .next/ (App Router output, ISR/dynamic route split;
+     next.config.mjs sets cache headers: immutable hashed chunks, 1-year CDN
+     for fonts/media, 60s browser + s-maxage for /_next/image).
+  c) `npx cap sync android` (step 2 of make-shopy.bat) copies .next into the
+     Android project as a fallback asset source and (re)generates
+     capacitor.config.json + the Capacitor plugin manifest.
+  d) DEPLOY: git push (repo: HammadNawaz519/shopy) -> Vercel auto-deploys
+     buyatshopy.vercel.app. Vercel env vars must include:
+       GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET   (web OAuth client,
+                                                 project "shopy-new")
+       GOOGLE_ANDROID_CLIENT_ID                 (the Android OAuth client id;
+                                                 what the in-app button sends
+                                                 as serverClientId)
+       APP_URL, SESSION_SECRET, DATABASE_URL (Supabase Postgres pooler),
+       UPSTASH_REDIS_* (rate limiting), GOOGLE_SHEETS_*, SMTP_*
+     (full list in .env.example).
+
+3. PAGES / ROUTES (live site)
+--------------------------------------------------------------------------------
+  Public: / (home), /products, /product/[id], /collections,
+          /collections/[category], /search, /cart, /checkout,
+          /order-confirmation/[id], /contact, /faq, /returns, /shipping,
+          /size-guide, /privacy-policy, /terms, /register, /login,
+          /forgot-password, /account (session-gated), /admin (admin-gated).
+  API (public):   /api/products, /api/products/[id], /api/categories,
+                  /api/collections via categories, /api/search, /api/homepage,
+                  /api/navigation, /api/editorial/quote, /api/reviews (+
+                  /eligibility), /api/orders (+/[id]), /api/cart (+/validate),
+                  /api/newsletter, /api/contact, /api/upload, /api/media/[id],
+                  /api/settings/payment, /api/webhooks/sheets,
+                  /api/auth/login|register|logout|me|forgot-password|
+                  reset-password, /api/auth/google (+/config, /native,
+                  callback/google).
+  API (admin, session-gated with getAdminUser()): /api/admin/products,
+                  /categories, /orders (+/unseen), /customers, /reviews,
+                  /settings, /homepage, /navigation, /inventory, /metrics,
+                  /analytics, /color-hex, /upload, /storage, /db/reset.
+
+4. AUTH FLOWS
+--------------------------------------------------------------------------------
+  4.1 EMAIL / PASSWORD
+      POST /api/auth/login  ->  verifies against users (Postgres)  ->
+      issues signed 7-day JWT cookie "shopy_session_id" (httpOnly, secure on
+      prod) + JS-readable marker cookie "shopy_client_auth=1"  ->
+      AuthContext stores the user; all later requests carry the cookie.
+      /register creates the user; /forgot-password + /reset-password use
+      SMTP OTP dispatch; /logout clears both cookies.
+
+  4.2 MIDDLEWARE (edge, Vercel)
+      middleware.ts runs ONLY on /admin/* and /account/* (matcher).
+      No session cookie -> redirect to /login?redirect=<exact path>
+      (open-redirect defended: "//" and absolute URLs are sanitized).
+      Zero DB/crypto work at the edge; everything else is bypassed.
+
+  4.3 GOOGLE — CLASSIC WEB (desktop/browser)
+      /api/auth/google -> state cookie (10 min CSRF) -> accounts.google.com ->
+      /api/auth/callback/google -> code exchange (web client) ->
+      completeGoogleSignIn -> user upsert (by email) -> session cookies ->
+      redirect to destination. Failures bounce to /login?error=...
+      (google_cancelled / email_not_verified / invalid_state / google_failed /
+      oauth_failed / missing_code / oauth_not_configured).
+
+  4.4 GOOGLE — NATIVE (in-app, Credential Manager; the "native" variant of
+      the same login screen inside the shell):
+      1. GoogleButton (components/auth/GoogleButton.tsx) detects in-app via
+         Capacitor.getPlatform() === "android" + isPluginAvailable
+         ("NativeGoogleAuth").
+      2. fetches GET /api/auth/google/config -> uses androidClientId
+         (GOOGLE_ANDROID_CLIENT_ID on Vercel). Missing -> "not configured on
+         the server yet" message (set the Vercel var + redeploy).
+      3. NativeGoogleAuth.signIn({serverClientId}) -> Android Credential
+         Manager (GetSignInWithGoogleOption first, GetGoogleIdOption
+         bottom-sheet fallback) -> Google account picker -> ID token.
+      4. POST /api/auth/google/native {idToken, redirect} ->
+         completeNativeGoogleSignIn verifies the token via
+         https://oauth2.googleapis.com/tokeninfo (audience must be the
+         Android or the web client id, email + email_verified checks) ->
+         same user upsert + session cookies as 4.1/4.3 ->
+         window.location to /account (or /admin for the admin email).
+      5. Admin DB PANEL: the top-right "DB:" pill in the admin header opens
+         details on CLICK (tap) or hover — and now includes "Reset Database":
+         two-tap confirm -> POST /api/admin/db/reset {confirm:"RESET"}
+         (admin session + typed confirmation; one Postgres transaction)
+         -> TRUNCATE all data tables (order_items, orders, reviews,
+            product_images, products, categories, discounts, user_carts,
+            inquiries, newsletter_subscribers, users) RESTART IDENTITY
+            CASCADE; media_assets is NEVER touched, so all images keep
+            resolving; store_settings / homepage_config / navigation_items
+            re-seed to clean defaults (same values as scripts/clear-all-db.mjs
+            minus the media wipe). The pill then refreshes its metrics.
+
+  4.5 GOOGLE OAUTH CONFIGURATION REQUIREMENTS (one-time)
+      - Google Cloud project "shopy-new":
+          * WEB client  (the classic flow; client id = GOOGLE_CLIENT_ID)
+          * ANDROID client: package com.shopy.fashion + the SHA-1 of the
+            APK signing key (the .bat step [7/7] prints it). SHA-1 only —
+            the console UI does not take SHA-256 for Android clients.
+            Its client id = GOOGLE_ANDROID_CLIENT_ID on Vercel.
+      - If the registered SHA-1/package does not match the installed APK,
+        the Credential Manager provider cancels the request (logcat tag
+        "NativeGoogleAuth" shows the exception + cause chain).
+
+5. PWA / OFFLINE FLOW (the app-shell layer)
+--------------------------------------------------------------------------------
+  Registration: components/pwa/ServiceWorkerRegister.tsx registers
+  /sw-enhanced.js (scope "/", updateViaCache "all"), SKIP_WAITING on
+  updates, hourly update check; falls back to /sw.js if the enhanced worker
+  fails. Dev (localhost) is skipped.
+
+  sw-enhanced.js caches (versioned namespaces shopy-pwa-v5-*):
+    STATIC  - immutable hashed build assets, fonts, /uploads, /api/media
+              (content-addressed): cache-first.
+    RUNTIME - public data APIs (/api/products, /categories, /homepage,
+              /navigation, /reviews, /search, /discounts) + /_next/image:
+              stale-while-revalidate.
+    PAGES   - HTML documents: network-first, cached-shell fallback; if the
+              offline fallback doc differs from the requested URL it
+              injects window.__shopyOfflineTarget (OfflineRecovery.tsx
+              router.replace()s to it on boot).
+    FLIGHT  - RSC flight payloads (RSC:1 / Next-Router-Prefetch GETs) so
+              client-side router navigation works fully offline.
+    NEVER   - /api/admin/*, /api/auth/*, /api/cart*, /api/orders*
+              (server stays authoritative; mutations never fake offline).
+    Cross-origin images (Supabase storage/CDN) cached opaque so store
+    photography survives offline.
+
+  Warm-up: IdlePrefetcher + OfflineCacheWarmer message the worker
+  WARM_OFFLINE {paths} (caches both HTML + RSC for those routes, only while
+  online) and REFRESH_ONLINE (re-pulls home + key data, prunes oldest cache
+  entries). So:
+    - CACHED page opened while offline -> served instantly from PAGES/FLIGHT
+      ("fast and smooth offline").
+    - UNCACHED page opened while offline -> the service worker serves the
+      404-styled "OFFLINE" page (same design as /not-found: cream #F4F4F2,
+      dashed architectural circle frame, serif "OFFLINE" center word, mono
+      eyebrow, "Back to Home" / "Go Back" buttons).
+
+6. APK BUILD + DOWNLOAD FLOW (from the Web folder)
+--------------------------------------------------------------------------------
+  make-shopy.bat (the one-click entry point) does:
+    [1/7] next build            (fresh .next)
+    [2/7] cap sync android      (assets + capacitor.config.json + plugins)
+    [3/7] node scripts/make-splash-icon.mjs
+                          (copies Icon-3-splash-512.png ->
+                           res/drawable-nodpi/shopy_splash_logo.png)
+    [4/7] gradlew clean assembleDebug (JDK 21; the splash theme shows the
+                          cream #F4F4F2 background + this icon; the
+                          NativeGoogleAuth plugin registers + verifies,
+                          logging "NativeGoogleAuth: registered=true")
+    [5/7] REPLACE public\shopy.apk with the fresh build
+                          (android\app\build\outputs\apk\debug\app-debug.apk)
+    [6/7] if a phone is attached: adb uninstall com.shopy.fashion +
+                          adb install -r (up to 30 s wait, else skip + hint)
+    [7/7] print the signing keystore SHA-1 + the Google Cloud / Vercel
+                          checklist.
+
+  DOWNLOAD PATH for the end user:
+    - public/ is deployed to Vercel, so the APK is served statically at:
+        https://buyatshopy.vercel.app/shopy.apk
+      (this URL is shared/QR'd; the site itself has no download button).
+    - The APK loads the LIVE site https://buyatshopy.vercel.app at runtime
+      (capacitor.config.ts server.url; allowNavigation keeps the origin in-
+      app). Consequence: WEB changes (offline page, admin DB panel, ...)
+      reach installed apps ONLY AFTER the git push -> Vercel deploy;
+      NATIVE changes require the make-shopy.bat rebuild + install/update of
+      public\shopy.apk.
+    - The service worker takes over the new sw-enhanced.js automatically on
+      the next app load (SKIP_WAITING), so no reinstall is needed for the
+      web-only changes.
+
+  NOTE: make-shopy-apk.bat and build-and-install.bat are superseded by
+  make-shopy.bat (the icon-copy step is in both, so none of them can
+  build a missing-icon APK).
+
+7. ENVIRONMENT (Web\)
+--------------------------------------------------------------------------------
+  .env.example lists everything: APP_URL, SESSION_SECRET, DATABASE_URL
+  (Supabase pooler; the fallback in lib/db/client.ts is the production
+  pooler DSN), UPSTASH_REDIS_*, GOOGLE_SHEETS_*, SMTP_3-inbox sets,
+  plus GOOGLE_CLIENT_ID/SECRET (+GOOGLE_ANDROID_CLIENT_ID) set on Vercel.
+
+================================================================================
+END — every flow above is owned by the Web folder; mobile-side behavior is a
+consequence of the APK wrapping this live site, not a separate codebase.
+================================================================================

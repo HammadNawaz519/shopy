@@ -41,8 +41,9 @@ echo ============================================================
 cmd /c "node node_modules\@capacitor\cli\bin\capacitor sync android < nul"
 if errorlevel 1 goto :fail
 
-rem Splash icon: copy Icon-3-splash-512.png -> res\drawable-nodpi\shopy_splash_logo.png
-rem (required by the splash theme's windowSplashScreenAnimatedIcon)
+rem Splash icon: copy the chosen splash image -> res\drawable-nodpi\shopy_splash_logo.*
+rem (source defined in scripts\make-splash-icon.mjs; required by the splash
+rem theme's windowSplashScreenAnimatedIcon)
 cmd /c "node scripts\make-splash-icon.mjs < nul"
 if errorlevel 1 goto :fail
 

@@ -60,7 +60,7 @@ if errorlevel 1 goto :fail
 
 echo.
 echo ============================================================
-echo  [3/7] Copying Icon-3-splash-512.png to the splash icon resource
+echo  [3/7] Copying the splash icon image to the Android resource
 echo ============================================================
 
 cmd /c "node scripts\make-splash-icon.mjs < nul"
