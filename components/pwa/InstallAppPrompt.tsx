@@ -83,10 +83,14 @@ export default function InstallAppPrompt() {
             </p>
 
             <div className="mt-3.5 flex items-center gap-2.5">
+              {/* Direct asset download: same-page navigation (no GitHub tab).
+                  GitHub serves the asset with Content-Disposition: attachment,
+                  so the browser starts the download without rendering any
+                  GitHub page. The download attribute is a same-origin hint
+                  only - the attachment header is what forces the download. */}
               <a
-                href="https://github.com/HammadNawaz519/shopy/releases/latest/download/shopy.apk"
-                target="_blank"
-                rel="noopener noreferrer"
+                href="https://github.com/HammadNawaz519/shopy/releases/download/Shopy/shopy.apk"
+                download="shopy.apk"
                 className="inline-flex items-center gap-2 bg-[#495464] hover:bg-[#363E4B] text-white text-[10px] uppercase tracking-[0.2em] px-4 py-2 font-light transition-all"
               >
                 <Download className="w-3 h-3" />

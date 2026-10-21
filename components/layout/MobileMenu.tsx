@@ -100,10 +100,12 @@ export default function MobileMenu({
 
         {/* Bottom Drawer Footer */}
         <div className="pt-6 border-t border-[#BBBFCA]/30 space-y-4">
+          {/* Direct asset download in the SAME page (no GitHub tab): the
+              release asset is served with Content-Disposition: attachment,
+              so tapping starts the download and the user stays on SHOPY. */}
           <Link
-            href="https://github.com/HammadNawaz519/shopy/releases/latest/download/shopy.apk"
-            target="_blank"
-            rel="noopener noreferrer"
+            href="https://github.com/HammadNawaz519/shopy/releases/download/Shopy/shopy.apk"
+            download="shopy.apk"
             onClick={onClose}
             className="flex items-center justify-between w-full text-xs tracking-[0.2em] uppercase font-light text-[#495464] hover:text-black transition-colors"
           >
