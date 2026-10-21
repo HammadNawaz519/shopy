@@ -7,8 +7,9 @@ import { useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
 import { formatPrice } from "@/lib/utils";
-import { Lock, ArrowRight, Loader2, CheckCircle2, Building2, Banknote, Copy, Check, Info } from "lucide-react";
+import { Lock, ArrowRight, Loader2, CheckCircle2, Banknote, CreditCard } from "lucide-react";
 import { useToast } from "@/context/ToastContext";
+import StripePaymentButton from "@/components/checkout/StripePaymentButton";
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -17,21 +18,15 @@ export default function CheckoutPage() {
   const { showToast } = useToast();
 
   const [loading, setLoading] = useState(false);
-  const [copiedField, setCopiedField] = useState<string | null>(null);
   const [methodsEnabled, setMethodsEnabled] = useState({
     cod: true,
-    bankTransfer: true,
+    card: false,
   });
-  const [bankSettings, setBankSettings] = useState<any>({
-    accountHolderName: "SHOPY Retail Private Limited",
-    accountTitle: "SHOPY Main Operations",
-    bankName: "Meezan Bank Limited",
-    accountNumber: "01020304050607",
-    iban: "PK12MEZN0001020304050607",
-    raastId: "03001234567",
-    paymentContact: "+92 300 1234567",
-    instructions: "Please transfer the exact total order amount to the bank account above and share screenshot on WhatsApp with your Order ID for instant payment verification.",
-  });
+  // Card order created (PENDING) and waiting for the Stripe hand-off.
+  const [pendingCardOrder, setPendingCardOrder] = useState<{
+    orderId: string;
+    orderNumber?: string;
+  } | null>(null);
 
   const getShippingStorageKey = (u?: typeof user) => {
     return u && u.id ? `shopy_shipping_user_${u.id}` : `shopy_shipping_guest`;
@@ -46,7 +41,7 @@ export default function CheckoutPage() {
     city: "Lahore",
     postalCode: "",
     province: "Punjab",
-    paymentMethod: "cod" as "cod" | "bank_transfer",
+    paymentMethod: "card" as "cod" | "card",
   });
 
   // Clean up legacy shared global storage key
@@ -68,6 +63,9 @@ export default function CheckoutPage() {
       const saved = localStorage.getItem(key);
       if (saved) {
         const parsed = JSON.parse(saved);
+        // Legacy saved "bank_transfer" selections map to the new card flow.
+        const savedMethod: "cod" | "card" =
+          parsed.paymentMethod === "cod" ? "cod" : "card";
         setFormData({
           firstName: parsed.firstName || defaultFirstName,
           lastName: parsed.lastName || defaultLastName,
@@ -77,7 +75,7 @@ export default function CheckoutPage() {
           city: parsed.city || "Lahore",
           postalCode: parsed.postalCode || "",
           province: parsed.province || "Punjab",
-          paymentMethod: parsed.paymentMethod || "cod",
+          paymentMethod: savedMethod,
         });
         return;
       }
@@ -93,7 +91,7 @@ export default function CheckoutPage() {
       city: "Lahore",
       postalCode: "",
       province: "Punjab",
-      paymentMethod: "cod",
+      paymentMethod: "card",
     });
   }, [user]);
 
@@ -108,17 +106,15 @@ export default function CheckoutPage() {
         if (res.ok) {
           const data = await res.json();
           const codOk = data.cod?.enabled ?? true;
-          const bankOk = (data.bankTransfer?.enabled ?? data.online?.enabled) ?? true;
-          setMethodsEnabled({ cod: codOk, bankTransfer: bankOk });
+          const cardOk = data.card?.enabled ?? false;
+          setMethodsEnabled({ cod: codOk, card: cardOk });
 
-          if (!codOk && bankOk) {
-            setFormData((prev) => ({ ...prev, paymentMethod: "bank_transfer" }));
-          }
-
-          const details = data.bankTransfer?.bankDetails || data.online?.bankDetails;
-          if (details) {
-            setBankSettings(details);
-          }
+          // Card is the primary method when it's live; fall back to COD when
+          // the server hasn't enabled Stripe yet (or COD is the only option).
+          setFormData((prev) => ({
+            ...prev,
+            paymentMethod: cardOk ? (prev.paymentMethod === "cod" ? "cod" : "card") : "cod",
+          }));
         }
       } catch {}
     }
@@ -136,14 +132,6 @@ export default function CheckoutPage() {
       return next;
     });
   };
-  const handleCopy = (text: string, label: string) => {
-    if (!text) return;
-    navigator.clipboard.writeText(text);
-    setCopiedField(label);
-    showToast(`${label} copied to clipboard`, "info");
-    setTimeout(() => setCopiedField(null), 2000);
-  };
-
   useEffect(() => {
     validateWithServer();
   }, [validateWithServer]);
@@ -208,14 +196,28 @@ export default function CheckoutPage() {
 
       const data = await res.json();
 
+      // Admin COD blocklist: this customer must pay by card instead.
+      if (res.status === 403 && data.error === "cod_blocked") {
+        showToast(data.message || "Cash on Delivery is not available for your account. Please use card payment.", "error");
+        if (methodsEnabled.card) {
+          setFormData((prev) => ({ ...prev, paymentMethod: "card" }));
+        }
+        return;
+      }
+
       if (res.ok && data.success) {
         clearCart();
         // Permanently persist the customer's shipping info for all future checkouts
         try {
           localStorage.setItem(getShippingStorageKey(user), JSON.stringify(formData));
         } catch {}
-        showToast("Order placed successfully!", "success");
-        router.push(`/order-confirmation/${data.orderId}`);
+        if (formData.paymentMethod === "card") {
+          // Order is PENDING - hand off to Stripe's hosted payment page.
+          setPendingCardOrder({ orderId: data.orderId, orderNumber: data.orderNumber });
+        } else {
+          showToast("Order placed successfully!", "success");
+          router.push(`/order-confirmation/${data.orderId}`);
+        }
       } else {
         showToast(data.error || "Failed to place order. Please check inputs.", "error");
       }
@@ -386,7 +388,41 @@ export default function CheckoutPage() {
               </div>
 
               <div className="space-y-4">
-                {/* 1. Cash on Delivery */}
+                {/* 1. Card (Stripe) - primary option, shown first */}
+                {methodsEnabled.card && (
+                  <label
+                    className={`flex items-start gap-4 p-5 border cursor-pointer transition-all ${
+                      formData.paymentMethod === "card"
+                        ? "border-[#495464] bg-[#F4F4F2] shadow-xs"
+                        : "border-[#BBBFCA]/50 bg-[#E8E8E8]/40 hover:border-[#495464]"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value="card"
+                      checked={formData.paymentMethod === "card"}
+                      onChange={() => setFormData({ ...formData, paymentMethod: "card" })}
+                      className="mt-1 accent-[#495464]"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <CreditCard className="w-4 h-4 text-[#495464]" />
+                        <span className="text-xs uppercase tracking-widest font-semibold text-[#495464]">
+                          Card (Stripe)
+                        </span>
+                        <span className="bg-[#495464] text-[#F4F4F2] text-[9px] uppercase tracking-widest px-2 py-0.5 font-medium">
+                          Recommended
+                        </span>
+                      </div>
+                      <span className="text-[11px] text-[#495464]/70 tracking-wider block mt-1">
+                        Secure card payment - your order is confirmed the moment it&apos;s charged.
+                      </span>
+                    </div>
+                  </label>
+                )}
+
+                {/* 2. Cash on Delivery - secondary option */}
                 {methodsEnabled.cod && (
                   <label
                     className={`flex items-start gap-4 p-5 border cursor-pointer transition-all ${
@@ -417,170 +453,25 @@ export default function CheckoutPage() {
                   </label>
                 )}
 
-                {/* 2. Bank Transfer / Raast */}
-                {methodsEnabled.bankTransfer && (
-                  <label
-                    className={`flex items-start gap-4 p-5 border cursor-pointer transition-all ${
-                      formData.paymentMethod === "bank_transfer"
-                        ? "border-[#495464] bg-[#F4F4F2] shadow-xs"
-                        : "border-[#BBBFCA]/50 bg-[#E8E8E8]/40 hover:border-[#495464]"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      value="bank_transfer"
-                      checked={formData.paymentMethod === "bank_transfer"}
-                      onChange={() => setFormData({ ...formData, paymentMethod: "bank_transfer" })}
-                      className="mt-1 accent-[#495464]"
-                    />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <Building2 className="w-4 h-4 text-[#495464]" />
-                        <span className="text-xs uppercase tracking-widest font-semibold text-[#495464]">
-                          Bank Transfer / Raast
-                        </span>
-                      </div>
-                      <span className="text-[11px] text-[#495464]/70 tracking-wider block mt-1">
-                        Direct bank transfer or instant Raast payment.
-                      </span>
-                    </div>
-                  </label>
+                {/* Edge case: neither method is enabled on the server yet */}
+                {!methodsEnabled.card && !methodsEnabled.cod && (
+                  <p className="text-[11px] text-[#495464]/70 tracking-wider">
+                    No payment methods are available right now. Please try again later.
+                  </p>
                 )}
               </div>
 
-              {/* Dynamic Online Bank Transfer Details Box */}
-              {formData.paymentMethod === "bank_transfer" && (
-                <div className="p-6 bg-[#F4F4F2] border border-[#495464]/40 space-y-5 animate-fadeIn">
-                  <div className="flex items-center justify-between border-b border-[#BBBFCA]/40 pb-3">
-                    <div>
-                      <span className="text-[10px] uppercase tracking-widest font-bold text-[#495464]/70 block">
-                        Direct Atelier Bank Account
-                      </span>
-                      <h4 className="font-serif text-base font-semibold text-[#495464]">
-                        {bankSettings.bankName || "Meezan Bank Limited"}
-                      </h4>
-                    </div>
-                    <span className="bg-[#495464] text-[#F4F4F2] text-[9px] uppercase tracking-widest px-2.5 py-1 font-medium">
-                      Official Account
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                    <div className="bg-[#E8E8E8]/70 border border-[#BBBFCA]/40 p-3">
-                      <span className="text-[10px] uppercase tracking-widest font-semibold text-[#495464]/70 block mb-0.5">
-                        Account Holder
-                      </span>
-                      <p className="font-medium text-sm text-[#495464]">{bankSettings.accountHolderName || "SHOPY Retail Private Limited"}</p>
-                    </div>
-
-                    {bankSettings.accountTitle && (
-                      <div className="bg-[#E8E8E8]/70 border border-[#BBBFCA]/40 p-3">
-                        <span className="text-[10px] uppercase tracking-widest font-semibold text-[#495464]/70 block mb-0.5">
-                          Account Title
-                        </span>
-                        <p className="font-medium text-sm text-[#495464]">{bankSettings.accountTitle}</p>
-                      </div>
-                    )}
-
-                    <div className="bg-[#E8E8E8]/70 border border-[#BBBFCA]/40 p-3 flex items-center justify-between">
-                      <div>
-                        <span className="text-[10px] uppercase tracking-widest font-semibold text-[#495464]/70 block mb-0.5">
-                          Account Number
-                        </span>
-                        <p className="font-mono font-bold text-xs text-[#495464]">{bankSettings.accountNumber || "01020304050607"}</p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleCopy(bankSettings.accountNumber, "Account Number")}
-                        className="p-1.5 bg-[#F4F4F2] border border-[#BBBFCA] hover:bg-white text-[#495464] transition-colors"
-                        title="Copy Account Number"
-                      >
-                        {copiedField === "Account Number" ? (
-                          <Check className="w-3.5 h-3.5 text-emerald-700" />
-                        ) : (
-                          <Copy className="w-3.5 h-3.5" />
-                        )}
-                      </button>
-                    </div>
-
-                    <div className="bg-[#E8E8E8]/70 border border-[#BBBFCA]/40 p-3 flex items-center justify-between">
-                      <div>
-                        <span className="text-[10px] uppercase tracking-widest font-semibold text-[#495464]/70 block mb-0.5">
-                          IBAN Number
-                        </span>
-                        <p className="font-mono font-bold text-xs text-[#495464]">{bankSettings.bankIban || bankSettings.iban || "PK12MEZN0001020304050607"}</p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleCopy(bankSettings.bankIban || bankSettings.iban, "IBAN")}
-                        className="p-1.5 bg-[#F4F4F2] border border-[#BBBFCA] hover:bg-white text-[#495464] transition-colors"
-                        title="Copy IBAN"
-                      >
-                        {copiedField === "IBAN" ? (
-                          <Check className="w-3.5 h-3.5 text-emerald-700" />
-                        ) : (
-                          <Copy className="w-3.5 h-3.5" />
-                        )}
-                      </button>
-                    </div>
-
-                    {bankSettings.raastId && (
-                      <div className="bg-[#E8E8E8]/70 border border-[#BBBFCA]/40 p-3 flex items-center justify-between sm:col-span-2">
-                        <div>
-                          <span className="text-[10px] uppercase tracking-widest font-semibold text-[#495464]/70 block mb-0.5">
-                            Raast ID / Instant Mobile Transfer
-                          </span>
-                          <p className="font-mono font-bold text-xs text-[#495464]">{bankSettings.raastId}</p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleCopy(bankSettings.raastId, "Raast ID")}
-                          className="p-1.5 bg-[#F4F4F2] border border-[#BBBFCA] hover:bg-white text-[#495464] transition-colors"
-                          title="Copy Raast ID"
-                        >
-                          {copiedField === "Raast ID" ? (
-                            <Check className="w-3.5 h-3.5 text-emerald-700" />
-                          ) : (
-                            <Copy className="w-3.5 h-3.5" />
-                          )}
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                  {bankSettings.paymentContact && (
-                    <div className="flex items-center justify-between bg-[#E8E8E8]/50 border border-[#BBBFCA]/40 px-3.5 py-2.5 text-xs text-[#495464]">
-                      <span className="text-[11px] font-medium">WhatsApp Payment Support:</span>
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono font-semibold">{bankSettings.paymentContact}</span>
-                        <button
-                          type="button"
-                          onClick={() => handleCopy(bankSettings.paymentContact, "Payment Contact")}
-                          className="p-1 bg-[#F4F4F2] border border-[#BBBFCA] hover:bg-white text-[#495464]"
-                          title="Copy Contact"
-                        >
-                          <Copy className="w-3 h-3" />
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {bankSettings.instructions && (
-                    <div className="bg-[#E8E8E8]/30 border-l-2 border-[#495464] p-3 text-[11px] text-[#495464]/90 leading-relaxed">
-                      <p className="font-semibold uppercase tracking-wider text-[10px] text-[#495464] mb-1">
-                        Instructions:
-                      </p>
-                      <p>{bankSettings.instructions}</p>
-                    </div>
-                  )}
-
-                  <div className="flex items-start gap-2 text-[10px] text-[#495464]/70 bg-amber-50/70 border border-amber-200/60 p-3">
-                    <Info className="w-4 h-4 text-amber-700 flex-shrink-0 mt-0.5" />
-                    <span>
-                      Your order will be reserved upon placement. Fulfillment starts once our team verifies your payment.
-                    </span>
-                  </div>
+              {/* Card flow note: the order is created on confirmation and the
+                  "Pay Securely with Stripe" button (below the summary) opens
+                  Stripe's hosted payment page for that order. */}
+              {formData.paymentMethod === "card" && methodsEnabled.card && (
+                <div className="flex items-start gap-2 text-[10px] text-[#495464]/70 bg-[#E8E8E8]/50 border border-[#BBBFCA]/40 p-3 animate-fadeIn">
+                  <Lock className="w-4 h-4 text-[#495464]/70 flex-shrink-0 mt-0.5" />
+                  <span>
+                    Confirm the order to reserve your items, then you&apos;ll be redirected to
+                    Stripe&apos;s secure payment page. Your order is confirmed as soon as the
+                    card is charged.
+                  </span>
                 </div>
               )}
             </div>
@@ -646,7 +537,28 @@ export default function CheckoutPage() {
                 </div>
               </div>
 
-              {user ? (
+              {user && pendingCardOrder ? (
+                <div className="space-y-3">
+                  <StripePaymentButton
+                    orderId={pendingCardOrder.orderId}
+                    items={items.map((i) => ({
+                      productId: i.productId,
+                      name: i.name,
+                      price: i.price,
+                      quantity: i.quantity,
+                      image: i.image,
+                    }))}
+                    customerEmail={formData.email || user.email || ""}
+                    total={calculatedTotal}
+                  />
+                  <Link
+                    href={`/order-confirmation/${pendingCardOrder.orderId}`}
+                    className="block w-full text-center text-[10px] uppercase tracking-widest text-[#495464]/70 hover:text-[#495464] transition-colors"
+                  >
+                    View Order Confirmation
+                  </Link>
+                </div>
+              ) : user ? (
                 <button
                   type="submit"
                   disabled={loading}

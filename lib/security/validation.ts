@@ -64,6 +64,8 @@ export const CheckoutSchema = z.object({
     postalCode: z.string().min(3).max(20),
     province: z.string().min(2).max(50),
   }),
-  paymentMethod: z.enum(["cod", "bank_transfer", "online"]),
+  // "card" = Stripe (order created PENDING, confirmed by the Stripe webhook);
+  // "bank_transfer"/"online" kept for backward compatibility with old clients.
+  paymentMethod: z.enum(["cod", "card", "bank_transfer", "online"]),
   promoCode: z.string().optional(),
 });

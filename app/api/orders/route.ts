@@ -76,6 +76,22 @@ export async function POST(req: Request) {
 
     const { items, shippingAddress, paymentMethod, promoCode } = parseResult.data;
 
+    // COD blocklist: admin-blocked customers cannot order via Cash on
+    // Delivery - they must complete the order with card payment.
+    if (paymentMethod === "cod") {
+      const codBlocked = await db.isCodBlocked(shippingAddress.email);
+      if (codBlocked) {
+        return NextResponse.json(
+          {
+            error: "cod_blocked",
+            message:
+              "Cash on Delivery is not available for your account. Please complete the order with card payment.",
+          },
+          { status: 403 }
+        );
+      }
+    }
+
     // Concurrency Lock: Prevents simultaneous double-submit clicks
     const lockIdentifier = rawIdempotencyKey
       ? `order:${rawIdempotencyKey}`

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db/store";
+import { isStripeConfigured } from "@/lib/stripe";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -22,6 +23,14 @@ export async function GET() {
 
     return NextResponse.json(
       {
+        // Card (Stripe) is first - only exposed when STRIPE_SECRET_KEY is set
+        // on the server, so the checkout page shows it only once active.
+        card: {
+          enabled: isStripeConfigured(),
+          available: isStripeConfigured(),
+          title: "Card (Stripe)",
+          description: "Secure card payment - the order is confirmed the moment it's charged.",
+        },
         cod: {
           enabled: settings.codEnabled ?? true,
           available: settings.codEnabled ?? true,

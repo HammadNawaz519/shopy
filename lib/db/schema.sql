@@ -167,6 +167,17 @@ CREATE TABLE IF NOT EXISTS inquiries (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- 10.5 COD BLOCKLIST TABLE (Admin-managed: these emails cannot order via
+--     Cash on Delivery - /api/orders rejects their COD attempts with 403)
+CREATE TABLE IF NOT EXISTS blocked_users (
+  id SERIAL PRIMARY KEY,
+  email VARCHAR(255) UNIQUE NOT NULL,
+  note TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_blocked_users_email ON blocked_users(LOWER(email));
+
 -- 11. NAVIGATION ITEMS TABLE (Admin Header & Menu Control)
 CREATE TABLE IF NOT EXISTS navigation_items (
   id VARCHAR(50) PRIMARY KEY,

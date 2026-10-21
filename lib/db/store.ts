@@ -1356,9 +1356,25 @@ class SupabaseDataStore {
     const isBankTransfer =
       orderData.paymentMethod === "bank_transfer" ||
       orderData.paymentMethod === "online";
-    const paymentMethod: PaymentMethod = isBankTransfer ? "bank_transfer" : "cod";
-    const initialStatus: OrderStatus = isBankTransfer ? "VERIFYING_PAYMENT" : "CONFIRMED";
-    const initialPaymentStatus: PaymentStatus = isBankTransfer ? "PENDING_VERIFICATION" : "UNPAID";
+    const isCard = orderData.paymentMethod === "card";
+    const paymentMethod: PaymentMethod = isBankTransfer
+      ? "bank_transfer"
+      : isCard
+        ? "card"
+        : "cod";
+    // Card orders are RECEIVED (PENDING) until Stripe confirms the payment
+    // via webhook, which upgrades them to CONFIRMED + PAID. COD orders are
+    // confirmed at placement time.
+    const initialStatus: OrderStatus = isBankTransfer
+      ? "VERIFYING_PAYMENT"
+      : isCard
+        ? "PENDING"
+        : "CONFIRMED";
+    const initialPaymentStatus: PaymentStatus = isBankTransfer
+      ? "PENDING_VERIFICATION"
+      : isCard
+        ? "PENDING"
+        : "UNPAID";
 
     let paymentDetails: OrderPaymentDetails | undefined = undefined;
     if (isBankTransfer) {
@@ -1383,7 +1399,9 @@ class SupabaseDataStore {
         changedAt: nowIso,
         note: isBankTransfer
           ? "Order placed awaiting payment verification"
-          : "Order confirmed via Cash on Delivery",
+          : isCard
+            ? "Order received via card - awaiting Stripe payment confirmation"
+            : "Order confirmed via Cash on Delivery",
       },
     ];
 
@@ -2390,6 +2408,158 @@ class SupabaseDataStore {
   private _tablesInitialized = false;
   private _initPromise: Promise<void> | null = null;
 
+  /**
+   * Stripe webhook helper: record a card-payment result on the order.
+   *  - "PAID":   order PENDING -> CONFIRMED, payment_status PAID, and the
+   *              Stripe payment intent id is attached to payment_details.
+   *              (Admin analytics count orders from CONFIRMED onward.)
+   *  - "FAILED": payment_status FAILED, order stays PENDING (received).
+   */
+  async updateOrderStatusAndPayment(
+    orderId: string,
+    paymentStatus: "PAID" | "FAILED",
+    stripePaymentIntentId?: string
+  ): Promise<OrderRecord | undefined> {
+    const id = String(orderId || "").trim();
+    if (!id) return undefined;
+
+    const normPayment: PaymentStatus = paymentStatus === "PAID" ? "PAID" : "FAILED";
+    const nowIso = new Date().toISOString();
+
+    await transaction(async (client) => {
+      const lockRes = await client.query(`SELECT * FROM orders WHERE id = $1 FOR UPDATE;`, [id]);
+      const row: any = lockRes.rows[0];
+      if (!row) return;
+
+      const confirmedNow = normPayment === "PAID" && row.status === "PENDING";
+      const nextStatus: OrderStatus = confirmedNow ? "CONFIRMED" : (row.status as OrderStatus);
+
+      const parseHistory = (value: unknown): any[] => {
+        if (Array.isArray(value)) return value;
+        if (typeof value === "string" && value.trim()) {
+          try {
+            const parsed = JSON.parse(value);
+            return Array.isArray(parsed) ? parsed : [];
+          } catch {
+            return [];
+          }
+        }
+        return [];
+      };
+
+      const orderHistory = parseHistory(row.order_history);
+      if (confirmedNow) {
+        orderHistory.push({
+          status: "CONFIRMED",
+          previousStatus: row.status,
+          changedBy: "Stripe Webhook",
+          changedAt: nowIso,
+          note: "Order confirmed - Stripe payment received",
+        });
+      }
+
+      const paymentHistory = parseHistory(row.payment_history);
+      paymentHistory.push({
+        status: normPayment,
+        previousStatus: row.payment_status || "PENDING",
+        changedBy: "Stripe Webhook",
+        changedAt: nowIso,
+        note: stripePaymentIntentId
+          ? `Stripe ${normPayment === "PAID" ? "payment captured" : "payment failed"} (${stripePaymentIntentId})`
+          : `Stripe payment ${normPayment.toLowerCase()}`,
+      });
+
+      let details: Record<string, unknown> = {};
+      if (row.payment_details) {
+        try {
+          details =
+            typeof row.payment_details === "string"
+              ? JSON.parse(row.payment_details || "{}")
+              : { ...row.payment_details };
+        } catch {
+          details = {};
+        }
+      }
+      if (stripePaymentIntentId) {
+        details.stripePaymentIntentId = stripePaymentIntentId;
+      }
+
+      await client.query(
+        `UPDATE orders
+          SET status = $2,
+              payment_status = $3,
+              order_history = $4,
+              payment_history = $5,
+              payment_details = $6,
+              updated_at = NOW()
+          WHERE id = $1;`,
+        [
+          id,
+          nextStatus,
+          normPayment,
+          JSON.stringify(orderHistory),
+          JSON.stringify(paymentHistory),
+          JSON.stringify(details),
+        ]
+      );
+    });
+
+    return this.getOrderById(id);
+  }
+
+  // ------------------------------------------------------------------
+  // COD blocklist (admin-managed): these emails cannot use Cash on
+  // Delivery - /api/orders rejects their COD attempts with 403
+  // "cod_blocked". Card orders are unaffected.
+  // ------------------------------------------------------------------
+
+  private async ensureBlockedUsersTable(): Promise<void> {
+    await query(`
+      CREATE TABLE IF NOT EXISTS blocked_users (
+        id SERIAL PRIMARY KEY,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        note TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `).catch(() => {});
+  }
+
+  async getBlockedUserEmails(): Promise<string[]> {
+    await this.ensureBlockedUsersTable();
+    const res = await query(`SELECT email FROM blocked_users ORDER BY email;`);
+    return res.rows
+      .map((r: any) => String(r.email || "").trim().toLowerCase())
+      .filter(Boolean);
+  }
+
+  async setBlockedUserEmails(emails: string[]): Promise<string[]> {
+    await this.ensureBlockedUsersTable();
+    const cleaned = Array.from(
+      new Set(
+        emails
+          .map((e) => String(e || "").trim().toLowerCase())
+          .filter((e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e))
+      )
+    );
+    await transaction(async (client) => {
+      await client.query(`DELETE FROM blocked_users;`);
+      for (const email of cleaned) {
+        await client.query(
+          `INSERT INTO blocked_users (email) VALUES ($1) ON CONFLICT (email) DO NOTHING;`,
+          [email]
+        );
+      }
+    });
+    return cleaned;
+  }
+
+  async isCodBlocked(email: string): Promise<boolean> {
+    const normalized = String(email || "").trim().toLowerCase();
+    if (!normalized) return false;
+    const blocked = await this.getBlockedUserEmails();
+    return blocked.includes(normalized);
+  }
+
   async ensureTablesExist(): Promise<void> {
     // Production hardening: Schema is managed via static migration scripts, eliminating runtime DDL overhead.
     return Promise.resolve();
@@ -2910,22 +3080,27 @@ class SupabaseDataStore {
 
   async getAdminAnalyticsSummary() {
     await this.ensureTablesExist();
+    // Analytics only count orders that are CONFIRMED or beyond. "Received"
+    // states (PENDING, VERIFYING_PAYMENT, AWAITING_PAYMENT_VERIFICATION) and
+    // CANCELLED/REFUNDED are excluded, so card orders enter the numbers only
+    // after the Stripe webhook confirms the payment.
+    const CONFIRMED_SQL = `o.status IN ('CONFIRMED','PREPARING','PROCESSING','SHIPPED','OUT_FOR_DELIVERY','DELIVERED')`;
     const [overviewRes, catBreakdownRes, statusRes, topProductsRes] = await Promise.all([
       query(`
-        SELECT 
-          COALESCE(SUM(CASE WHEN status != 'CANCELLED' THEN total ELSE 0 END), 0)::numeric as total_revenue,
-          COUNT(*)::int as total_orders,
-          COUNT(CASE WHEN status != 'CANCELLED' THEN 1 END)::int as completed_orders
-        FROM orders;
+        SELECT
+          COALESCE(SUM(CASE WHEN status IN ('CONFIRMED','PREPARING','PROCESSING','SHIPPED','OUT_FOR_DELIVERY','DELIVERED') THEN total ELSE 0 END), 0)::numeric as total_revenue,
+          COUNT(*) FILTER (WHERE status IN ('CONFIRMED','PREPARING','PROCESSING','SHIPPED','OUT_FOR_DELIVERY','DELIVERED'))::int as total_orders,
+          COUNT(*) FILTER (WHERE status IN ('CONFIRMED','PREPARING','PROCESSING','SHIPPED','OUT_FOR_DELIVERY','DELIVERED'))::int as completed_orders
+        FROM orders o;
       `),
       query(`
-        SELECT 
+        SELECT
           COALESCE(p.category_label, 'Tops') as category,
           SUM(i.price * i.quantity)::numeric as revenue
         FROM order_items i
         JOIN orders o ON i.order_id = o.id
         LEFT JOIN products p ON i.product_id = p.id
-        WHERE o.status != 'CANCELLED'
+        WHERE ${CONFIRMED_SQL}
         GROUP BY COALESCE(p.category_label, 'Tops')
         ORDER BY revenue DESC;
       `),
@@ -2935,7 +3110,7 @@ class SupabaseDataStore {
         GROUP BY status;
       `),
       query(`
-        SELECT 
+        SELECT
           i.name,
           COALESCE(i.product_id, i.name) as product_id,
           MAX(i.image) as image,
@@ -2943,7 +3118,7 @@ class SupabaseDataStore {
           SUM(i.price * i.quantity)::numeric as revenue
         FROM order_items i
         JOIN orders o ON i.order_id = o.id
-        WHERE o.status != 'CANCELLED'
+        WHERE ${CONFIRMED_SQL}
         GROUP BY i.name, COALESCE(i.product_id, i.name)
         ORDER BY revenue DESC
         LIMIT 5;
