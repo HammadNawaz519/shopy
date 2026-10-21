@@ -60,7 +60,7 @@ if errorlevel 1 goto :fail
 
 echo.
 echo ============================================================
-echo  [3/7] Rendering public\logo.svg to the splash icon PNG
+echo  [3/7] Copying Icon-3.png to the splash icon resource
 echo ============================================================
 
 cmd /c "node scripts\make-splash-icon.mjs < nul"

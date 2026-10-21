@@ -1,49 +1,36 @@
-// Renders public/logo.svg into the native splash icon PNG so the Android
-// splash screen shows the exact SHOPY label box + serif wordmark.
+// Copies the chosen splash icon (Icon-3.png) into the Android res tree so
+// the splash theme's windowSplashScreenAnimatedIcon always resolves.
 //
 //   node scripts/make-splash-icon.mjs
 //
-// Output: android/app/src/main/res/drawable-nodpi/shopy_splash_logo.png
-//   - 480x135 px (crisp on xxhdpi+), nodpi so it is never density-scaled
-//   - rounded-corner cutouts filled with #F4F4F2 so it blends into the
-//     cream splash background (res/values/ic_launcher_background.xml)
+// Source : Icon-3.png            (project root - swap this file to change the
+//                                   splash icon; kept as a copy so res/ never
+//                                   points outside the native tree)
+// Output : android/app/src/main/res/drawable-nodpi/shopy_splash_logo.png
+//          (nodpi = shown at native size, never density-scaled)
 //
-// Also removes any stale `drawable/shopy_splash_logo.xml` vector placeholder
-// so the PNG is always the resource the splash theme resolves to.
+// The splash background stays the app cream (#F4F4F2,
+// res/values/ic_launcher_background.xml).
 
-import { readFile, mkdir, rm } from "node:fs/promises";
+import { copyFile, mkdir, rm, access } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-const svgPath = path.join(root, "public", "logo.svg");
+const srcPath = path.join(root, "Icon-3.png");
 const outDir = path.join(root, "android", "app", "src", "main", "res", "drawable-nodpi");
 const outPath = path.join(outDir, "shopy_splash_logo.png");
 const staleVector = path.join(root, "android", "app", "src", "main", "res", "drawable", "shopy_splash_logo.xml");
 
-let sharp;
-try {
-  sharp = (await import("sharp")).default;
-} catch {
-  console.error("[splash-icon] sharp is missing - run `npm install` (it is a project dependency).");
-  process.exit(1);
-}
-
-// Never let a stale same-named vector outrank the generated PNG.
-await rm(staleVector, { force: true });
-
-const svg = await readFile(svgPath).catch(() => {
-  console.error(`[splash-icon] missing ${path.relative(root, svgPath)} - cannot build the splash icon.`);
+// The source must exist - without it the splash resource cannot build.
+await access(srcPath).catch(() => {
+  console.error(`[splash-icon] missing source ${path.relative(root, srcPath)} - cannot build the splash icon.`);
   process.exit(1);
 });
 
-await mkdir(outDir, { recursive: true });
-await sharp(svg, {
-  // Solid #F4F4F2 behind the rounded-corner cutouts (splash background color).
-  background: { r: 244, g: 244, b: 242, alpha: 1 },
-})
-  .resize(480, 135, { fit: "inside" })
-  .png()
-  .toFile(outPath);
+// Never let a stale same-named vector outrank the PNG.
+await rm(staleVector, { force: true });
 
-console.log(`[splash-icon] wrote ${path.relative(root, outPath)}`);
+await mkdir(outDir, { recursive: true });
+await copyFile(srcPath, outPath);
+console.log(`[splash-icon] copied ${path.relative(root, srcPath)} -> ${path.relative(root, outPath)}`);
