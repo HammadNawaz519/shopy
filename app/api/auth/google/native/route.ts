@@ -42,6 +42,23 @@ export async function POST(req: Request) {
     return response;
   } catch (error) {
     console.error("[NATIVE GOOGLE CREDENTIAL ERROR]", error);
-    return NextResponse.json({ error: "google_sign_in_failed" }, { status: 401 });
+    // Classify the failure so the client UI can show the exact reason
+    // instead of a generic "login failed, please try again".
+    const message =
+      error instanceof Error ? error.message : String(error ?? "");
+    let reason = "google_sign_in_failed";
+    if (/email_not_verified/i.test(message)) {
+      reason = "email_not_verified";
+    } else if (
+      /audience mismatch|invalid google id token|expired/i.test(message)
+    ) {
+      reason = "audience_mismatch";
+    } else if (/verification failed/i.test(message)) {
+      reason = "token_verification_failed";
+    }
+    return NextResponse.json(
+      { error: "google_sign_in_failed", reason },
+      { status: 401 }
+    );
   }
 }

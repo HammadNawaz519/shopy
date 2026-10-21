@@ -66,20 +66,19 @@ GetGoogleIdOption. The plugin returns only the Google ID token through the
 Capacitor bridge. No Google client secret is shipped to Android.
 
 The /api/auth/google/config endpoint returns BOTH the web client id and
-GOOGLE_ANDROID_CLIENT_ID (exposed as androidClientId). The in-app button uses
-the ANDROID client id as the Credential Manager serverClientId; the server
-verifies the returned ID token against the configured Google client ids
-(android first, web as fallback) before creating a session.
+GOOGLE_ANDROID_CLIENT_ID (exposed as androidClientId). The in-app button
+passes the WEB client id to Credential Manager as serverClientId (Google
+requires the Web application client, not the Android client). The server
+verifies the returned ID token against those configured client ids.
 
-One-time setup for the native flow (in-app "Please try again" errors mean
-this is not done yet):
-  1) Google Cloud Console > Credentials (project: shopy-new): create an
-     OAuth client of type ANDROID with package name com.shopy.fashion and
-     the SHA-1 of the APK signing key (make-shopy-apk.bat prints the
-     debug-keystore SHA-1 in its step [5/5]).
-  2) Vercel environment: add GOOGLE_ANDROID_CLIENT_ID = that client id.
-Until step 2 lands, the button falls back to the classic web flow instead
-of showing a sign-in error.
+One-time Google Cloud setup for the native flow:
+  1) Credentials (project: shopy-new): OAuth client type ANDROID,
+     package com.shopy.fashion, SHA-1 of the APK signing key
+     (make-shopy-apk.bat prints it in step [5/5]).
+  2) Credentials: OAuth client type WEB — this is GOOGLE_CLIENT_ID and
+     the value passed into Credential Manager.
+  3) Optional: GOOGLE_ANDROID_CLIENT_ID = the Android client id (extra
+     token audience only; not sent to the native plugin).
 
 5. SERVER FILES
 ---------------

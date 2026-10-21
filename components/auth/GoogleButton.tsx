@@ -33,86 +33,137 @@ export default function GoogleButton({
     const configResponse = await fetch("/api/auth/google/config", {
       cache: "no-store",
     });
-    if (!configResponse.ok) throw new Error("Google sign-in is not configured");
+    if (!configResponse.ok) {
+      throw new Error(`Google config unavailable (HTTP ${configResponse.status})`);
+    }
     return (await configResponse.json()) as {
       clientId?: string;
       androidClientId?: string;
+      configured?: boolean;
     };
   };
 
   const handleNativeSignIn = async (serverClientId: string) => {
-    const credential = await NativeGoogleAuth.signIn({
-      serverClientId,
-    });
-    if (!credential?.idToken) throw new Error("Google did not return a credential");
+    // Stage 1: the in-app Google Credential Manager provider.
+    const credential = await NativeGoogleAuth.signIn({ serverClientId });
+    if (!credential?.idToken) {
+      throw new Error("Google did not return a credential");
+    }
 
+    // Stage 2: exchange the ID token for a SHOPY session (same origin).
     const response = await fetch("/api/auth/google/native", {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ idToken: credential.idToken, redirect }),
     });
-    const data = (await response.json()) as {
-      destinationPath?: string;
-      error?: string;
-    };
+    let data: { destinationPath?: string; error?: string; reason?: string } = {};
+    try {
+      data = (await response.json()) as typeof data;
+    } catch {
+      // non-JSON body
+    }
     if (!response.ok) {
+      // Propagate the specific server reason so the caller can show it.
       throw new Error(
-        `Server rejected Google credential (${response.status}: ${
-          data.error || "unknown_error"
+        `Server rejected Google credential (HTTP ${response.status}: ${
+          data.reason || data.error || "unknown_error"
         })`
       );
     }
     window.location.href = data.destinationPath || "/account";
   };
 
+  // Turn a raw failure into a precise, actionable message. Every branch maps
+  // to a distinct stage so the exact break point is visible on screen instead
+  // of a generic "please try again".
+  const describeError = (detail: string): string => {
+    const d = detail.toLowerCase();
+    if (d.includes("credential provider cancelled")) {
+      return "Google rejected this app. The Android client (package + SHA-1) likely does not match the installed APK. Verify the SHA-1 you registered in Google Cloud matches the keystore this APK was actually signed with, then reinstall.";
+    }
+    if (d.includes("server rejected google credential")) {
+      // e.g. "Server rejected Google credential (HTTP 401: audience_mismatch)"
+      const m = detail.match(/\((HTTP \d+: ([a-z_]+))\)/i);
+      const reason = m ? m[2] : "";
+      if (reason === "email_not_verified") {
+        return "Your Google email is not verified. Verify it in your Google account, then try again.";
+      }
+      if (reason === "audience_mismatch" || reason === "invalid_token") {
+        return "The server could not validate the Google token. Confirm GOOGLE_CLIENT_ID is the Web OAuth client and the app is redeployed.";
+      }
+      return `Sign-in did not complete (${reason || "server error"}). Check the server's Google OAuth environment and redeploy.`;
+    }
+    if (d.includes("no credential")) {
+      return "No Google account is signed in on this device. Add one, then retry.";
+    }
+    if (d.includes("cancelled")) {
+      return "Google sign-in was cancelled.";
+    }
+    if (d.includes("config unavailable") || d.includes("not configured")) {
+      return "The server has Google sign-in turned off (client id missing). Set GOOGLE_CLIENT_ID on Vercel and redeploy.";
+    }
+    // Unknown: surface the raw detail so the exact cause is visible.
+    return `Google sign-in failed: ${detail}`;
+  };
+
   const onClick = async () => {
     if (loading) return;
     setLoading(true);
     setErrorMsg(null);
+
+    // In-app (Capacitor Android) the ONLY way to establish a session inside
+    // this app is the native Credential Manager — the web-OAuth redirect would
+    // complete in the external browser and the session cookie would NOT reach
+    // this WebView. So in-app we must never fall back to handleWebSignIn.
+    const isApp = Capacitor.getPlatform() === "android";
+    const nativeAvailable =
+      isApp && Capacitor.isPluginAvailable("NativeGoogleAuth");
+
+    if (!isApp) {
+      // Desktop / mobile browser: classic web-OAuth is correct and works.
+      handleWebSignIn();
+      setLoading(false);
+      return;
+    }
+
+    // isApp === true from here on.
     try {
-      // Use the in-app native Google CredentialManager only when the native
-      // plugin is actually reachable (Capacitor bridge + plugin header present
-      // on this page) AND the server has the Android OAuth client id
-      // configured (GOOGLE_ANDROID_CLIENT_ID) — the native provider only
-      // issues tokens for that Android client, never for the web client id.
-      // When either is missing we take the classic web-OAuth flow instead of
-      // surfacing a "sign-in failed" error.
-      const canUseNative =
-        Capacitor.getPlatform() === "android" &&
-        Capacitor.isPluginAvailable("NativeGoogleAuth");
-
-      let nativeClientId = "";
-      if (canUseNative) {
-        try {
-          const config = await fetchGoogleConfig();
-          nativeClientId = (config.androidClientId || "").trim();
-        } catch {
-          // Config unreachable (e.g. offline on first load): fall through to
-          // the web flow, which redirects server-side and re-resolves config.
-          nativeClientId = "";
-        }
+      if (!nativeAvailable) {
+        setErrorMsg(
+          "The in-app Google plugin is not available in this build. Install the latest APK, then retry."
+        );
+        setLoading(false);
+        return;
       }
 
-      if (nativeClientId) {
-        await handleNativeSignIn(nativeClientId);
-      } else {
-        handleWebSignIn();
+      let config: { clientId?: string; androidClientId?: string } | null = null;
+      try {
+        config = await fetchGoogleConfig();
+      } catch (cfgErr) {
+        console.error("[GOOGLE-SIGNIN] config fetch failed", cfgErr);
+        config = null;
       }
+
+      // Credential Manager must receive the WEB OAuth client ID as
+      // serverClientId (Google: "your server's client ID, not your Android
+      // client ID"). The Android-type client is only a Google Cloud registry
+      // of package + SHA-1; it is never passed into the native request.
+      const webClientId = (config?.clientId || "").trim();
+      if (!webClientId) {
+        setErrorMsg(
+          "In-app Google sign-in is not configured on the server yet. Set GOOGLE_CLIENT_ID (the Web OAuth client id) in Vercel, then redeploy."
+        );
+        setLoading(false);
+        return;
+      }
+
+      await handleNativeSignIn(webClientId);
+      // success navigates; nothing to reset here
     } catch (error) {
       console.error("[GOOGLE-SIGNIN] failed", error);
       const detail = error instanceof Error ? error.message : String(error);
-      const normalizedDetail = detail.toLowerCase();
-      if (normalizedDetail.includes("credential provider cancelled")) {
-        setErrorMsg("Google rejected this app configuration. Check the Android OAuth setup.");
-      } else if (normalizedDetail.includes("cancelled")) {
-        setErrorMsg("Google sign-in was cancelled.");
-      } else if (normalizedDetail.includes("no credential")) {
-        setErrorMsg("No Google account is available on this device.");
-      } else {
-        console.error("[GOOGLE-SIGNIN] diagnostic", detail);
-        setErrorMsg("Google sign-in failed. Please try again.");
-      }
+      setErrorMsg(describeError(detail));
       setLoading(false);
     }
   };

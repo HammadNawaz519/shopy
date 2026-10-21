@@ -12,10 +12,10 @@ export interface GoogleOAuthConfig {
   redirectUri: string;
   /**
    * Android OAuth client ID (type: Android in Google Cloud Console, registered
-   * with the Capacitor package name + signing-certificate SHA-1). Used as the
-   * serverClientId of the in-app CredentialManager sign-in. Optional — when
-   * unset the native path has nothing to validate against and the button
-   * falls back to the classic web flow.
+   * with package com.shopy.fashion + signing SHA-1). Play Services uses that
+   * record to authorize this APK. It is NOT passed to Credential Manager —
+   * serverClientId is always the Web client (`clientId`). Optional extra
+   * audience when verifying native ID tokens.
    */
   androidClientId?: string;
 }
@@ -176,14 +176,22 @@ export async function verifyGoogleIdToken(
   const emailVerified =
     data.email_verified === true || data.email_verified === "true";
   const expiresAt = Number(data.exp);
-  if (
-    !acceptedAudiences.some((item) => audience.includes(item)) ||
-    !data.email ||
-    !emailVerified ||
-    !Number.isFinite(expiresAt) ||
-    expiresAt * 1000 <= Date.now()
-  ) {
-    throw new Error("Invalid Google ID token");
+  // Distinct, machine-mappable failure reasons so the sign-in UI can show
+  // exactly which check broke instead of a generic "try again".
+  if (!acceptedAudiences.some((item) => audience.includes(item))) {
+    throw new Error("Invalid Google ID token (audience mismatch)");
+  }
+  if (!data.email) {
+    throw new Error("Invalid Google ID token (no email)");
+  }
+  if (!emailVerified) {
+    throw new Error("email_not_verified");
+  }
+  if (!Number.isFinite(expiresAt)) {
+    throw new Error("Invalid Google ID token (invalid expiry)");
+  }
+  if (expiresAt * 1000 <= Date.now()) {
+    throw new Error("Invalid Google ID token (expired)");
   }
 
   return {

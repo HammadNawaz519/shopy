@@ -104,12 +104,10 @@ if defined KEYSTORE (
 echo.
 echo  To make in-app Google sign-in work (one-time setup):
 echo   1) Google Cloud Console ^> Credentials (project: shopy-new)
-echo      - Add / update an OAuth client of type ANDROID
-echo      - Package name: com.shopy.fashion
-echo      - SHA-1 fingerprint: the one printed above
-echo   2) Vercel dashboard ^> buyatshopy ^> Settings ^> Environment Variables
-echo      - Add GOOGLE_ANDROID_CLIENT_ID = ^<the Android client id from step 1^>
-echo      (The existing GOOGLE_CLIENT_ID web flow is unchanged.)
+echo      - ANDROID OAuth client: package com.shopy.fashion + SHA-1 above
+echo      - WEB OAuth client: this is GOOGLE_CLIENT_ID / Credential Manager
+echo   2) Vercel GOOGLE_CLIENT_ID = the WEB client id (already used by web login)
+echo      Optional: GOOGLE_ANDROID_CLIENT_ID = the ANDROID client id (audience only)
 echo.
 
 echo ============================================================

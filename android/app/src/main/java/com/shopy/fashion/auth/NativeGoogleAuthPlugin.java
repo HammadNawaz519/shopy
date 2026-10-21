@@ -1,5 +1,6 @@
 package com.shopy.fashion.auth;
 
+import android.app.Activity;
 import android.os.CancellationSignal;
 
 import androidx.annotation.NonNull;
@@ -8,8 +9,8 @@ import androidx.credentials.CredentialManager;
 import androidx.credentials.CredentialManagerCallback;
 import androidx.credentials.GetCredentialRequest;
 import androidx.credentials.GetCredentialResponse;
-import androidx.credentials.exceptions.GetCredentialException;
 import androidx.credentials.exceptions.GetCredentialCancellationException;
+import androidx.credentials.exceptions.GetCredentialException;
 import androidx.credentials.exceptions.NoCredentialException;
 
 import com.getcapacitor.JSObject;
@@ -37,30 +38,44 @@ public class NativeGoogleAuthPlugin extends Plugin {
             return;
         }
 
-        GetGoogleIdOption googleOption = new GetGoogleIdOption.Builder()
-                .setServerClientId(serverClientId)
-                .setFilterByAuthorizedAccounts(false)
-                .setAutoSelectEnabled(false)
-                .setNonce(generateNonce())
-                .build();
+        // Account picker can outlive Capacitor's default call lifetime.
+        call.setKeepAlive(true);
 
+        Activity activity = getActivity();
+        if (activity == null) {
+            call.reject("Google sign-in failed (no activity)");
+            return;
+        }
+
+        final String webClientId = serverClientId.trim();
+        activity.runOnUiThread(() -> startSignIn(activity, call, webClientId));
+    }
+
+    private void startSignIn(Activity activity, PluginCall call, String webClientId) {
+        // The on-screen control is a Sign in with Google button, so the
+        // button-specific option is the primary request. serverClientId MUST
+        // be the Web OAuth client, not the Android-type client.
+        GetSignInWithGoogleOption googleButtonOption =
+                new GetSignInWithGoogleOption.Builder(webClientId)
+                        .setNonce(generateNonce())
+                        .build();
         GetCredentialRequest request = new GetCredentialRequest.Builder()
-                .addCredentialOption(googleOption)
+                .addCredentialOption(googleButtonOption)
                 .build();
-
-        CredentialManager credentialManager = CredentialManager.create(getContext());
-        requestCredential(credentialManager, call, request, serverClientId, true);
+        CredentialManager credentialManager = CredentialManager.create(activity);
+        requestCredential(activity, credentialManager, call, request, webClientId, true);
     }
 
     private void requestCredential(
+            Activity activity,
             CredentialManager credentialManager,
             PluginCall call,
             GetCredentialRequest request,
-            String serverClientId,
-            boolean allowGoogleButtonFallback
+            String webClientId,
+            boolean allowBottomSheetFallback
     ) {
         credentialManager.getCredentialAsync(
-                getActivity(),
+                activity,
                 request,
                 new CancellationSignal(),
                 executor,
@@ -72,28 +87,28 @@ public class NativeGoogleAuthPlugin extends Plugin {
 
                     @Override
                     public void onError(@NonNull GetCredentialException error) {
-                        if (allowGoogleButtonFallback && error instanceof NoCredentialException) {
-                            GetSignInWithGoogleOption googleButtonOption =
-                                    new GetSignInWithGoogleOption.Builder(serverClientId)
-                                            .setNonce(generateNonce())
-                                            .build();
-                            GetCredentialRequest fallbackRequest = new GetCredentialRequest.Builder()
-                                    .addCredentialOption(googleButtonOption)
+                        if (allowBottomSheetFallback && shouldFallbackToBottomSheet(error)) {
+                            GetGoogleIdOption googleOption = new GetGoogleIdOption.Builder()
+                                    .setServerClientId(webClientId)
+                                    .setFilterByAuthorizedAccounts(false)
+                                    .setAutoSelectEnabled(false)
+                                    .setNonce(generateNonce())
                                     .build();
-                            requestCredential(
+                            GetCredentialRequest fallbackRequest = new GetCredentialRequest.Builder()
+                                    .addCredentialOption(googleOption)
+                                    .build();
+                            activity.runOnUiThread(() -> requestCredential(
+                                    activity,
                                     credentialManager,
                                     call,
                                     fallbackRequest,
-                                    serverClientId,
+                                    webClientId,
                                     false
-                            );
+                            ));
                             return;
                         }
 
-                        String message = error.getMessage();
-                        String exceptionType = error.getClass().getSimpleName();
-                        String detail = exceptionType
-                                + (message == null || message.isEmpty() ? "" : ": " + message);
+                        String detail = describeCredentialError(error);
                         android.util.Log.e("NativeGoogleAuth", detail, error);
                         if (error instanceof GetCredentialCancellationException) {
                             call.reject("Google credential provider cancelled the request (" + detail + ")");
@@ -103,6 +118,42 @@ public class NativeGoogleAuthPlugin extends Plugin {
                     }
                 }
         );
+    }
+
+    private boolean shouldFallbackToBottomSheet(GetCredentialException error) {
+        if (error instanceof NoCredentialException) {
+            return true;
+        }
+        String type = error.getType();
+        String message = error.getMessage();
+        String haystack = ((type == null ? "" : type) + " " + (message == null ? "" : message))
+                .toLowerCase();
+        return haystack.contains("internal") || haystack.contains("unknown");
+    }
+
+    private String describeCredentialError(GetCredentialException error) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(error.getClass().getSimpleName());
+        String type = error.getType();
+        if (type != null && !type.isEmpty()) {
+            sb.append(" type=").append(type);
+        }
+        String message = error.getMessage();
+        if (message != null && !message.isEmpty()) {
+            sb.append(": ").append(message);
+        }
+        Throwable cause = error.getCause();
+        int depth = 0;
+        while (cause != null && depth < 5) {
+            sb.append(" <- ").append(cause.getClass().getSimpleName());
+            String causeMessage = cause.getMessage();
+            if (causeMessage != null && !causeMessage.isEmpty()) {
+                sb.append(": ").append(causeMessage);
+            }
+            cause = cause.getCause();
+            depth++;
+        }
+        return sb.toString();
     }
 
     private String generateNonce() {
