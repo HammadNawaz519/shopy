@@ -2,7 +2,7 @@
 
 import React, { useEffect } from "react";
 import Link from "next/link";
-import { X, Search, User, ArrowRight, Smartphone } from "lucide-react";
+import { X, Search, User, ArrowRight } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
 interface MobileMenuProps {
@@ -100,24 +100,6 @@ export default function MobileMenu({
 
         {/* Bottom Drawer Footer */}
         <div className="pt-6 border-t border-[#BBBFCA]/30 space-y-4">
-          {/* Direct asset download in the SAME page (no GitHub tab): the
-              release asset is served with Content-Disposition: attachment,
-              so tapping starts the download and the user stays on SHOPY. */}
-          <Link
-            href="https://github.com/HammadNawaz519/shopy/releases/download/Shopy/shopy.apk"
-            download="shopy.apk"
-            onClick={onClose}
-            className="flex items-center justify-between w-full text-xs tracking-[0.2em] uppercase font-light text-[#495464] hover:text-black transition-colors"
-          >
-            <span className="flex items-center gap-2.5">
-              <Smartphone className="w-3.5 h-3.5 stroke-[1.5]" />
-              <span>Download App</span>
-            </span>
-            <span className="text-[9px] tracking-widest uppercase px-1.5 py-0.5 bg-[#E8E8E8] text-[#495464]">
-              APK
-            </span>
-          </Link>
-
           <Link
             href={user ? "/account" : "/login"}
             onClick={onClose}

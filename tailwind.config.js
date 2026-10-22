@@ -51,6 +51,14 @@ module.exports = {
           "0%": { opacity: "0", transform: "scale(0.97) translateY(8px)" },
           "100%": { opacity: "1", transform: "scale(1) translateY(0)" },
         },
+        toastIn: {
+          "0%": { opacity: "0", transform: "translateY(-8px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        toastOut: {
+          "0%": { opacity: "1", transform: "translateY(0)" },
+          "100%": { opacity: "0", transform: "translateY(-8px)" },
+        },
       },
       animation: {
         fadeIn: "fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards",
@@ -60,6 +68,8 @@ module.exports = {
         slideLeft: "slideLeft 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards",
         slideUp: "slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards",
         "slide-up": "slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards",
+        "toast-in": "toastIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) both",
+        "toast-out": "toastOut 0.25s ease-in both",
       },
     },
   },

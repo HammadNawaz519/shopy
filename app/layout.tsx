@@ -13,7 +13,6 @@ import CartDrawer from "@/components/layout/CartDrawer";
 import ClientCacheRevalidator from "@/components/common/ClientCacheRevalidator";
 import ServiceWorkerRegister from "@/components/pwa/ServiceWorkerRegister";
 import IdlePrefetcher from "@/components/pwa/IdlePrefetcher";
-import InstallAppPrompt from "@/components/pwa/InstallAppPrompt";
 import OfflineCacheWarmer from "@/components/pwa/OfflineCacheWarmer";
 import OfflineRecovery from "@/components/pwa/OfflineRecovery";
 
@@ -151,7 +150,6 @@ export default async function RootLayout({
               <CartDrawer />
               <main className="flex-1">{children}</main>
               <Footer initialNavItems={navItems} />
-              <InstallAppPrompt />
             </ToastProvider>
           </EnhancedCartProvider>
         </EnhancedAuthProvider>

@@ -193,16 +193,6 @@ export default function Footer({ initialNavItems }: { initialNavItems?: Navigati
       <div className="border-t border-[#BBBFCA]/30 bg-[#F4F4F2] py-6 px-6 lg:px-16 text-xs text-[#495464]/70 tracking-widest uppercase">
         <div className="max-w-[1720px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
           <span>© 2026 SHOPY — ALL RIGHTS RESERVED</span>
-          <div className="flex items-center gap-6">
-            {/* Direct asset download in the SAME page (no GitHub tab). */}
-            <a
-              href="https://github.com/HammadNawaz519/shopy/releases/download/Shopy/shopy.apk"
-              download="shopy.apk"
-              className="hover:text-[#495464] transition-colors underline-offset-4 hover:underline"
-            >
-              Download App
-            </a>
-          </div>
         </div>
       </div>
     </footer>
