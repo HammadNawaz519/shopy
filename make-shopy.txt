@@ -6,7 +6,7 @@ make-shopy.bat step comments; nothing in this file is mobile-side.)
 
 1. FOLDER TOPOLOGY (what lives in Web\)
 --------------------------------------------------------------------------------
-- app/            Next.js App Router: pages, admin UI, API routes (route.ts),
+- app/            Next.js  App Router: pages, admin UI, API routes (route.ts),
                   PWA manifests, error/not-found/offline surfaces.
 - components/     Client components: auth/ (GoogleButton), admin/ (header with
                   the DB pill + reset, layout, nav), pwa/ (service worker
