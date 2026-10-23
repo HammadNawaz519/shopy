@@ -47,32 +47,35 @@ export default async function StoreLandingPage({ params }: PageProps) {
   const assigned = (categories as any[]).filter((c: any) => (c.targetPage ?? null) === page.slug);
 
   return (
-    <div className="pt-20 pb-20 bg-[#F4F4F2] text-[#495464]">
-      {/* Page Header */}
-      <div className="w-full flex items-center justify-center overflow-hidden py-20 sm:py-28 border-b border-[#1a1c20]/10">
-        <div className="relative z-10 text-center px-6 max-w-4xl mx-auto">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 text-[11px] uppercase tracking-widest text-[#495464]/60 hover:text-[#495464] mb-8 transition-colors"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Home</span>
-          </Link>
-          <h1 className="font-serif text-6xl sm:text-8xl lg:text-9xl font-bold tracking-tight text-[#1a1c20] uppercase leading-[0.95]">
-            {page.name}
-          </h1>
-          {page.body.trim() && (
-            <p className="mt-6 text-xs sm:text-sm text-[#495464]/70 tracking-wide leading-relaxed font-light max-w-2xl mx-auto whitespace-pre-line">
-              {page.body}
-            </p>
-          )}
+    <div className="pt-12 pb-10 bg-[#F4F4F2] text-[#495464]">
+      <div className="max-w-[1720px] mx-auto px-6 lg:px-12">
+        {/* Page Header — left-aligned, same style as the Collections grid header */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between pb-6 border-b border-[#BBBFCA]/30">
+          <div>
+            <Link
+              href="/"
+              className="inline-flex items-center gap-2 text-[11px] uppercase tracking-widest text-[#495464]/60 hover:text-[#495464] mb-3 transition-colors"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Home</span>
+            </Link>
+            <h1 className="font-serif text-4xl sm:text-5xl lg:text-6xl font-light tracking-tight text-[#495464]">
+              {page.name}
+            </h1>
+          </div>
         </div>
+
+        {page.body.trim() && (
+          <p className="mt-6 text-xs sm:text-sm text-[#495464]/80 tracking-wider leading-relaxed font-light max-w-2xl whitespace-pre-line">
+            {page.body}
+          </p>
+        )}
       </div>
 
       {/* Assigned Collections — 3-col desktop grid, natural (content-driven) height */}
       <div className="max-w-[1720px] mx-auto px-6 lg:px-12">
         {assigned.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 lg:gap-10 py-12 sm:py-16">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 lg:gap-10 py-10 sm:py-12">
             {assigned.map((category: any) => (
               <Link
                 key={category.id}

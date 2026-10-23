@@ -36,26 +36,28 @@ export default function LandingPages({ pages, categories, activePageSlugs }: Lan
           <section
             key={page.id}
             id={page.slug}
-            className="bg-[#F4F4F2] text-[#495464] py-20 sm:py-28 border-b border-[#1a1c20]/10"
+            className="bg-[#F4F4F2] text-[#495464] pt-20 sm:pt-28 pb-10 sm:pb-14"
           >
             <div className="max-w-[1720px] mx-auto px-6 lg:px-12">
-              {/* Section heading — same premium style as the standalone /pages/[slug] header */}
-              <div className="text-center mb-12 sm:mb-16">
-                <h2 className="font-serif text-5xl sm:text-7xl lg:text-8xl font-bold tracking-tight text-[#1a1c20] uppercase leading-[0.95]">
+              {/* Section heading — same left-aligned style/font as the
+                  Collections grid header ("CURATED CHAPTERS / Collections"). */}
+              <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 sm:mb-10 pb-6 border-b border-[#BBBFCA]/30">
+                <h2 className="font-serif text-3xl lg:text-5xl font-light tracking-tight text-[#495464]">
                   {page.name}
                 </h2>
-                {page.body.trim() && (
-                  <p className="mt-5 text-xs sm:text-sm text-[#495464]/70 tracking-wide leading-relaxed font-light max-w-2xl mx-auto whitespace-pre-line">
-                    {page.body}
-                  </p>
-                )}
               </div>
+
+              {page.body.trim() && (
+                <p className="mt-6 text-xs sm:text-sm text-[#495464]/80 tracking-wider leading-relaxed font-light max-w-2xl whitespace-pre-line">
+                  {page.body}
+                </p>
+              )}
 
               {/* Assigned collection cards: 1 col mobile / 2 col md / 3 col lg.
                   Cards link per the shared rule (active target ⇒ /pages/x,
                   anything else ⇒ standard /collections/slug). */}
               {assigned.length > 0 && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
+                <div className="mt-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
                   {assigned.map((category: any) => (
                     <Link
                       key={category.id}
