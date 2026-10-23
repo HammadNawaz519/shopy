@@ -20,8 +20,9 @@ export const dynamic = "force-dynamic";
  * - Reports whether this admin already holds a pending, server-issued
  *   authorization (Google re-auth completed, final confirmation available).
  * - Creates a FRESH re-auth intent and returns a Google authorization URL
- *   with `max_age=0` + `nonce` + `prompt=select_account` so Google forces a
- *   full re-authentication — a silently reused session can never authorize
+ *   with `max_age=0` + `nonce` + `prompt=login` + `login_hint` (this admin's
+ *   Google email) so Google opens THAT account's password screen directly —
+ *   no account-chooser — and a silently reused session can never authorize
  *   the destructive operation.
  * - Binds the intent to the shared `shopy_oauth_state` cookie so the
  *   existing Google callback can issue the short-lived single-use token.
