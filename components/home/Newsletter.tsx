@@ -40,10 +40,6 @@ export default function Newsletter() {
   return (
     <section className="py-24 lg:py-32 bg-[#F4F4F2] text-[#495464] border-t border-[#BBBFCA]/30">
       <div className="max-w-3xl mx-auto px-6 text-center">
-        <span className="text-xs uppercase tracking-widest text-[#495464]/90 block mb-3">
-          PRIVATE ARCHIVE &amp; RELEASES
-        </span>
-
         <h2 className="font-serif text-3xl sm:text-4xl lg:text-5xl font-medium tracking-tight text-[#495464] mb-4">
           STAY IN THE LOOP
         </h2>

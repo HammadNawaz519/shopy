@@ -253,6 +253,50 @@ export interface NavigationItem {
   updatedAt?: string;
 }
 
+// Store Pages feature: admin-managed custom storefront landing pages.
+// A page renders as a homepage section below the hero AND at /pages/[slug].
+// Collections assigned to a page carry its slug in categories.target_page.
+export interface LandingPage {
+  id: string;
+  slug: string;
+  name: string;
+  body: string; // non-optional: mapped from `r.body || ""`
+  orderIndex: number;
+  isActive: boolean;
+  assignedCount?: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+// Capability probe result for the Store Pages schema. Distinguishes a
+// successful-but-incomplete schema (re-probed on the next call) from a
+// failed probe query (transient; retried on the next request).
+export interface StorePagesSchemaStatus {
+  pages: boolean;
+  targetPage: boolean;
+  collectionsTitle: boolean;
+  queryFailed?: boolean; // true only when the probe SELECT itself errored
+}
+
+// Typed errors surfaced by Store Pages writes. API routes catch these and map
+// them to HTTP codes (503 / 409) with human-readable messages — no SQL detail
+// ever reaches the client.
+export class SchemaNotReadyError extends Error {
+  readonly transient: boolean;
+  constructor(message: string, transient = false) {
+    super(message);
+    this.name = "SchemaNotReadyError";
+    this.transient = transient;
+  }
+}
+
+export class LandingPageConflictError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "LandingPageConflictError";
+  }
+}
+
 export interface HomepageConfig {
   id: string;
   heroTitle: string;
@@ -273,6 +317,9 @@ export interface HomepageConfig {
   heroImageFit?: "cover" | "contain" | "fill";
   heroImagePosition?: string;
   heroMobileImage?: string;
+  // Store Pages feature: editable "Collections" section title (shared by the
+  // /collections header and the homepage collection-grid heading).
+  collectionsTitle?: string;
   updatedAt?: string;
 }
 
@@ -799,6 +846,9 @@ class SupabaseDataStore {
         description: row.description,
         aspectRatio: row.aspect_ratio || "tall",
         featured: Boolean(row.featured),
+        // Store Pages: custom-page link target (null = standard collection page).
+        // Missing column (pre-migration) maps to null — the correct default.
+        targetPage: row.target_page || null,
         productCount: Number(row.product_count || 0),
       }));
     }, CACHE_TTL.CATEGORIES);
@@ -832,6 +882,7 @@ class SupabaseDataStore {
           description: row.description,
           aspectRatio: row.aspect_ratio || "tall",
           featured: Boolean(row.featured),
+          targetPage: row.target_page || null,
           productCount: Number(row.product_count || 0),
         };
       } catch (err) {
@@ -843,14 +894,35 @@ class SupabaseDataStore {
     return cat || undefined;
   }
 
-  async addCategory(cat: { id?: string; name: string; slug: string; tagline?: string; image: string; description?: string; featured?: boolean }) {
+  async addCategory(cat: { id?: string; name: string; slug: string; tagline?: string; image: string; description?: string; featured?: boolean; targetPage?: string | null }) {
     const id = cat.id || `cat_${Date.now()}`;
-    const res = await query(
-      `INSERT INTO categories (id, name, slug, tagline, image, description, featured)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
-       RETURNING *;`,
-      [id, cat.name, cat.slug, cat.tagline || "", cat.image, cat.description || "", Boolean(cat.featured)]
-    );
+
+    // Store Pages gating: the target_page column only exists after the
+    // migration. A target is only written when the column is available; a
+    // request that carries a target before the migration is a hard error
+    // (never a silent drop). Without a target the original statement runs
+    // unchanged — pre-migration behavior is preserved exactly.
+    const schema = await this.probeStorePagesSchema();
+    if ((cat.targetPage ?? null) !== null && !schema.targetPage) {
+      throw new SchemaNotReadyError(
+        "Custom-page linking is not enabled yet. Run the store-pages database migration first.",
+        Boolean(schema.queryFailed)
+      );
+    }
+
+    const res = schema.targetPage
+      ? await query(
+          `INSERT INTO categories (id, name, slug, tagline, image, description, featured, target_page)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+           RETURNING *;`,
+          [id, cat.name, cat.slug, cat.tagline || "", cat.image, cat.description || "", Boolean(cat.featured), cat.targetPage ?? null]
+        )
+      : await query(
+          `INSERT INTO categories (id, name, slug, tagline, image, description, featured)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)
+           RETURNING *;`,
+          [id, cat.name, cat.slug, cat.tagline || "", cat.image, cat.description || "", Boolean(cat.featured)]
+        );
 
     // Invalidate categories & products cache
     redisDelPattern(`${CACHE_VERSION}:categories:*`).catch(() => {});
@@ -860,7 +932,7 @@ class SupabaseDataStore {
     return res.rows[0];
   }
 
-  async updateCategory(id: string, updates: Partial<{ name: string; slug: string; tagline?: string; image?: string; description?: string; featured?: boolean }>) {
+  async updateCategory(id: string, updates: Partial<{ name: string; slug: string; tagline?: string; image?: string; description?: string; featured?: boolean; targetPage?: string | null }>) {
     const current = await query(`SELECT * FROM categories WHERE id = $1 OR slug = $1 LIMIT 1;`, [id]);
     if (current.rows.length === 0) return undefined;
     const row = current.rows[0];
@@ -879,18 +951,47 @@ class SupabaseDataStore {
     const newDesc = updates.description !== undefined ? updates.description : row.description;
     const newFeatured = updates.featured !== undefined ? Boolean(updates.featured) : Boolean(row.featured);
 
-    const res = await query(
-      `UPDATE categories SET
-        name = $2,
-        slug = $3,
-        tagline = $4,
-        image = $5,
-        description = $6,
-        featured = $7
-      WHERE id = $1 OR slug = $1
-      RETURNING *;`,
-      [row.id, newName, newSlug, newTagline, newImage, newDesc, newFeatured]
-    );
+    // Store Pages gating: target_page is written only when the column exists
+    // (post-migration). An explicit null clears the assignment; undefined
+    // leaves the current value untouched (original statement runs verbatim).
+    // A non-null assignment before the migration is a hard error, never a
+    // silent drop.
+    const schema = await this.probeStorePagesSchema();
+    const wantsTarget = updates.targetPage !== undefined;
+    if (wantsTarget && (updates.targetPage ?? null) !== null && !schema.targetPage) {
+      throw new SchemaNotReadyError(
+        "Custom-page linking is not enabled yet. Run the store-pages database migration first.",
+        Boolean(schema.queryFailed)
+      );
+    }
+
+    const res =
+      schema.targetPage && wantsTarget
+        ? await query(
+            `UPDATE categories SET
+              name = $2,
+              slug = $3,
+              tagline = $4,
+              image = $5,
+              description = $6,
+              featured = $7,
+              target_page = $8
+            WHERE id = $1 OR slug = $1
+            RETURNING *;`,
+            [row.id, newName, newSlug, newTagline, newImage, newDesc, newFeatured, updates.targetPage ?? null]
+          )
+        : await query(
+            `UPDATE categories SET
+              name = $2,
+              slug = $3,
+              tagline = $4,
+              image = $5,
+              description = $6,
+              featured = $7
+            WHERE id = $1 OR slug = $1
+            RETURNING *;`,
+            [row.id, newName, newSlug, newTagline, newImage, newDesc, newFeatured]
+          );
     if (res.rows.length === 0) return undefined;
 
     // Invalidate categories & products cache
@@ -2637,6 +2738,267 @@ class SupabaseDataStore {
   }
 
   // --------------------------------------------------------------------------
+  // LANDING PAGES (STORE PAGES — admin custom storefront pages)
+  //
+  // The schema (landing_pages table + categories.target_page +
+  // homepage_config.collections_title) is created by the one-time
+  // scripts/migrate-store-pages.mjs migration — the repository's established
+  // migration mechanism (see scripts/migrate-homepage-schema.mjs). Runtime
+  // code performs ZERO DDL; it only probes (read-only information_schema
+  // check) and gates its writes on the result, so code deployed before the
+  // migration runs degrades exactly to today's behavior.
+  // --------------------------------------------------------------------------
+  private _probeStorePages: Promise<StorePagesSchemaStatus> | null = null;
+  private _probeSchemaComplete: StorePagesSchemaStatus | null = null;
+
+  /**
+   * Single-flight, read-only capability probe.
+   • A COMPLETE schema is cached permanently per process (zero re-probes).
+   • An INCOMPLETE schema is a successful query, NOT a completion: it is never
+     cached — the next call re-probes, so a half-finished migration is detected
+     automatically the moment the remaining objects exist (no restart needed).
+   • A FAILED query (DB down) nulls the in-flight promise ⇒ transient failures
+     are retried on the next request and never permanently cached.
+   */
+  private probeStorePagesSchema(): Promise<StorePagesSchemaStatus> {
+    if (this._probeSchemaComplete) return Promise.resolve(this._probeSchemaComplete);
+    if (!this._probeStorePages) {
+      this._probeStorePages = (async () => {
+        try {
+          const res = await query(`
+            SELECT
+              EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'landing_pages') AS pages,
+              EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'categories' AND column_name = 'target_page') AS target_page,
+              EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'homepage_config' AND column_name = 'collections_title') AS collections_title;
+          `);
+          const status: StorePagesSchemaStatus = {
+            pages: Boolean(res.rows[0].pages),
+            targetPage: Boolean(res.rows[0].target_page),
+            collectionsTitle: Boolean(res.rows[0].collections_title),
+          };
+          if (status.pages && status.targetPage && status.collectionsTitle) {
+            this._probeSchemaComplete = status; // only a COMPLETE schema is cached
+          } else {
+            this._probeStorePages = null; // incomplete ⇒ re-probe on next call
+          }
+          return status;
+        } catch (err) {
+          console.error("[SCHEMA-PROBE] store-pages capability check failed; will retry on next request:", (err as Error)?.message);
+          this._probeStorePages = null; // transient DB failure ⇒ retry later, never cached
+          return { pages: false, targetPage: false, collectionsTitle: false, queryFailed: true };
+        }
+      })();
+    }
+    return this._probeStorePages;
+  }
+
+  private mapLandingPageRow(r: any): LandingPage {
+    return {
+      id: r.id,
+      slug: r.slug,
+      name: r.name,
+      body: r.body || "",
+      orderIndex: Number(r.order_index || 0),
+      isActive: Boolean(r.is_active),
+      assignedCount: r.assigned_count !== undefined ? Number(r.assigned_count || 0) : undefined,
+      createdAt: r.created_at ? new Date(r.created_at).toISOString() : undefined,
+      updatedAt: r.updated_at ? new Date(r.updated_at).toISOString() : undefined,
+    };
+  }
+
+  /** Centralized invalidation — one call-site per mutation. redisDelPattern
+   * never throws and logs internally on failure; a failed delete degrades to
+   * ≤30-min TTL staleness, never a rolled-back DB write. */
+  private invalidateLandingPagesCache(): void {
+    redisDelPattern(`${CACHE_VERSION}:landing_pages:*`).catch(() => {});
+  }
+
+  async getLandingPages(onlyActive = false): Promise<LandingPage[]> {
+    const schema = await this.probeStorePagesSchema();
+    if (!schema.pages) return []; // fail-safe: feature hidden until migration runs
+    const cacheKey = buildCacheKey("landing_pages", onlyActive ? "active" : "all");
+    try {
+      return await fetchWithStampedeProtection(cacheKey, async () => {
+        let sql = `SELECT lp.*, (SELECT COUNT(*) FROM categories c WHERE c.target_page = lp.slug)::int AS assigned_count FROM landing_pages lp`;
+        if (onlyActive) sql += ` WHERE lp.is_active = true`;
+        sql += ` ORDER BY lp.order_index ASC, lp.name ASC;`;
+        const res = await query(sql);
+        return res.rows.map((r) => this.mapLandingPageRow(r));
+      }, CACHE_TTL.LANDING_PAGES);
+    } catch (err) {
+      console.error("[GET LANDING PAGES ERROR]", err);
+    }
+    return [];
+  }
+
+  async getLandingPageBySlug(slug: string): Promise<LandingPage | null> {
+    const schema = await this.probeStorePagesSchema();
+    if (!schema.pages || !slug || typeof slug !== "string") return null;
+    const cleanSlug = slug.trim().toLowerCase();
+    if (!cleanSlug) return null;
+    const cacheKey = buildCacheKey("landing_pages", cleanSlug);
+    // Nulls are never cached by fetchWithStampedeProtection, so missing or
+    // inactive lookups are never pinned in Redis; every miss re-queries PG.
+    try {
+      return await fetchWithStampedeProtection(cacheKey, async () => {
+        const res = await query(
+          `SELECT lp.*, (SELECT COUNT(*) FROM categories c WHERE c.target_page = lp.slug)::int AS assigned_count
+           FROM landing_pages lp
+           WHERE LOWER(lp.slug) = LOWER($1)
+           LIMIT 1;`,
+          [cleanSlug]
+        );
+        if (res.rows.length === 0) return null;
+        return this.mapLandingPageRow(res.rows[0]);
+      }, CACHE_TTL.LANDING_PAGES);
+    } catch (err) {
+      console.error("[GET LANDING PAGE BY SLUG ERROR]", err);
+      return null;
+    }
+  }
+
+  async addLandingPage(item: { name: string; body?: string; orderIndex?: number; isActive?: boolean }): Promise<LandingPage> {
+    const schema = await this.probeStorePagesSchema();
+    if (!schema.pages) {
+      throw new SchemaNotReadyError(
+        "Pages are not enabled yet. Run the store-pages database migration first.",
+        Boolean(schema.queryFailed)
+      );
+    }
+
+    const cleanName = item.name.trim();
+    const baseSlug =
+      cleanName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 90) || "page";
+
+    // Duplicate-name check (case-insensitive) — surfaces as 409 in the route.
+    const dupName = await query(`SELECT 1 FROM landing_pages WHERE LOWER(name) = LOWER($1) LIMIT 1;`, [cleanName]);
+    if (dupName.rows.length > 0) {
+      throw new LandingPageConflictError("A page with this name already exists.");
+    }
+
+    // Slug collision: append -2, -3… until free (creation always succeeds;
+    // URLs stay stable afterwards). The UNIQUE constraint is the final
+    // authority for concurrent same-slug races (23505 ⇒ 409).
+    let slug = baseSlug;
+    for (let suffix = 2; ; suffix += 1) {
+      const taken = await query(`SELECT 1 FROM landing_pages WHERE slug = $1 LIMIT 1;`, [slug]);
+      if (taken.rows.length === 0) break;
+      if (suffix > 50) throw new Error("Unable to generate a unique page URL.");
+      slug = `${baseSlug}-${suffix}`;
+    }
+
+    // Collision-resistant ID: repo prefix_timestamp idiom + 32-bit random part
+    // (fits VARCHAR(50) at 25 chars; two rapid creates on one instance cannot
+    // collide).
+    const id = `lp_${Date.now()}_${crypto.randomUUID().replace(/-/g, "").slice(0, 8)}`;
+
+    let res;
+    try {
+      res = await query(
+        `INSERT INTO landing_pages (id, slug, name, body, order_index, is_active)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         RETURNING *;`,
+        [id, slug, cleanName, item.body || "", item.orderIndex ?? 0, item.isActive !== undefined ? item.isActive : true]
+      );
+    } catch (err: any) {
+      if (err?.code === "23505") {
+        throw new LandingPageConflictError("A page with this URL already exists. Please try again.");
+      }
+      throw err;
+    }
+
+    this.invalidateLandingPagesCache();
+    return this.mapLandingPageRow(res.rows[0]);
+  }
+
+  async updateLandingPage(
+    id: string,
+    updates: Partial<Pick<LandingPage, "name" | "body" | "orderIndex" | "isActive">>
+  ): Promise<LandingPage | undefined> {
+    const schema = await this.probeStorePagesSchema();
+    if (!schema.pages) {
+      throw new SchemaNotReadyError(
+        "Pages are not enabled yet. Run the store-pages database migration first.",
+        Boolean(schema.queryFailed)
+      );
+    }
+
+    // Partial COALESCE-style update — same shape as updateNavigationItem.
+    // slug is intentionally absent: page slugs are immutable after creation.
+    const res = await query(
+      `UPDATE landing_pages SET
+        name = COALESCE($2, name),
+        body = COALESCE($3, body),
+        order_index = COALESCE($4, order_index),
+        is_active = COALESCE($5, is_active),
+        updated_at = NOW()
+      WHERE id = $1
+      RETURNING *;`,
+      [
+        id,
+        updates.name !== undefined ? updates.name : null,
+        updates.body !== undefined ? updates.body : null,
+        updates.orderIndex !== undefined ? updates.orderIndex : null,
+        updates.isActive !== undefined ? updates.isActive : null,
+      ]
+    );
+    if (res.rows.length === 0) return undefined;
+    this.invalidateLandingPagesCache();
+    return this.mapLandingPageRow(res.rows[0]);
+  }
+
+  /** Atomic delete: ① clear collection assignments first, ② then delete the
+   * page row — one BEGIN/COMMIT (both survive or both roll back). The
+   * clear-first order keeps categories.target_page from ever pointing at a
+   * deleted page, even transiently. */
+  async deleteLandingPage(id: string): Promise<boolean> {
+    const schema = await this.probeStorePagesSchema();
+    if (!schema.pages || !schema.targetPage) {
+      throw new SchemaNotReadyError(
+        "Pages are not enabled yet. Run the store-pages database migration first.",
+        Boolean(schema.queryFailed)
+      );
+    }
+
+    const pageRes = await query(`SELECT slug FROM landing_pages WHERE id = $1 LIMIT 1;`, [id]);
+    if (pageRes.rows.length === 0) return false;
+    const slug = pageRes.rows[0].slug;
+
+    await transaction(async (client) => {
+      await client.query(`UPDATE categories SET target_page = NULL WHERE target_page = $1;`, [slug]);
+      await client.query(`DELETE FROM landing_pages WHERE id = $1;`, [id]);
+    });
+
+    this.invalidateLandingPagesCache();
+    return true;
+  }
+
+  async reorderLandingPages(ids: string[]): Promise<boolean> {
+    const schema = await this.probeStorePagesSchema();
+    if (!schema.pages) {
+      throw new SchemaNotReadyError(
+        "Pages are not enabled yet. Run the store-pages database migration first.",
+        Boolean(schema.queryFailed)
+      );
+    }
+
+    const cleanIds = ids.filter((id) => typeof id === "string" && id.length > 0);
+    if (cleanIds.length === 0) return false;
+
+    await transaction(async (client) => {
+      for (let index = 0; index < cleanIds.length; index += 1) {
+        await client.query(
+          `UPDATE landing_pages SET order_index = $2, updated_at = NOW() WHERE id = $1;`,
+          [cleanIds[index], index]
+        );
+      }
+    });
+
+    this.invalidateLandingPagesCache();
+    return true;
+  }
+
+  // --------------------------------------------------------------------------
   // HOMEPAGE CONFIGURATION
   // --------------------------------------------------------------------------
   async getHomepageConfig(): Promise<HomepageConfig> {
@@ -2668,6 +3030,8 @@ class SupabaseDataStore {
             heroImageFit: r.hero_image_fit || "cover",
             heroImagePosition: r.hero_image_position || "center",
             heroMobileImage: r.hero_mobile_image || "",
+            // Missing column (pre-migration) falls back to the default title.
+            collectionsTitle: r.collections_title || "Collections",
           };
         }
       } catch (err) {
@@ -2694,6 +3058,7 @@ class SupabaseDataStore {
         heroImageFit: "cover",
         heroImagePosition: "center",
         heroMobileImage: "",
+        collectionsTitle: "Collections",
       };
     }, CACHE_TTL.HOMEPAGE_CONFIG);
   }
@@ -2701,6 +3066,19 @@ class SupabaseDataStore {
   async updateHomepageConfig(updates: Partial<HomepageConfig>): Promise<HomepageConfig> {
     await this.ensureTablesExist();
     const current = await this.getHomepageConfig();
+
+    // Store Pages gating: the collections_title column only exists after the
+    // migration. Persisting a title before it is a hard error (never a silent
+    // loss); saves without it run the original upsert verbatim.
+    const schema = await this.probeStorePagesSchema();
+    const wantsTitle = updates.collectionsTitle !== undefined;
+    if (wantsTitle && !schema.collectionsTitle) {
+      throw new SchemaNotReadyError(
+        "The collections title is not enabled yet. Run the store-pages database migration first.",
+        Boolean(schema.queryFailed)
+      );
+    }
+
     const merged: HomepageConfig = {
       id: "home_default",
       heroTitle: updates.heroTitle !== undefined ? updates.heroTitle : current.heroTitle,
@@ -2721,58 +3099,119 @@ class SupabaseDataStore {
       heroImageFit: updates.heroImageFit !== undefined ? updates.heroImageFit : current.heroImageFit,
       heroImagePosition: updates.heroImagePosition !== undefined ? updates.heroImagePosition : current.heroImagePosition,
       heroMobileImage: updates.heroMobileImage !== undefined ? updates.heroMobileImage : current.heroMobileImage,
+      // Normalized: trimmed; empty ⇒ "Collections". Pre-migration rows fall
+      // back to the default so existing installations keep working.
+      collectionsTitle: wantsTitle
+        ? String(updates.collectionsTitle).trim() || "Collections"
+        : current.collectionsTitle || "Collections",
     };
 
-    const res = await query(
-      `INSERT INTO homepage_config (
-        id, hero_title, hero_subtitle, hero_image, hero_cta_text, hero_cta_link,
-        featured_title, featured_subtitle, editorial_tag, editorial_title, editorial_quote,
-        editorial_image_1, editorial_image_2, newsletter_title, newsletter_subtitle,
-        hero_text_color, hero_image_fit, hero_image_position, hero_mobile_image, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, NOW())
-      ON CONFLICT (id) DO UPDATE SET
-        hero_title = EXCLUDED.hero_title,
-        hero_subtitle = EXCLUDED.hero_subtitle,
-        hero_image = EXCLUDED.hero_image,
-        hero_cta_text = EXCLUDED.hero_cta_text,
-        hero_cta_link = EXCLUDED.hero_cta_link,
-        featured_title = EXCLUDED.featured_title,
-        featured_subtitle = EXCLUDED.featured_subtitle,
-        editorial_tag = EXCLUDED.editorial_tag,
-        editorial_title = EXCLUDED.editorial_title,
-        editorial_quote = EXCLUDED.editorial_quote,
-        editorial_image_1 = EXCLUDED.editorial_image_1,
-        editorial_image_2 = EXCLUDED.editorial_image_2,
-        newsletter_title = EXCLUDED.newsletter_title,
-        newsletter_subtitle = EXCLUDED.newsletter_subtitle,
-        hero_text_color = EXCLUDED.hero_text_color,
-        hero_image_fit = EXCLUDED.hero_image_fit,
-        hero_image_position = EXCLUDED.hero_image_position,
-        hero_mobile_image = EXCLUDED.hero_mobile_image,
-        updated_at = NOW()
-      RETURNING *;`,
-      [
-        merged.id,
-        merged.heroTitle,
-        merged.heroSubtitle,
-        merged.heroImage,
-        merged.heroCtaText,
-        merged.heroCtaLink,
-        merged.featuredTitle,
-        merged.featuredSubtitle,
-        merged.editorialTag,
-        merged.editorialTitle,
-        merged.editorialQuote,
-        merged.editorialImage1,
-        merged.editorialImage2,
-        merged.newsletterTitle,
-        merged.newsletterSubtitle,
-        merged.heroTextColor || "#FFFFFF",
-        merged.heroImageFit || "cover",
-        merged.heroImagePosition || "center",
-        merged.heroMobileImage || "",
-      ]
-    );
+    // The upsert is assembled conditionally: with the column available all
+    // three places (INSERT list, VALUES placeholders, ON CONFLICT SET) gain
+    // collections_title; without it the original upsert runs verbatim.
+    const res = schema.collectionsTitle
+      ? await query(
+          `INSERT INTO homepage_config (
+            id, hero_title, hero_subtitle, hero_image, hero_cta_text, hero_cta_link,
+            featured_title, featured_subtitle, editorial_tag, editorial_title, editorial_quote,
+            editorial_image_1, editorial_image_2, newsletter_title, newsletter_subtitle,
+            hero_text_color, hero_image_fit, hero_image_position, hero_mobile_image, collections_title, updated_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, NOW())
+          ON CONFLICT (id) DO UPDATE SET
+            hero_title = EXCLUDED.hero_title,
+            hero_subtitle = EXCLUDED.hero_subtitle,
+            hero_image = EXCLUDED.hero_image,
+            hero_cta_text = EXCLUDED.hero_cta_text,
+            hero_cta_link = EXCLUDED.hero_cta_link,
+            featured_title = EXCLUDED.featured_title,
+            featured_subtitle = EXCLUDED.featured_subtitle,
+            editorial_tag = EXCLUDED.editorial_tag,
+            editorial_title = EXCLUDED.editorial_title,
+            editorial_quote = EXCLUDED.editorial_quote,
+            editorial_image_1 = EXCLUDED.editorial_image_1,
+            editorial_image_2 = EXCLUDED.editorial_image_2,
+            newsletter_title = EXCLUDED.newsletter_title,
+            newsletter_subtitle = EXCLUDED.newsletter_subtitle,
+            hero_text_color = EXCLUDED.hero_text_color,
+            hero_image_fit = EXCLUDED.hero_image_fit,
+            hero_image_position = EXCLUDED.hero_image_position,
+            hero_mobile_image = EXCLUDED.hero_mobile_image,
+            collections_title = EXCLUDED.collections_title,
+            updated_at = NOW()
+          RETURNING *;`,
+          [
+            merged.id,
+            merged.heroTitle,
+            merged.heroSubtitle,
+            merged.heroImage,
+            merged.heroCtaText,
+            merged.heroCtaLink,
+            merged.featuredTitle,
+            merged.featuredSubtitle,
+            merged.editorialTag,
+            merged.editorialTitle,
+            merged.editorialQuote,
+            merged.editorialImage1,
+            merged.editorialImage2,
+            merged.newsletterTitle,
+            merged.newsletterSubtitle,
+            merged.heroTextColor || "#FFFFFF",
+            merged.heroImageFit || "cover",
+            merged.heroImagePosition || "center",
+            merged.heroMobileImage || "",
+            merged.collectionsTitle || "Collections",
+          ]
+        )
+      : await query(
+          `INSERT INTO homepage_config (
+            id, hero_title, hero_subtitle, hero_image, hero_cta_text, hero_cta_link,
+            featured_title, featured_subtitle, editorial_tag, editorial_title, editorial_quote,
+            editorial_image_1, editorial_image_2, newsletter_title, newsletter_subtitle,
+            hero_text_color, hero_image_fit, hero_image_position, hero_mobile_image, updated_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, NOW())
+          ON CONFLICT (id) DO UPDATE SET
+            hero_title = EXCLUDED.hero_title,
+            hero_subtitle = EXCLUDED.hero_subtitle,
+            hero_image = EXCLUDED.hero_image,
+            hero_cta_text = EXCLUDED.hero_cta_text,
+            hero_cta_link = EXCLUDED.hero_cta_link,
+            featured_title = EXCLUDED.featured_title,
+            featured_subtitle = EXCLUDED.featured_subtitle,
+            editorial_tag = EXCLUDED.editorial_tag,
+            editorial_title = EXCLUDED.editorial_title,
+            editorial_quote = EXCLUDED.editorial_quote,
+            editorial_image_1 = EXCLUDED.editorial_image_1,
+            editorial_image_2 = EXCLUDED.editorial_image_2,
+            newsletter_title = EXCLUDED.newsletter_title,
+            newsletter_subtitle = EXCLUDED.newsletter_subtitle,
+            hero_text_color = EXCLUDED.hero_text_color,
+            hero_image_fit = EXCLUDED.hero_image_fit,
+            hero_image_position = EXCLUDED.hero_image_position,
+            hero_mobile_image = EXCLUDED.hero_mobile_image,
+            updated_at = NOW()
+          RETURNING *;`,
+          [
+            merged.id,
+            merged.heroTitle,
+            merged.heroSubtitle,
+            merged.heroImage,
+            merged.heroCtaText,
+            merged.heroCtaLink,
+            merged.featuredTitle,
+            merged.featuredSubtitle,
+            merged.editorialTag,
+            merged.editorialTitle,
+            merged.editorialQuote,
+            merged.editorialImage1,
+            merged.editorialImage2,
+            merged.newsletterTitle,
+            merged.newsletterSubtitle,
+            merged.heroTextColor || "#FFFFFF",
+            merged.heroImageFit || "cover",
+            merged.heroImagePosition || "center",
+            merged.heroMobileImage || "",
+          ]
+        );
 
     // Invalidate homepage config cache across all versions and keys
     redisDel(buildCacheKey("homepage", "config")).catch(() => {});
@@ -3138,4 +3577,12 @@ export const getCachedHomepageConfig = serverCache(async () => {
 
 export const getCachedNavigationItems = serverCache(async (onlyActive: boolean = true) => {
   return db.getNavigationItems(onlyActive);
+});
+
+export const getCachedLandingPages = serverCache(async (onlyActive: boolean = true) => {
+  return db.getLandingPages(onlyActive);
+});
+
+export const getCachedLandingPageBySlug = serverCache(async (slug: string) => {
+  return db.getLandingPageBySlug(slug);
 });

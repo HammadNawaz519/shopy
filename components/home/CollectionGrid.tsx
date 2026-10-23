@@ -4,12 +4,22 @@ import React, { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
+import { collectionCardHref } from "@/lib/storefront-links";
 
 interface CollectionGridProps {
   initialCategories?: any[];
+  /** Admin-editable section title (homepage_config.collections_title). */
+  collectionsTitle?: string;
+  /** Slugs of active custom pages — card link targets fall back to the
+   * standard collection URL when their target is missing from this set. */
+  activePageSlugs?: string[];
 }
 
-export default function CollectionGrid({ initialCategories }: CollectionGridProps) {
+export default function CollectionGrid({
+  initialCategories,
+  collectionsTitle,
+  activePageSlugs = [],
+}: CollectionGridProps) {
   const categories: any[] = initialCategories || [];
 
   const featuredCategories = categories.filter((c) => Boolean(c.featured));
@@ -29,7 +39,7 @@ export default function CollectionGrid({ initialCategories }: CollectionGridProp
               CURATED CHAPTERS
             </span>
             <h2 className="font-serif text-3xl lg:text-5xl font-light tracking-tight text-[#495464]">
-              Collections &amp; Categories
+              {collectionsTitle?.trim() || "Collections"}
             </h2>
           </div>
           <Link
@@ -46,7 +56,7 @@ export default function CollectionGrid({ initialCategories }: CollectionGridProp
           {displayedCategories.map((category) => (
             <Link
               key={category.id}
-              href={`/collections/${category.slug}`}
+              href={collectionCardHref(category, activePageSlugs)}
               className="group relative overflow-hidden bg-[#E8E8E8] aspect-[3/4] select-none"
             >
               {/* Category Photography */}

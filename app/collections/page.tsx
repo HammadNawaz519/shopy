@@ -2,7 +2,8 @@ import React from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Sparkles } from "lucide-react";
-import { db, getCachedCategories } from "@/lib/db/store";
+import { db, getCachedCategories, getCachedHomepageConfig, getCachedLandingPages } from "@/lib/db/store";
+import { collectionCardHref } from "@/lib/storefront-links";
 
 export const metadata = {
   title: "Collections",
@@ -13,8 +14,17 @@ export const revalidate = 600;
 
 export default async function CollectionsOverviewPage() {
   let categories: any[] = [];
+  let collectionsTitle = "Collections";
+  let activePageSlugs: string[] = [];
   try {
-    categories = await getCachedCategories();
+    const [cats, config, landingPages] = await Promise.all([
+      getCachedCategories(),
+      getCachedHomepageConfig().catch(() => null),
+      getCachedLandingPages(true).catch(() => []),
+    ]);
+    categories = cats;
+    collectionsTitle = (config as any)?.collectionsTitle?.trim() || "Collections";
+    activePageSlugs = (landingPages as any[]).map((p) => p.slug);
   } catch {
     categories = [];
   }
@@ -28,7 +38,7 @@ export default async function CollectionsOverviewPage() {
             EDITORIAL CHAPTERS
           </span>
           <h1 className="font-serif text-4xl sm:text-5xl lg:text-6xl font-medium tracking-tight text-[#495464]">
-            Collections
+            {collectionsTitle}
           </h1>
           <p className="text-xs text-[#495464]/70 tracking-wider uppercase mt-3 max-w-md mx-auto">
             Categorical explorations in tactile wools, raw linens, heavy cottons, and artisanal parfums.
@@ -41,7 +51,7 @@ export default async function CollectionsOverviewPage() {
             {categories.map((category) => (
               <Link
                 key={category.id}
-                href={`/collections/${category.slug}`}
+                href={collectionCardHref(category, activePageSlugs)}
                 className="group flex flex-col bg-[#E8E8E8] overflow-hidden"
               >
                 <div className="relative aspect-[4/5] overflow-hidden">

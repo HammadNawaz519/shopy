@@ -30,6 +30,7 @@ export const CACHE_TTL = {
   PRODUCT_DETAIL: 900,     // 15 minutes
   CATEGORIES: 1800,        // 30 minutes
   NAVIGATION: 1800,       // 30 minutes (admin edits invalidate immediately)
+  LANDING_PAGES: 1800,    // 30 minutes (admin edits invalidate immediately)
   STORE_SETTINGS: 3600,    // 1 hour
   HOMEPAGE_CONFIG: 1800,   // 30 minutes
   ORDER_IDEMPOTENCY: 86400 // 24 hours

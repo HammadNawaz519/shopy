@@ -20,6 +20,7 @@ import {
   X,
   LogOut,
   UserX,
+  FileText,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useAdminOrderNotification } from "@/context/AdminOrderNotificationContext";
@@ -36,6 +37,7 @@ const navItems = [
   { name: "Categories", href: "/admin/categories", icon: FolderTree },
   { name: "Navigation", href: "/admin/navigation", icon: Compass },
   { name: "Homepage", href: "/admin/homepage", icon: Layers },
+  { name: "Pages", href: "/admin/pages", icon: FileText },
   { name: "Inventory", href: "/admin/inventory", icon: Boxes },
   { name: "Customers", href: "/admin/customers", icon: Users },
   { name: "Blocked", href: "/admin/blocked-users", icon: UserX },

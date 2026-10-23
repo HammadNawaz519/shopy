@@ -12,6 +12,10 @@ CREATE TABLE IF NOT EXISTS categories (
   description TEXT,
   aspect_ratio VARCHAR(20) DEFAULT 'tall',
   featured BOOLEAN DEFAULT false,
+  -- Store Pages feature: where this collection's image/card links to.
+  -- NULL = standard collection page; a landing-page slug = that custom page.
+  -- Backfilled by scripts/migrate-store-pages.mjs (ADD COLUMN IF NOT EXISTS).
+  target_page VARCHAR(100),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -207,6 +211,24 @@ CREATE TABLE IF NOT EXISTS homepage_config (
   editorial_image_2 TEXT NOT NULL DEFAULT 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&q=80&w=1000',
   newsletter_title VARCHAR(255) NOT NULL DEFAULT 'Join The Maison Gazette',
   newsletter_subtitle VARCHAR(255) NOT NULL DEFAULT 'Receive private vernissage previews, seasonal lookbooks, and invitation-only atelier dispatches.',
+  -- Store Pages feature: editable "Collections" section title (shared by the
+  -- /collections header and the homepage collection-grid heading).
+  -- Backfilled by scripts/migrate-store-pages.mjs (ADD COLUMN IF NOT EXISTS).
+  collections_title VARCHAR(100) NOT NULL DEFAULT 'Collections',
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 13. LANDING PAGES TABLE (Admin "Pages" — custom storefront landing pages)
+-- Each page renders as a homepage section below the hero AND at /pages/[slug].
+-- Collections assigned to a page carry its slug in categories.target_page.
+CREATE TABLE IF NOT EXISTS landing_pages (
+  id VARCHAR(50) PRIMARY KEY,
+  slug VARCHAR(100) UNIQUE NOT NULL,
+  name VARCHAR(100) NOT NULL,
+  body TEXT,
+  order_index INTEGER NOT NULL DEFAULT 0,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -245,6 +267,9 @@ CREATE INDEX IF NOT EXISTS idx_reviews_user_prod ON reviews(user_id, product_id)
 
 CREATE INDEX IF NOT EXISTS idx_categories_featured ON categories(featured);
 CREATE INDEX IF NOT EXISTS idx_navigation_active_order ON navigation_items(is_active, order_index ASC);
+
+-- Store Pages feature: assignment lookups (assigned_count subquery + delete-time reset)
+CREATE INDEX IF NOT EXISTS idx_categories_target_page ON categories(target_page);
 
 -- ============================================================================
 -- INITIAL SEED DATA

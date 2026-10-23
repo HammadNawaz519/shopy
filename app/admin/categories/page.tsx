@@ -27,6 +27,8 @@ interface CategoryItem {
   image: string;
   description?: string;
   featured?: boolean;
+  /** Store Pages: custom-page link target (null = standard collection page). */
+  targetPage?: string | null;
   productCount: number;
 }
 
@@ -52,6 +54,10 @@ export default function AdminCategoriesPage() {
   const [image, setImage] = useState("");
   const [localPreviewUrl, setLocalPreviewUrl] = useState("");
   const [featured, setFeatured] = useState(false);
+  // Store Pages: custom-page link target for this collection's image
+  // ("" = standard collection page; a page slug = that custom page)
+  const [targetPage, setTargetPage] = useState("");
+  const [landingPages, setLandingPages] = useState<{ id: string; slug: string; name: string; isActive: boolean }[]>([]);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
 
@@ -72,6 +78,19 @@ export default function AdminCategoriesPage() {
 
   useEffect(() => {
     fetchCategories();
+    // Fetch active custom pages once (for the link-target selector; no polling)
+    const fetchLandingPages = async () => {
+      try {
+        const res = await fetch("/api/admin/pages");
+        if (res.ok) {
+          const data = await res.json();
+          setLandingPages((data.pages || []).filter((p: any) => p.isActive));
+        }
+      } catch {
+        // Pages unavailable (pre-migration) — selector simply shows the default.
+      }
+    };
+    fetchLandingPages();
   }, []);
 
   const openAddModal = () => {
@@ -82,6 +101,7 @@ export default function AdminCategoriesPage() {
     setImage("");
     setLocalPreviewUrl("");
     setFeatured(false);
+    setTargetPage("");
     if (fileInputRef.current) fileInputRef.current.value = "";
     setModalOpen(true);
   };
@@ -94,6 +114,7 @@ export default function AdminCategoriesPage() {
     setImage(cat.image || "");
     setLocalPreviewUrl(cat.image || "");
     setFeatured(Boolean(cat.featured));
+    setTargetPage(cat.targetPage || "");
     if (fileInputRef.current) fileInputRef.current.value = "";
     setModalOpen(true);
   };
@@ -164,6 +185,7 @@ export default function AdminCategoriesPage() {
             description: description.trim(),
             image: image.trim(),
             featured,
+            targetPage: targetPage || null,
           }),
         });
         const data = await res.json();
@@ -185,6 +207,7 @@ export default function AdminCategoriesPage() {
             description: description.trim(),
             image: image.trim(),
             featured,
+            targetPage: targetPage || null,
           }),
         });
         const data = await res.json();
@@ -359,6 +382,12 @@ export default function AdminCategoriesPage() {
                       "{cat.tagline}"
                     </p>
                   )}
+
+                  {cat.targetPage && (
+                    <p className="text-[10px] text-[#495464]/70 font-mono">
+                      image links → /pages/{cat.targetPage}
+                    </p>
+                  )}
                   
                   <div className="flex items-center justify-between border-t border-[#BBBFCA]/30 pt-3 text-xs">
                     <span className="px-2 py-0.5 bg-[#BBBFCA]/30 text-[#495464] text-[9px] uppercase font-semibold">
@@ -526,6 +555,30 @@ export default function AdminCategoriesPage() {
                   <label htmlFor="featuredCatCheck" className="text-xs font-medium cursor-pointer">
                     Feature on Homepage Grid
                   </label>
+                </div>
+
+                {/* Store Pages: where this collection's image/card links to */}
+                <div>
+                  <label className="block text-[10px] uppercase font-semibold mb-1">
+                    Where Does the Collection Image Link To?
+                  </label>
+                  <select
+                    value={targetPage}
+                    onChange={(e) => setTargetPage(e.target.value)}
+                    className="w-full bg-[#E8E8E8] border border-[#BBBFCA] p-2 text-xs cursor-pointer"
+                  >
+                    <option value="">Standard collection page</option>
+                    {landingPages.map((p) => (
+                      <option key={p.slug} value={p.slug}>
+                        {p.name} → /pages/{p.slug}
+                      </option>
+                    ))}
+                  </select>
+                  {landingPages.length === 0 && (
+                    <p className="mt-1 text-[9px] text-[#495464]/60">
+                      No custom pages yet — create one under Admin → Pages to change where this image links.
+                    </p>
+                  )}
                 </div>
 
                 <div className="flex justify-end gap-2 pt-4 border-t border-[#BBBFCA]/40">

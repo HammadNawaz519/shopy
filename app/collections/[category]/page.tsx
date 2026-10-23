@@ -1,5 +1,4 @@
 import React from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CATEGORIES } from "@/lib/data/categories";
@@ -69,32 +68,19 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
 
   return (
     <div className="pt-20 pb-20 bg-[#F4F4F2] text-[#495464]">
-      {/* Category Hero Banner */}
-      <div className="relative w-full h-[50vh] min-h-[380px] bg-[#1a1c20] flex items-center justify-center overflow-hidden mb-16">
-        <Image
-          src={category.image}
-          alt={category.name}
-          fill
-          priority
-          sizes="100vw"
-          className="object-cover object-center brightness-75 lg:object-contain"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-black/40" />
-
-        <div className="relative z-10 text-center text-white px-6 max-w-2xl mx-auto">
+      {/* Category Header */}
+      <div className="w-full flex items-center justify-center overflow-hidden mb-16 py-20 sm:py-28 border-b border-[#1a1c20]/10">
+        <div className="relative z-10 text-center px-6 max-w-4xl mx-auto">
           <Link
             href="/collections"
-            className="inline-flex items-center gap-2 text-[11px] uppercase tracking-widest text-white/80 hover:text-white mb-4 transition-colors"
+            className="inline-flex items-center gap-2 text-[11px] uppercase tracking-widest text-[#495464]/60 hover:text-[#495464] mb-8 transition-colors"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             <span>All Collections</span>
           </Link>
-          <h1 className="font-serif text-4xl sm:text-6xl font-medium tracking-tight text-white uppercase mb-3">
+          <h1 className="font-serif text-6xl sm:text-8xl lg:text-9xl font-bold tracking-tight text-[#1a1c20] uppercase leading-[0.95]">
             {category.name}
           </h1>
-          <p className="text-xs sm:text-sm text-[#F4F4F2]/90 tracking-wider uppercase leading-relaxed font-light">
-            {category.description}
-          </p>
         </div>
       </div>
 
