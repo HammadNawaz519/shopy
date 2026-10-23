@@ -81,7 +81,7 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
             placeholder="blur"
             blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMSIgaGVpZ2h0PSIxIiB2aWV3Qm94PSIwIDAgMSAxIiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxIiBoZWlnaHQ9IjEiIGZpbGw9IiNFOEU4RTgiLz48L3N2Zz4="
-            className={`object-cover object-center transition-all duration-700 ${
+            className={`object-cover object-center transition-[opacity,transform] duration-700 ${
               hasSecondImage && isHovered && hasBeenHovered && !activeColorImage ? "opacity-0" : "opacity-100 scale-100"
             }`}
           />
@@ -93,7 +93,7 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
               alt={`${product.name} alternate view`}
               fill
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-              className={`object-cover object-center transition-all duration-700 absolute inset-0 ${
+              className={`object-cover object-center transition-[opacity,transform] duration-700 absolute inset-0 ${
                 isHovered ? "opacity-100 scale-105" : "opacity-0 scale-100"
               }`}
             />
@@ -156,7 +156,7 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
       {/* Product Information */}
       <div className="pt-4 flex flex-col flex-1 justify-between">
         <div>
-          <div className="flex items-center justify-between text-[11px] uppercase tracking-widest text-[#495464]/60 mb-1">
+          <div className="flex items-center justify-between text-[11px] uppercase tracking-widest text-[#495464]/90 mb-1">
             <span>{product.categoryLabel}</span>
             {/* Color Swatch Dots */}
             {product.colors && product.colors.length > 0 && (
@@ -194,7 +194,7 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
               {formatPrice(product.price)}
             </span>
             {product.originalPrice && (
-              <span className="text-xs text-[#495464]/50 line-through tracking-wider">
+              <span className="text-xs text-[#495464]/90 line-through tracking-wider">
                 {formatPrice(product.originalPrice)}
               </span>
             )}

@@ -40,7 +40,7 @@ export default function Newsletter() {
   return (
     <section className="py-24 lg:py-32 bg-[#F4F4F2] text-[#495464] border-t border-[#BBBFCA]/30">
       <div className="max-w-3xl mx-auto px-6 text-center">
-        <span className="text-xs uppercase tracking-widest text-[#495464]/60 block mb-3">
+        <span className="text-xs uppercase tracking-widest text-[#495464]/90 block mb-3">
           PRIVATE ARCHIVE &amp; RELEASES
         </span>
 
@@ -48,7 +48,7 @@ export default function Newsletter() {
           STAY IN THE LOOP
         </h2>
 
-        <p className="text-xs sm:text-sm text-[#495464]/80 tracking-wider uppercase max-w-md mx-auto mb-10 leading-relaxed">
+        <p className="text-xs sm:text-sm text-[#495464]/90 tracking-wider uppercase max-w-md mx-auto mb-10 leading-relaxed">
           Receive private access to seasonal drops, intimate editorial lookbooks, and atelier previews.
         </p>
 
@@ -78,7 +78,7 @@ export default function Newsletter() {
           </form>
         )}
 
-        <p className="text-[10px] text-[#495464]/50 tracking-widest uppercase mt-4">
+        <p className="text-[10px] text-[#495464]/90 tracking-widest uppercase mt-4">
           We respect your digital calm. Unsubscribe with one click anytime.
         </p>
       </div>

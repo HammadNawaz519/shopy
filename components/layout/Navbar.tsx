@@ -131,15 +131,15 @@ export default function Navbar({ initialNavItems }: { initialNavItems?: Navigati
                   <Link
                     key={`${link.name}-${link.href}`}
                     href={link.href}
-                    className={`text-[12px] font-normal tracking-wider lowercase whitespace-nowrap transition-all duration-300 relative py-1 ${
+                    className={`text-[12px] font-normal tracking-wider lowercase whitespace-nowrap transition-colors duration-300 relative py-1 ${
                       isActive
                         ? isTransparent
-                          ? "text-white font-medium after:w-full"
-                          : "text-[#495464] font-medium after:w-full"
+                          ? "text-white font-medium after:scale-x-100"
+                          : "text-[#495464] font-medium after:scale-x-100"
                         : isTransparent
-                        ? "text-white/80 hover:text-white after:w-0"
-                        : "text-[#495464]/80 hover:text-[#495464] after:w-0"
-                    } after:content-[''] after:absolute after:bottom-0 after:left-0 after:h-[1px] after:bg-current after:transition-all after:duration-300 hover:after:w-full`}
+                        ? "text-white/80 hover:text-white after:scale-x-0"
+                        : "text-[#495464]/80 hover:text-[#495464] after:scale-x-0"
+                    } after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-full after:h-[1px] after:bg-current after:origin-left after:transition-transform after:duration-300 hover:after:scale-x-100`}
                   >
                     {link.name}
                   </Link>

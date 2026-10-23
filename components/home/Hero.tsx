@@ -1,9 +1,21 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
+
+/**
+ * Sources the next/image optimizer can handle: same-origin assets (public/
+ * static files, /api/media/<uuid> content-addressed media) plus the remote
+ * patterns declared in next.config.mjs (supabase.co, unsplash.com). Unknown
+ * external URLs keep the previous direct (unoptimized) delivery so a remote
+ * host outside remotePatterns can never 400 in the optimizer.
+ */
+const isOptimizerAllowed = (src: string) =>
+  !/^https?:\/\//i.test(src) ||
+  src.includes("supabase.co") ||
+  src.includes("unsplash");
 
 interface HeroProps {
   initialConfig?: {
@@ -41,6 +53,19 @@ export default function Hero({ initialConfig }: HeroProps) {
   const fitMode = hero.heroImageFit || "cover";
   const posMode = hero.heroImagePosition || "center";
 
+  // SSR renders both variants (markup identical to before). After mount only
+  // the viewport-matching variant stays, so the hidden high-priority variant
+  // no longer downloads a second full hero and competes with the LCP image.
+  // (The hidden variant was display:none — removing it changes nothing visual.)
+  const [activeViewport, setActiveViewport] = useState<"both" | "mobile" | "desktop">("both");
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 640px)");
+    const apply = () => setActiveViewport(mq.matches ? "desktop" : "mobile");
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
+
   // Dynamic object positioning style
   const imageStyle: React.CSSProperties = {
     objectFit: fitMode as any,
@@ -56,35 +81,41 @@ export default function Hero({ initialConfig }: HeroProps) {
     <section className="relative w-full h-screen min-h-[620px] sm:h-[88vh] sm:min-h-[600px] sm:max-h-[980px] flex items-center justify-center overflow-hidden bg-[#181a1d] select-none">
       {/* Editorial Hero Photography — Minimalist Warm Beige Architectural Luxury */}
       <div className="absolute inset-0 w-full h-full">
-        {/* Mobile Viewport Image (< 640px) */}
-        <div className="sm:hidden relative w-full h-full">
-          <Image
-            src={mobileSrc}
-            alt="SHOPY Editorial Campaign"
-            fill
-            priority
-            quality={100}
-            unoptimized={!isDefaultBeige}
-            sizes="100vw"
-            style={imageStyle}
-            className="filter brightness-[0.94] contrast-[1.02]"
-          />
-        </div>
+        {/* Mobile Viewport Image (< 640px). After mount it is removed on
+            desktop so the hidden variant never downloads a duplicate hero. */}
+        {activeViewport !== "desktop" && (
+          <div className="sm:hidden relative w-full h-full">
+            <Image
+              src={mobileSrc}
+              alt="SHOPY Editorial Campaign"
+              fill
+              priority
+              quality={100}
+              unoptimized={!isOptimizerAllowed(mobileSrc)}
+              sizes="100vw"
+              style={imageStyle}
+              className="filter brightness-[0.94] contrast-[1.02]"
+            />
+          </div>
+        )}
 
-        {/* Desktop & Laptop Viewport Image (>= 640px) */}
-        <div className="hidden sm:block relative w-full h-full">
-          <Image
-            src={desktopSrc}
-            alt="SHOPY Editorial Campaign"
-            fill
-            priority
-            quality={100}
-            unoptimized={!isDefaultBeige}
-            sizes="100vw"
-            style={desktopImageStyle}
-            className="filter brightness-[0.94] contrast-[1.02]"
-          />
-        </div>
+        {/* Desktop & Laptop Viewport Image (>= 640px). After mount it is
+            removed on mobile so only the LCP-relevant hero is downloaded. */}
+        {activeViewport !== "mobile" && (
+          <div className="hidden sm:block relative w-full h-full">
+            <Image
+              src={desktopSrc}
+              alt="SHOPY Editorial Campaign"
+              fill
+              priority
+              quality={100}
+              unoptimized={!isOptimizerAllowed(desktopSrc)}
+              sizes="100vw"
+              style={desktopImageStyle}
+              className="filter brightness-[0.94] contrast-[1.02]"
+            />
+          </div>
+        )}
 
         {/* Soft elegant warm grading overlay - automatically subtle if contain or custom */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/20 to-black/30 pointer-events-none" />
@@ -115,7 +146,7 @@ export default function Hero({ initialConfig }: HeroProps) {
         <div className="pt-2">
           <Link
             href={hero.heroCtaLink}
-            className="group inline-flex items-center justify-center gap-2.5 sm:gap-3 px-6 sm:px-8 py-3 sm:py-3.5 backdrop-blur-xs transition-all duration-400 shadow-sm max-w-full text-center hover:scale-[1.02]"
+            className="group inline-flex items-center justify-center gap-2.5 sm:gap-3 px-6 sm:px-8 py-3 sm:py-3.5 backdrop-blur-xs transition-transform duration-400 shadow-sm max-w-full text-center hover:scale-[1.02]"
             style={{
               borderColor: `${textColor}B3`, // ~70% opacity
               borderWidth: "1px",

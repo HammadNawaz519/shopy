@@ -25,7 +25,7 @@ export default function CollectionGrid({ initialCategories }: CollectionGridProp
         {/* Section Header */}
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 pb-6 border-b border-[#BBBFCA]/30">
           <div>
-            <span className="text-xs uppercase tracking-widest text-[#495464]/60 block mb-2 font-medium">
+            <span className="text-xs uppercase tracking-widest text-[#495464]/90 block mb-2 font-medium">
               CURATED CHAPTERS
             </span>
             <h2 className="font-serif text-3xl lg:text-5xl font-light tracking-tight text-[#495464]">

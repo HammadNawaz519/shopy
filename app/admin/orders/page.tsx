@@ -15,8 +15,6 @@ import {
   Phone,
   Mail,
   FileSpreadsheet,
-  Clock,
-  Check,
   ChevronDown,
   FileText,
 } from "lucide-react";
@@ -27,6 +25,25 @@ import { useToast } from "@/context/ToastContext";
 import { useAdminOrderNotification, getAdminLastSeenOrderAt } from "@/context/AdminOrderNotificationContext";
 
 const PRINT_PAPER_STORAGE_KEY = "shopy_print_paper_size";
+
+/** Thick-stroke grey square: the order has NOT been checked yet (new). */
+function OpenSquare() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" className="flex-shrink-0" aria-label="Not checked yet">
+      <rect x="1.5" y="1.5" width="13" height="13" rx="2.5" stroke="#8A919C" strokeWidth="2.2" />
+    </svg>
+  );
+}
+
+/** Thick-stroke green square: the order HAS been checked (seen). */
+function CheckedSquare() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" className="flex-shrink-0" aria-label="Checked">
+      <rect x="1.5" y="1.5" width="13" height="13" rx="2.5" stroke="#16A34A" strokeWidth="2.2" />
+      <path d="M4.6 8.4 L7 10.8 L11.4 5.6" stroke="#16A34A" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
 
 function OrdersContent() {
   const searchParams = useSearchParams();
@@ -360,66 +377,6 @@ function OrdersContent() {
           </form>
         </div>
 
-        {/* NEW Orders — arrived after the admin last checked this section.
-            Dark cards on top so "new" is obvious at a glance (chat style).
-            Opening this page marks them seen; next visit they sit under
-            their date header with a "Checked" label. */}
-        {!loading && newOrders.length > 0 && (
-          <section className="space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-xs uppercase tracking-widest font-semibold text-[#495464]">
-                New Orders ({newOrders.length})
-              </h2>
-              <span className="text-[10px] uppercase tracking-widest text-[#495464]/50">
-                Arrived since your last check
-              </span>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-              {newOrders.map((o: any) => (
-                <div
-                  key={o.id}
-                  className="bg-[#181A1D] text-[#F4F4F2] border border-[#495464]/50 p-4 space-y-2 shadow-xs animate-fadeIn"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-serif font-semibold tracking-wide text-sm truncate">{o.orderNumber}</span>
-                    <span className="text-[9px] font-bold uppercase tracking-widest bg-[#F4F4F2] text-[#181A1D] px-1.5 py-0.5 flex-shrink-0">
-                      New
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-[#BBBFCA] flex items-center gap-1.5">
-                    <Clock className="w-3 h-3 flex-shrink-0" />
-                    <span>
-                      {formatTime(o.createdAt)} •{" "}
-                      {new Date(o.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                    </span>
-                  </p>
-                  <p className="text-[11px] text-[#BBBFCA] truncate">
-                    {(o.shippingAddress?.firstName || "Client")} {o.shippingAddress?.lastName || ""} •{" "}
-                    {o.shippingAddress?.city || "Pakistan"} • {(o.items || []).length} pcs •{" "}
-                    <span className="text-[#F4F4F2] font-serif font-semibold">{formatPrice(o.total || 0)}</span>
-                  </p>
-                  <div className="flex items-center gap-2 pt-1">
-                    <button
-                      onClick={() => setSelectedOrder(o)}
-                      className="flex-1 inline-flex items-center justify-center gap-1 bg-[#F4F4F2] text-[#181A1D] px-2 py-1.5 text-[10px] uppercase font-medium hover:bg-[#E8E8E8] transition-colors whitespace-nowrap"
-                    >
-                      <Eye className="w-3 h-3 flex-shrink-0" />
-                      View
-                    </button>
-                    <button
-                      onClick={() => setPrintingOrder(o)}
-                      className="flex-1 inline-flex items-center justify-center gap-1 bg-[#495464] text-[#F4F4F2] px-2 py-1.5 text-[10px] uppercase font-medium hover:bg-[#363E4B] transition-colors whitespace-nowrap"
-                    >
-                      <Printer className="w-3 h-3 flex-shrink-0" />
-                      Print
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
         {/* Orders Table */}
         <div className="bg-[#F4F4F2] border border-[#BBBFCA]/40 shadow-xs overflow-hidden">
           {loading ? (
@@ -435,17 +392,87 @@ function OrdersContent() {
               <table className="min-w-[900px] w-full table-fixed text-left text-xs tracking-wider">
                 <thead className="bg-[#E8E8E8]/70 border-b border-[#BBBFCA]/40 text-[#495464] uppercase text-[10px]">
                   <tr>
-                    <th className="w-[12%] px-3 py-3 font-semibold whitespace-nowrap">Order ID</th>
-                    <th className="w-[13%] px-2 py-3 font-semibold whitespace-nowrap">Time</th>
-                    <th className="w-[15%] px-2.5 py-3 font-semibold whitespace-nowrap">Customer</th>
+                    <th className="w-[11%] px-3 py-3 font-semibold whitespace-nowrap">Order ID</th>
+                    <th className="w-[12%] px-2 py-3 font-semibold whitespace-nowrap">Time</th>
+                    <th className="w-[14%] px-2.5 py-3 font-semibold whitespace-nowrap">Customer</th>
                     <th className="w-[6%] px-2 py-3 font-semibold whitespace-nowrap text-left">Items</th>
                     <th className="w-[10%] px-2 py-3 font-semibold whitespace-nowrap">Total</th>
                     <th className="w-[12%] px-2 py-3 font-semibold whitespace-nowrap text-center">Payment</th>
-                    <th className="w-[12%] px-2 py-3 font-semibold whitespace-nowrap text-center">Order Status</th>
-                    <th className="w-[20%] px-2.5 py-3 font-semibold text-right whitespace-nowrap">Action</th>
+                    <th className="w-[13%] px-2 py-3 font-semibold whitespace-nowrap text-center">Order Status</th>
+                    <th className="w-[22%] px-2.5 py-3 font-semibold text-right whitespace-nowrap">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#BBBFCA]/20">
+                  {/* NEW orders first: same rows as the viewed orders below,
+                      with a subtly darker row and a grey (open) square —
+                      they become green squares under their date header
+                      once the admin has seen them. */}
+                  {newOrders.map((ord: any) => (
+                    <tr key={ord.id} className="bg-[#E8E8E8]/70 hover:bg-[#E8E8E8] transition-colors">
+                      <td className="px-3 py-3 font-serif font-semibold text-[#495464] truncate">
+                        {ord.orderNumber}
+                      </td>
+                      <td className="px-2 py-3 text-[#495464]/70 whitespace-nowrap">
+                        <div className="flex items-center gap-1.5">
+                          {formatTime(ord.createdAt)}
+                          <OpenSquare />
+                        </div>
+                      </td>
+                      <td className="px-2.5 py-3 min-w-0">
+                        <span className="font-medium block text-[#495464] truncate">
+                          {ord.shippingAddress?.firstName || "Client"} {ord.shippingAddress?.lastName || ""}
+                        </span>
+                        <span className="text-[10px] text-[#495464]/60 block truncate">{ord.shippingAddress?.city || "Pakistan"}</span>
+                      </td>
+                      <td className="px-2 py-3 text-[#495464]/80 whitespace-nowrap text-left">
+                        {(ord.items || []).length} {(ord.items || []).length === 1 ? "pc" : "pcs"}
+                      </td>
+                      <td className="px-2 py-3 font-serif font-semibold text-[#495464] whitespace-nowrap">
+                        {formatPrice(ord.total)}
+                      </td>
+                      <td className="px-2 py-3 text-center whitespace-nowrap">
+                        {getPaymentBadge(ord)}
+                      </td>
+                      <td className="px-2 py-3 text-center whitespace-nowrap">
+                        <select
+                          value={ord.status}
+                          disabled={updating}
+                          onChange={(e) => handleUpdateStatus(ord.id, e.target.value)}
+                          className="bg-[#F4F4F2] border border-[#BBBFCA] px-1 py-1 text-[10px] uppercase font-semibold text-[#495464] focus:outline-none cursor-pointer w-full max-w-[100px] h-[28px] text-center"
+                        >
+                          <option value="VERIFYING_PAYMENT">VERIFYING</option>
+                          <option value="CONFIRMED">CONFIRMED</option>
+                          <option value="PREPARING">PREPARING</option>
+                          <option value="SHIPPED">SHIPPED</option>
+                          <option value="OUT_FOR_DELIVERY">DELIVERY</option>
+                          <option value="DELIVERED">DELIVERED</option>
+                          <option value="CANCELLED">CANCELLED</option>
+                          <option value="RETURN_REQUESTED">RETURN REQ</option>
+                          <option value="RETURNED">RETURNED</option>
+                          <option value="REFUNDED">REFUNDED</option>
+                        </select>
+                      </td>
+                      <td className="px-2.5 py-3 text-right whitespace-nowrap">
+                        <div className="inline-flex items-center justify-end gap-1 flex-nowrap">
+                          <button
+                            onClick={() => setSelectedOrder(ord)}
+                            className="inline-flex items-center justify-center gap-1 bg-[#495464] text-[#F4F4F2] px-2 py-1 text-[10.5px] uppercase font-medium hover:bg-[#363E4B] transition-colors whitespace-nowrap h-[28px]"
+                          >
+                            <Eye className="w-3 h-3 flex-shrink-0" />
+                            <span>View</span>
+                          </button>
+                          <button
+                            onClick={() => setPrintingOrder(ord)}
+                            className="inline-flex items-center justify-center gap-1 bg-[#495464] text-[#F4F4F2] px-2 py-1 text-[10.5px] uppercase font-medium hover:bg-[#363E4B] transition-colors whitespace-nowrap h-[28px]"
+                          >
+                            <Printer className="w-3 h-3 flex-shrink-0" />
+                            <span>Print</span>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+
                   {/* Checked (seen) orders, grouped under date headers */}
                   {checkedGroups.map((group) => (
                     <React.Fragment key={group.key}>
@@ -464,11 +491,10 @@ function OrdersContent() {
                           {ord.orderNumber}
                         </td>
                         <td className="px-2 py-3 text-[#495464]/70 whitespace-nowrap">
-                          {formatTime(ord.createdAt)}
-                          <span className="ml-1.5 inline-flex items-center gap-0.5 text-[8px] uppercase tracking-wider text-[#495464]/60 border border-[#BBBFCA]/60 bg-[#E8E8E8] px-1 py-0.5 align-middle">
-                            <Check className="w-2.5 h-2.5" />
-                            Checked
-                          </span>
+                          <div className="flex items-center gap-1.5">
+                            {formatTime(ord.createdAt)}
+                            <CheckedSquare />
+                          </div>
                         </td>
                         <td className="px-2.5 py-3 min-w-0">
                           <span className="font-medium block text-[#495464] truncate">

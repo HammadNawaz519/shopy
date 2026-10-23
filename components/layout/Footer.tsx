@@ -70,7 +70,7 @@ export default function Footer({ initialNavItems }: { initialNavItems?: Navigati
             <span className="font-serif tracking-widest text-xl font-medium block text-[#495464]">
               HAUTE ATELIER
             </span>
-            <p className="text-xs text-[#495464]/80 leading-relaxed max-w-sm tracking-wider uppercase">
+            <p className="text-xs text-[#495464]/90 leading-relaxed max-w-sm tracking-wider uppercase">
               A contemporary editorial house exploring architectural silhouettes, tactile fabrications, and sensory extraits. Crafted for permanence.
             </p>
             <div className="pt-2 flex items-center space-x-5 text-[#495464]">
@@ -115,16 +115,16 @@ export default function Footer({ initialNavItems }: { initialNavItems?: Navigati
 
           {/* Column 1: Collections */}
           <div>
-            <h4 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#495464] mb-6">
+            <h2 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#495464] mb-6">
               Collections
-            </h4>
+            </h2>
             <ul className="space-y-3">
               {shopLinks.map((link) => (
                 <li key={link.name}>
                   <Link
                     href={link.href}
                     prefetch={false}
-                    className="text-xs text-[#495464]/80 hover:text-[#495464] tracking-wider transition-colors inline-block hover:translate-x-0.5 duration-200"
+                    className="text-xs text-[#495464]/90 hover:text-[#495464] tracking-wider transition-colors inline-block hover:translate-x-0.5 duration-200"
                   >
                     {link.name}
                   </Link>
@@ -135,16 +135,16 @@ export default function Footer({ initialNavItems }: { initialNavItems?: Navigati
 
           {/* Column 2: Client Concierge */}
           <div>
-            <h4 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#495464] mb-6">
+            <h2 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#495464] mb-6">
               Concierge
-            </h4>
+            </h2>
             <ul className="space-y-3">
               {infoLinks.map((link) => (
                 <li key={link.name}>
                   <Link
                     href={link.href}
                     prefetch={false}
-                    className="text-xs text-[#495464]/80 hover:text-[#495464] tracking-wider transition-colors inline-block hover:translate-x-0.5 duration-200"
+                    className="text-xs text-[#495464]/90 hover:text-[#495464] tracking-wider transition-colors inline-block hover:translate-x-0.5 duration-200"
                   >
                     {link.name}
                   </Link>
@@ -155,16 +155,16 @@ export default function Footer({ initialNavItems }: { initialNavItems?: Navigati
 
           {/* Column 3: Legal & Maison */}
           <div>
-            <h4 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#495464] mb-6">
+            <h2 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#495464] mb-6">
               Maison
-            </h4>
+            </h2>
             <ul className="space-y-3">
               {legalLinks.map((link) => (
                 <li key={link.name}>
                   <Link
                     href={link.href}
                     prefetch={false}
-                    className="text-xs text-[#495464]/80 hover:text-[#495464] tracking-wider transition-colors inline-block hover:translate-x-0.5 duration-200"
+                    className="text-xs text-[#495464]/90 hover:text-[#495464] tracking-wider transition-colors inline-block hover:translate-x-0.5 duration-200"
                   >
                     {link.name}
                   </Link>
@@ -190,7 +190,7 @@ export default function Footer({ initialNavItems }: { initialNavItems?: Navigati
       </div>
 
       {/* Minimal Final Row */}
-      <div className="border-t border-[#BBBFCA]/30 bg-[#F4F4F2] py-6 px-6 lg:px-16 text-xs text-[#495464]/70 tracking-widest uppercase">
+      <div className="border-t border-[#BBBFCA]/30 bg-[#F4F4F2] py-6 px-6 lg:px-16 text-xs text-[#495464]/90 tracking-widest uppercase">
         <div className="max-w-[1720px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
           <span>© 2026 SHOPY — ALL RIGHTS RESERVED</span>
         </div>

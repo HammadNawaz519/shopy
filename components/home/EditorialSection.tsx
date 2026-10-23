@@ -51,7 +51,7 @@ export default function EditorialSection({ initialQuote, initialConfig }: Editor
             {/* Minimalist Sub-header with Solid Dark Static Dot */}
             <div className="flex items-center gap-2">
               <span className="h-1.5 w-1.5 rounded-full bg-[#181a1d] flex-shrink-0" />
-              <span className="text-[10px] uppercase tracking-[0.25em] text-[#495464]/80 font-semibold font-mono">
+              <span className="text-[10px] uppercase tracking-[0.25em] text-[#495464]/90 font-semibold font-mono">
                 {quoteData.theme || "THE PSYCHOLOGY OF DISTINCTION"}
               </span>
             </div>
@@ -73,7 +73,7 @@ export default function EditorialSection({ initialQuote, initialConfig }: Editor
             <div className="pt-2">
               <Link
                 href="/products"
-                className="group inline-flex items-center justify-center gap-2.5 sm:gap-3 px-5 sm:px-7 py-3 sm:py-3.5 bg-[#495464] text-[#F4F4F2] text-[10px] tracking-wider sm:tracking-[0.22em] uppercase font-medium hover:bg-[#1A1A1A] transition-all duration-300 shadow-sm max-w-full text-center"
+                className="group inline-flex items-center justify-center gap-2.5 sm:gap-3 px-5 sm:px-7 py-3 sm:py-3.5 bg-[#495464] text-[#F4F4F2] text-[10px] tracking-wider sm:tracking-[0.22em] uppercase font-medium hover:bg-[#1A1A1A] transition-colors duration-300 shadow-sm max-w-full text-center"
               >
                 <span className="truncate">{quoteData.ctaText || "Claim Your Signature Silhouette"}</span>
                 <ArrowRight className="w-3.5 h-3.5 flex-shrink-0 group-hover:translate-x-1.5 transition-transform duration-300" />
