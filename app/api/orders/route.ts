@@ -155,16 +155,18 @@ export async function POST(req: Request) {
     redisDelPattern(`${CACHE_VERSION}:products:*`).catch(() => {});
     redisDelPattern(`${CACHE_VERSION}:product:*`).catch(() => {});
 
-    // Non-blocking async post-commit dispatch (Email, Google Sheets)
-    try {
-      await Promise.allSettled([
-        sendOrderConfirmationEmail(authoritativeOrder),
-        sendAdminNewOrderNotification(authoritativeOrder),
-        syncOrderCreated(authoritativeOrder),
-      ]);
-    } catch (dispatchErr) {
+    // Non-blocking post-commit dispatch (Email, Google Sheets).
+    // Fire-and-forget: the 201 response returns immediately after the
+    // order is committed. SMTP + Sheets syncs can each take many seconds
+    // and must never delay the customer's order confirmation. Failures are
+    // logged; the order itself is already persisted and unaffected.
+    void Promise.allSettled([
+      sendOrderConfirmationEmail(authoritativeOrder),
+      sendAdminNewOrderNotification(authoritativeOrder),
+      syncOrderCreated(authoritativeOrder),
+    ]).catch((dispatchErr) => {
       console.error("[ORDER DISPATCH ERROR]", dispatchErr);
-    }
+    });
 
     const response = NextResponse.json(
       {

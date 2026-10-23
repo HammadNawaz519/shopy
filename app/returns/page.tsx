@@ -20,19 +20,10 @@ export default function ReturnsPage() {
         <div className="space-y-8 text-xs sm:text-sm text-[#495464]/80 leading-relaxed uppercase tracking-wider">
           <div className="bg-[#E8E8E8]/40 border border-[#BBBFCA]/40 p-8 space-y-4">
             <h2 className="font-serif text-xl font-medium text-[#495464]">
-              14-Day Exchange Window
+              7-Day Exchange Window
             </h2>
             <p>
-              If a garment does not fit as desired, we offer complimentary size exchanges within 14 days of receipt. The item must be in unwashed, unworn condition with all original atelier tags and packaging intact.
-            </p>
-          </div>
-
-          <div className="bg-[#E8E8E8]/40 border border-[#BBBFCA]/40 p-8 space-y-4">
-            <h2 className="font-serif text-xl font-medium text-[#495464]">
-              Fragrances &amp; Intimates Policy
-            </h2>
-            <p>
-              Due to hygiene and quality preservation standards, opened flacons of Extrait de Parfum and intimate wear are final sale unless damaged in transit.
+              If a product does not fit as desired, we offer complimentary size exchanges within 7 days of receipt. The item must be in unwashed, unworn condition with all original tags and packaging intact.
             </p>
           </div>
         </div>

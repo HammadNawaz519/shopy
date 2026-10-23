@@ -60,11 +60,10 @@ export async function POST(req: Request) {
       originalPrice: originalPrice ? Number(originalPrice) : undefined,
       description: description || "",
       images: validImages.length > 0 ? validImages : ["/editorial-craft.jpg"],
-      sizes: sizesEnabled === false
-        ? []
-        : Array.isArray(sizes) && sizes.length > 0
-          ? sizes
-          : ["S", "M", "L", "XL"],
+      // No size selection configured -> empty array: the product detail and
+      // quick-add UI only render a size picker when the admin actually
+      // selected sizes. Never invent S/M/L/XL by default.
+      sizes: Array.isArray(sizes) && sizes.length > 0 ? sizes : [],
       colors: Array.isArray(colors) && colors.length > 0 ? colors : [{ name: "Obsidian Slate", hex: "#495464" }],
       stockCount: Number(stockCount !== undefined ? stockCount : 10),
       inStock: Number(stockCount !== undefined ? stockCount : 10) > 0,

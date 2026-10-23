@@ -48,7 +48,6 @@ export default function Footer({ initialNavItems }: { initialNavItems?: Navigati
   const infoLinks = [
     { name: "About SHOPY", href: "/about" },
     { name: "Contact", href: "/contact" },
-    { name: "FAQ", href: "/faq" },
     { name: "Shipping", href: "/shipping" },
     { name: "Returns", href: "/returns" },
     { name: "Size Guide", href: "/size-guide" },
@@ -65,14 +64,8 @@ export default function Footer({ initialNavItems }: { initialNavItems?: Navigati
       {/* Upper Footer Navigation Grid */}
       <div className="max-w-[1720px] mx-auto px-6 lg:px-16 mb-20">
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-12 lg:gap-16">
-          {/* Brand Manifesto */}
+          {/* Brand Column */}
           <div className="col-span-2 lg:col-span-2 space-y-4 pr-6">
-            <span className="font-serif tracking-widest text-xl font-medium block text-[#495464]">
-              HAUTE ATELIER
-            </span>
-            <p className="text-xs text-[#495464]/90 leading-relaxed max-w-sm tracking-wider uppercase">
-              A contemporary editorial house exploring architectural silhouettes, tactile fabrications, and sensory extraits. Crafted for permanence.
-            </p>
             <div className="pt-2 flex items-center space-x-5 text-[#495464]">
               <a
                 href="https://instagram.com"

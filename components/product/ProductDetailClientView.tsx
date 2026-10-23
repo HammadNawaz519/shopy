@@ -11,7 +11,6 @@ import ProductCard from "@/components/product/ProductCard";
 import StarRating from "@/components/ui/StarRating";
 import ProductReviewsSection from "@/components/product/ProductReviewsSection";
 import {
-  ChevronDown,
   ArrowLeft,
   Truck,
   ShieldCheck,
@@ -37,7 +36,6 @@ export default function ProductDetailClientView({
   const [selectedSize, setSelectedSize] = useState(product?.sizes?.[0] || "");
   const [selectedColor, setSelectedColor] = useState(product?.colors?.[0]?.name || "Default");
   const [quantity, setQuantity] = useState(1);
-  const [openAccordion, setOpenAccordion] = useState<string | null>("details");
   const [ratingSummary, setRatingSummary] = useState<{ averageRating: number; reviewCount: number }>(
     initialRatingSummary || { averageRating: 0, reviewCount: 0 }
   );
@@ -99,10 +97,6 @@ export default function ProductDetailClientView({
   const handleBuyNow = () => {
     addItem(product, selectedSize, selectedColor, quantity, currentImage);
     openCart();
-  };
-
-  const toggleAccordion = (key: string) => {
-    setOpenAccordion((prev) => (prev === key ? null : key));
   };
 
   return (
@@ -323,7 +317,7 @@ export default function ProductDetailClientView({
                 <div className="flex flex-col items-center gap-1">
                   <RotateCcw className="w-3.5 h-3.5 text-[#495464]/80" />
                   <span className="text-[9px] uppercase tracking-wider text-[#495464]/70">
-                    14-Day Exchanges
+                    7-Day Exchanges
                   </span>
                 </div>
                 <div className="flex flex-col items-center gap-1">
@@ -334,77 +328,6 @@ export default function ProductDetailClientView({
                 </div>
               </div>
 
-              <div className="pt-2 border-t border-[#BBBFCA]/30 divide-y divide-[#BBBFCA]/20 text-xs">
-                <div className="py-2.5">
-                  <button
-                    onClick={() => toggleAccordion("details")}
-                    className="w-full flex items-center justify-between font-medium uppercase tracking-wider text-[11px] text-[#495464] text-left"
-                  >
-                    <span>Details &amp; Silhouette</span>
-                    <ChevronDown
-                      className={`w-3.5 h-3.5 transition-transform duration-300 ${
-                        openAccordion === "details" ? "rotate-180" : ""
-                      }`}
-                    />
-                  </button>
-                  {openAccordion === "details" && product.details && (
-                    <ul className="mt-2 space-y-1 text-[#495464]/80 tracking-wider text-[11px] list-disc pl-4 animate-fadeIn">
-                      {product.details.map((d: string, i: number) => (
-                        <li key={i}>{d}</li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-
-                <div className="py-2.5">
-                  <button
-                    onClick={() => toggleAccordion("care")}
-                    className="w-full flex items-center justify-between font-medium uppercase tracking-wider text-[11px] text-[#495464] text-left"
-                  >
-                    <span>Composition &amp; Care</span>
-                    <ChevronDown
-                      className={`w-3.5 h-3.5 transition-transform duration-300 ${
-                        openAccordion === "care" ? "rotate-180" : ""
-                      }`}
-                    />
-                  </button>
-                  {openAccordion === "care" && (
-                    <div className="mt-2 space-y-2 text-[#495464]/80 tracking-wider text-[11px] animate-fadeIn">
-                      <div>
-                        <span className="font-semibold block text-[#495464] mb-0.5">
-                          Fabrication:
-                        </span>
-                        <p>{product.composition.join(", ")}</p>
-                      </div>
-                      <div>
-                        <span className="font-semibold block text-[#495464] mb-0.5">
-                          Care Protocol:
-                        </span>
-                        <p>{product.careInstructions.join(" • ")}</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="py-2.5">
-                  <button
-                    onClick={() => toggleAccordion("shipping")}
-                    className="w-full flex items-center justify-between font-medium uppercase tracking-wider text-[11px] text-[#495464] text-left"
-                  >
-                    <span>Shipping &amp; Returns</span>
-                    <ChevronDown
-                      className={`w-3.5 h-3.5 transition-transform duration-300 ${
-                        openAccordion === "shipping" ? "rotate-180" : ""
-                      }`}
-                    />
-                  </button>
-                  {openAccordion === "shipping" && (
-                    <p className="mt-2 text-[#495464]/80 tracking-wider text-[11px] leading-relaxed animate-fadeIn">
-                      Orders placed before 2:00 PM PKT are processed the same business day from our Lahore atelier. Standard insured nationwide courier takes 2–4 business days. Complimentary delivery on orders over Rs. 15,000.
-                    </p>
-                  )}
-                </div>
-              </div>
             </div>
           </div>
         </div>

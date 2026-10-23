@@ -7,8 +7,8 @@ export const metadata = {
 export default function FAQPage() {
   const faqs = [
     {
-      q: "Where are SHOPY garments and products manufactured?",
-      a: "Our knitwear, trousers, and tailoring are crafted in small-batch runs in Lahore, Pakistan using imported organic cottons, French terry, and Australian merino wool. Our fragrances are compounded with Swiss and French fragrance oils.",
+      q: "Where are SHOPY products manufactured?",
+      a: "Our products are crafted in small-batch runs in Lahore, Pakistan using imported organic cottons, French terry, and Australian merino wool. Our fragrances are compounded with Swiss and French fragrance oils.",
     },
     {
       q: "What payment methods are accepted?",
@@ -20,7 +20,7 @@ export default function FAQPage() {
     },
     {
       q: "What is the policy for returns and size exchanges?",
-      a: "We accept unworn, unwashed garments with original tags intact within 14 days of delivery for exchange or store credit.",
+      a: "We accept unworn, unwashed products with original tags intact within 7 days of delivery for exchange or store credit.",
     },
     {
       q: "Are the fragrances unisex?",

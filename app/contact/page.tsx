@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Mail, Phone, MapPin, ArrowRight, Loader2, CheckCircle2 } from "lucide-react";
+import { ArrowRight, Loader2, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/context/ToastContext";
 
 export default function ContactPage() {
@@ -73,38 +73,9 @@ export default function ContactPage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16">
-          {/* Contact Details */}
-          <div className="lg:col-span-5 space-y-8">
-            <div>
-              <h2 className="font-serif text-2xl font-medium text-[#495464] mb-3">
-                Atelier Headquarters
-              </h2>
-              <p className="text-xs text-[#495464]/80 uppercase tracking-wider leading-relaxed">
-                SHOPY Flagship &amp; Design Studio<br />
-                M.M. Alam Road, Gulberg III<br />
-                Lahore, Pakistan
-              </p>
-            </div>
-
-            <div className="space-y-4 pt-6 border-t border-[#BBBFCA]/30 text-xs tracking-wider text-[#495464]/80">
-              <div className="flex items-center gap-3">
-                <Mail className="w-4 h-4 text-[#495464]" />
-                <span>concierge@shopy.fashion</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <Phone className="w-4 h-4 text-[#495464]" />
-                <span>+92 (42) 3578-9000 / WhatsApp Client Line</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <MapPin className="w-4 h-4 text-[#495464]" />
-                <span>Direct Nationwide Courier Dispatches</span>
-              </div>
-            </div>
-          </div>
-
+        <div className="max-w-2xl mx-auto">
           {/* Contact Form */}
-          <div className="lg:col-span-7">
+          <div>
             {submitted ? (
               <div className="bg-[#E8E8E8]/50 border border-[#BBBFCA]/40 p-12 text-center space-y-4 animate-fadeIn">
                 <CheckCircle2 className="w-10 h-10 text-[#495464] mx-auto stroke-[1.5]" />

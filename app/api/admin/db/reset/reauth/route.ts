@@ -76,6 +76,10 @@ export async function GET(req: Request) {
     state: stateToken,
     maxAge: 0, // Freshness policy: Google must NOT silently reuse a session
     nonce: intent.googleNonce,
+    // Open Google's authentication page for THIS admin's account directly —
+    // password / 2FA — with no account-selection screen.
+    prompt: "login",
+    loginHint: admin.email,
   });
 
   const isProduction = process.env.NODE_ENV === "production";

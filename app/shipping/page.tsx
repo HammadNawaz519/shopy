@@ -1,10 +1,27 @@
 import React from "react";
+import { getCachedStoreSettings } from "@/lib/db/store";
 
 export const metadata = {
   title: "Shipping",
 };
 
-export default function ShippingPage() {
+/**
+ * Shipping Policy — the fees shown here are read LIVE from the admin
+ * Settings (store_settings), so whatever the admin enters in
+ * Admin → Settings appears on this page automatically.
+ */
+export default async function ShippingPage() {
+  let settings: { freeShippingThreshold: number; flatShippingRate: number; currencySymbol: string };
+  try {
+    settings = await getCachedStoreSettings();
+  } catch {
+    settings = { freeShippingThreshold: 15000, flatShippingRate: 500, currencySymbol: "Rs." };
+  }
+
+  const sym = settings.currencySymbol || "Rs.";
+  const threshold = `${sym} ${Number(settings.freeShippingThreshold).toLocaleString()}`;
+  const flatRate = `${sym} ${Number(settings.flatShippingRate).toLocaleString()}`;
+
   return (
     <div className="pt-20 pb-20 bg-[#F4F4F2] text-[#495464]">
       <div className="max-w-3xl mx-auto px-6">
@@ -20,15 +37,13 @@ export default function ShippingPage() {
         <div className="space-y-8 text-xs sm:text-sm text-[#495464]/80 leading-relaxed uppercase tracking-wider">
           <div className="bg-[#E8E8E8]/40 border border-[#BBBFCA]/40 p-8 space-y-4">
             <h2 className="font-serif text-xl font-medium text-[#495464]">
-              Nationwide Delivery (Pakistan)
+              Pakistan Delivery via PostEx
             </h2>
             <p>
-              Orders are packaged in signature SHOPY recycled presentation boxes and dispatched from our Lahore atelier via premium insured courier services (TCS / Leopard Express / BlueEx).
+              Orders are securely packaged and dispatched through PostEx, Pakistan's express delivery service.
             </p>
             <ul className="list-disc pl-5 space-y-2">
-              <li>Lahore Deliveries: 1-2 Business Days</li>
-              <li>Karachi, Islamabad, Rawalpindi, Faisalabad: 2-3 Business Days</li>
-              <li>Other Cities &amp; Regional Centers: 3-4 Business Days</li>
+              <li>Delivery within 2 to 3 Business Days</li>
             </ul>
           </div>
 
@@ -37,7 +52,13 @@ export default function ShippingPage() {
               Shipping Charges
             </h2>
             <p>
-              Complimentary Standard Delivery is provided on all orders over <span className="font-semibold text-[#495464]">Rs. 15,000</span>. For orders below Rs. 15,000, a flat dispatch fee of <span className="font-semibold text-[#495464]">Rs. 500</span> is charged.
+              Complimentary delivery on all orders over{" "}
+              <span className="font-bold text-[#495464]">{threshold}</span>. For orders below this
+              threshold, a flat delivery fee of{" "}
+              <span className="font-bold text-[#495464]">{flatRate}</span> applies.
+            </p>
+            <p>
+              Out of City delivery: <span className="font-bold text-[#495464]">Rs. 100</span>
             </p>
           </div>
         </div>

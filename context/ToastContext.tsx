@@ -42,8 +42,12 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <ToastContext.Provider value={{ showToast }}>
       {children}
-      {/* Compact top-right badge notifications, a little down from the top edge */}
-      <div className="fixed top-14 right-4 z-[9999] flex flex-col items-end gap-2 pointer-events-none">
+      {/* Compact top-right badge notifications, tucked just under the sticky
+          header (4rem tall + safe-area) so they never cover it. */}
+      <div
+        className="fixed right-4 z-[9999] flex flex-col items-end gap-2 pointer-events-none"
+        style={{ top: "calc(5rem + env(safe-area-inset-top, 0px))" }}
+      >
         {toasts.map((toast) => (
           <div
             key={toast.id}

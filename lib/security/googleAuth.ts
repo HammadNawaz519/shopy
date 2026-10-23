@@ -83,6 +83,15 @@ export function buildGoogleAuthUrl(options: {
   maxAge?: number;
   /** Bound to the ID token (native flow) so replayed tokens are rejected. */
   nonce?: string;
+  /**
+   * Google prompt behavior. Defaults to "select_account" (the regular
+   * sign-in flow). The destructive re-auth flow passes "login" + loginHint
+   * so Google opens that specific account's authentication page directly
+   * (password / 2FA) with NO account-selection screen.
+   */
+  prompt?: "select_account" | "login" | "consent";
+  /** Pre-selects the account for the Google auth page (skip chooser). */
+  loginHint?: string;
 }): string {
   const params = new URLSearchParams({
     client_id: options.clientId,
@@ -91,13 +100,14 @@ export function buildGoogleAuthUrl(options: {
     scope: "openid email profile",
     state: options.state,
     access_type: "online",
-    prompt: "select_account",
+    prompt: options.prompt || "select_account",
   });
 
   // Freshness + nonce are only used by the destructive-op re-auth flow;
   // the regular sign-in flow omits both and behaves exactly as before.
   if (options.maxAge !== undefined) params.set("max_age", String(options.maxAge));
   if (options.nonce) params.set("nonce", options.nonce);
+  if (options.loginHint) params.set("login_hint", options.loginHint);
 
   return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
 }

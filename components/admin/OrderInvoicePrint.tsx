@@ -318,7 +318,7 @@ export default function OrderInvoicePrint({ order, paperSize: sizeId = "a4" }: O
             </p>
             <p>
               We want you to love your pieces. If you need a size exchange or wish to initiate a return,
-              please reach out to us at <strong>shopy.support@gmail.com</strong> within 14 days of receiving your order with your original tags attached.
+              please reach out to us at <strong>shopy.support@gmail.com</strong> within 7 days of receiving your order with your original tags attached.
             </p>
           </div>
         </div>
