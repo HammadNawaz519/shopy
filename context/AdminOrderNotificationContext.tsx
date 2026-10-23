@@ -31,6 +31,20 @@ export function useAdminOrderNotification() {
   return useContext(AdminOrderNotificationContext);
 }
 
+/**
+ * Reads the admin's "orders section checked" anchor (ISO timestamp) from
+ * localStorage. Orders created AFTER this moment are the admin's "new" ones.
+ * Returns null when the admin has never opened the orders section yet.
+ */
+export function getAdminLastSeenOrderAt(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return localStorage.getItem(STORAGE_KEY_LAST_SEEN);
+  } catch {
+    return null;
+  }
+}
+
 export function AdminOrderNotificationProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [unseenCount, setUnseenCount] = useState<number>(0);

@@ -80,7 +80,7 @@ export default function GoogleButton({
   const describeError = (detail: string): string => {
     const d = detail.toLowerCase();
     if (d.includes("credential provider cancelled")) {
-      return "Google rejected this app. The Android client (package + SHA-1) likely does not match the installed APK. Verify the SHA-1 you registered in Google Cloud matches the keystore this APK was actually signed with, then reinstall.";
+      return "Sign in failed, please try again.";
     }
     if (d.includes("server rejected google credential")) {
       // e.g. "Server rejected Google credential (HTTP 401: audience_mismatch)"

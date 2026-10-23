@@ -41,12 +41,56 @@ export interface OrderRecord {
   updatedAt?: string;
 }
 
-interface OrderInvoicePrintProps {
-  order: OrderRecord;
+// ============================================================================
+// PAPER SIZES
+//
+// The slip layout is designed on an A4 (210 x 297mm) canvas. Every other
+// paper size gets a uniform zoom so the whole design scales (spacing,
+// margins, fonts) to fit that sheet without clipping:
+//   zoom = min(widthRatio, heightRatio)  (relative to the A4 canvas)
+// A4 stays at zoom 1.0 — its printed output is identical to the old design.
+// ============================================================================
+export type PaperSizeId = "a4" | "a5" | "a6" | "small" | "medium" | "large" | "xl";
+
+export interface PaperSize {
+  id: PaperSizeId;
+  label: string;
+  dims: string; // human-readable dimensions shown in the selector
+  wMm: number;
+  hMm: number;
+  zoom: number;
 }
 
-export default function OrderInvoicePrint({ order }: OrderInvoicePrintProps) {
+const BASE_W_MM = 210; // A4 width — the design canvas
+const BASE_H_MM = 297; // A4 height
+
+export const PAPER_SIZES: PaperSize[] = (
+  [
+    { id: "a4", label: "A4", dims: "210 × 297 mm", wMm: 210, hMm: 297 },
+    { id: "a5", label: "A5", dims: "148 × 210 mm", wMm: 148, hMm: 210 },
+    { id: "a6", label: "A6", dims: "105 × 148 mm", wMm: 105, hMm: 148 },
+    { id: "small", label: "Small", dims: "10 × 12 in", wMm: 254, hMm: 304.8 },
+    { id: "medium", label: "Medium", dims: "12 × 16 in", wMm: 304.8, hMm: 406.4 },
+    { id: "large", label: "Large", dims: "14 × 19 in", wMm: 355.6, hMm: 482.6 },
+    { id: "xl", label: "XL", dims: "18 × 21 in", wMm: 457.2, hMm: 533.4 },
+  ] as PaperSize[]
+).map((p) => ({ ...p, zoom: Math.min(p.wMm / BASE_W_MM, p.hMm / BASE_H_MM) }));
+
+/** Millimeters to CSS pixels at the standard 96 dpi used by browsers. */
+export const MM_TO_PX = 96 / 25.4;
+
+export function getPaperSize(id: PaperSizeId): PaperSize {
+  return PAPER_SIZES.find((p) => p.id === id) ?? PAPER_SIZES[0];
+}
+
+interface OrderInvoicePrintProps {
+  order: OrderRecord;
+  paperSize?: PaperSizeId;
+}
+
+export default function OrderInvoicePrint({ order, paperSize: sizeId = "a4" }: OrderInvoicePrintProps) {
   const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
+  const paper = getPaperSize(sizeId);
 
   const formattedDate = new Date(order.createdAt).toLocaleDateString("en-US", {
     year: "numeric",
@@ -66,7 +110,21 @@ export default function OrderInvoicePrint({ order }: OrderInvoicePrintProps) {
       : "Cash on Delivery (COD)";
 
   return (
-    <div className="w-full bg-white text-[#111111] p-6 sm:p-10 font-sans text-xs leading-normal">
+    <>
+      {/* Print CSS: make the physical sheet the selected paper size and keep
+          the item table inside the zoomed slip block (the global print CSS
+          otherwise stretches every table to the full sheet width). */}
+      <style>{`
+        @page { size: ${paper.wMm}mm ${paper.hMm}mm; margin: 0; }
+        @media print {
+          #printable-order-document table { width: auto !important; }
+        }
+      `}</style>
+      <div
+        className="bg-white text-[#111111] font-sans text-xs leading-normal"
+        style={{ width: "210mm", margin: "0 auto", zoom: paper.zoom }}
+      >
+        <div className="p-6 sm:p-10">
       {/* ========================================================================= */}
       {/* 1. Header & Brand Identity                                                */}
       {/* ========================================================================= */}
@@ -300,10 +358,12 @@ export default function OrderInvoicePrint({ order }: OrderInvoicePrintProps) {
       {/* ========================================================================= */}
       {/* 5. Document Footer Stamp                                                  */}
       {/* ========================================================================= */}
-      <div className="border-t border-[#BBBFCA]/60 pt-4 flex items-center justify-between text-[10px] uppercase tracking-widest text-[#666666]">
-        <p>SHOPY • OFFICIAL ORDER RECEIPT &amp; PACKING SLIP</p>
-        <p>THANK YOU FOR YOUR PATRONAGE</p>
+        <div className="border-t border-[#BBBFCA]/60 pt-4 flex items-center justify-between text-[10px] uppercase tracking-widest text-[#666666]">
+          <p>SHOPY • OFFICIAL ORDER RECEIPT &amp; PACKING SLIP</p>
+          <p>THANK YOU FOR YOUR PATRONAGE</p>
+        </div>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

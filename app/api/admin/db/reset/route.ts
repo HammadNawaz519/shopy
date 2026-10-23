@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAdminUser } from "@/lib/security/session";
+import { consumeDestructiveAuth } from "@/lib/security/destructiveAuth";
 import { transaction } from "@/lib/db/client";
 
 export const dynamic = "force-dynamic";
@@ -10,8 +11,15 @@ export const dynamic = "force-dynamic";
  * re-seeded to their clean defaults (mirrors scripts/clear-all-db.mjs,
  * without the media wipe).
  *
- * Guarded twice: admin session on the server AND a typed confirmation in
- * the request body ({ confirm: "RESET" }) — this endpoint is destructive.
+ * Guarded three ways (all server-side — the frontend only ever submits,
+ * never authorizes):
+ *   1. Admin session (getAdminUser).
+ *   2. Typed confirmation in the body ({ confirm: "RESET" }).
+ *   3. A short-lived, SINGLE-USE Google re-auth authorization (authToken),
+ *      issued ONLY by the verified Google callback and bound to this exact
+ *      admin identity + the RESET_DB operation. Expired, replayed, or
+ *      mismatched tokens are rejected. Consume happens BEFORE the
+ *      transaction — a token can never authorize two resets.
  */
 export async function POST(req: Request) {
   const admin = await getAdminUser();
@@ -22,7 +30,7 @@ export async function POST(req: Request) {
     );
   }
 
-  let body: { confirm?: string } = {};
+  let body: { confirm?: string; authToken?: string } = {};
   try {
     body = await req.json();
   } catch {
@@ -32,6 +40,29 @@ export async function POST(req: Request) {
     return NextResponse.json(
       { error: "Confirmation required: send { confirm: 'RESET' }." },
       { status: 400 }
+    );
+  }
+
+  // Google re-auth gate: verify + consume the single-use authorization.
+  const authCheck = await consumeDestructiveAuth(
+    body.authToken,
+    { userId: admin.userId, email: admin.email },
+    "RESET_DB"
+  );
+  if (!authCheck.ok) {
+    const reasonMap: Record<typeof authCheck.reason, string> = {
+      missing:
+        "Google re-authentication required: no valid authorization found. Start the reset via the DB Reset panel and verify with Google.",
+      expired:
+        "Re-authentication has expired (10-minute window). Verify with Google again.",
+      mismatch:
+        "Authorization mismatch: this token was issued for a different admin account or operation.",
+      replayed:
+        "This authorization was already used. Each Google verification authorizes exactly one reset.",
+    };
+    return NextResponse.json(
+      { error: reasonMap[authCheck.reason] },
+      { status: 403 }
     );
   }
 

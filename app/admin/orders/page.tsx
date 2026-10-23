@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, Suspense } from "react";
+import React, { useEffect, useRef, useState, Suspense } from "react";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import {
@@ -15,12 +15,18 @@ import {
   Phone,
   Mail,
   FileSpreadsheet,
+  Clock,
+  Check,
+  ChevronDown,
+  FileText,
 } from "lucide-react";
 import AdminHeader from "@/components/admin/AdminHeader";
-import OrderInvoicePrint from "@/components/admin/OrderInvoicePrint";
+import OrderInvoicePrint, { PAPER_SIZES, getPaperSize, MM_TO_PX, PaperSizeId } from "@/components/admin/OrderInvoicePrint";
 import { formatPrice } from "@/lib/utils";
 import { useToast } from "@/context/ToastContext";
-import { useAdminOrderNotification } from "@/context/AdminOrderNotificationContext";
+import { useAdminOrderNotification, getAdminLastSeenOrderAt } from "@/context/AdminOrderNotificationContext";
+
+const PRINT_PAPER_STORAGE_KEY = "shopy_print_paper_size";
 
 function OrdersContent() {
   const searchParams = useSearchParams();
@@ -37,30 +43,69 @@ function OrdersContent() {
   const [printingOrder, setPrintingOrder] = useState<any>(null);
   const [updating, setUpdating] = useState(false);
 
-  // Directly trigger native system print dialog with orderNumber document.title
+  // ---- Messages-style "new vs checked" tracking ---------------------------
+  // Anchor = the moment the admin last opened this section. Orders created
+  // after it are "new" (dark cards on top); everything older is "checked"
+  // and grouped under date headers, like a chat list.
+  const anchorRef = useRef<string | null | undefined>(undefined);
+  if (anchorRef.current === undefined) {
+    anchorRef.current = getAdminLastSeenOrderAt();
+  }
+  const [newOrderIds, setNewOrderIds] = useState<Set<string>>(new Set());
+  const firstLoadRef = useRef(true);
+
+  // ---- Print preview & paper size ------------------------------------------
+  const [paperSize, setPaperSize] = useState<PaperSizeId>(() => {
+    try {
+      const saved = localStorage.getItem(PRINT_PAPER_STORAGE_KEY) as PaperSizeId | null;
+      if (saved && PAPER_SIZES.some((p) => p.id === saved)) return saved;
+    } catch {}
+    return "a4";
+  });
+  const [sizeMenuOpen, setSizeMenuOpen] = useState(false);
+  const previewRef = useRef<HTMLDivElement>(null);
+  const [previewFit, setPreviewFit] = useState(1);
+
+  const formatTime = (iso: string) =>
+    new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+  const handlePaperSizeChange = (id: PaperSizeId) => {
+    setPaperSize(id);
+    try {
+      localStorage.setItem(PRINT_PAPER_STORAGE_KEY, id);
+    } catch {}
+  };
+
+  // Fit the selected paper into the preview area (updates immediately on size change)
   useEffect(() => {
-    if (printingOrder) {
-      const originalTitle = document.title;
-      // Set document.title so browser's "Save as PDF" suggests the clean Order ID filename
-      document.title = printingOrder.orderNumber || `Order-${printingOrder.id}`;
+    const el = previewRef.current;
+    if (!el) return;
+    const update = () => {
+      const paper = getPaperSize(paperSize);
+      const w = paper.wMm * MM_TO_PX;
+      const h = paper.hMm * MM_TO_PX;
+      setPreviewFit(Math.min((el.clientWidth - 24) / w, (el.clientHeight - 24) / h, 1));
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [paperSize, printingOrder]);
 
-      const timer = setTimeout(() => {
-        window.print();
-      }, 50);
-
-      const handleAfterPrint = () => {
-        document.title = originalTitle;
-        setPrintingOrder(null);
-      };
-
-      window.addEventListener("afterprint", handleAfterPrint);
-      return () => {
-        clearTimeout(timer);
-        document.title = originalTitle;
-        window.removeEventListener("afterprint", handleAfterPrint);
-      };
-    }
-  }, [printingOrder]);
+  // Trigger the native print dialog (document.title = order number so
+  // "Save as PDF" suggests a clean filename). Closes after printing.
+  const handlePrintClick = () => {
+    if (!printingOrder) return;
+    const originalTitle = document.title;
+    document.title = printingOrder.orderNumber || `Order-${printingOrder.id}`;
+    const afterPrint = () => {
+      document.title = originalTitle;
+      setPrintingOrder(null);
+      window.removeEventListener("afterprint", afterPrint);
+    };
+    window.addEventListener("afterprint", afterPrint);
+    setTimeout(() => window.print(), 50);
+  };
 
   const fetchOrders = async () => {
     try {
@@ -72,11 +117,30 @@ function OrdersContent() {
       const res = await fetch(`/api/admin/orders?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
-        setOrders(data.orders || []);
+        const list = data.orders || [];
+        setOrders(list);
+
+        // First load only: capture which orders arrived since the admin last
+        // checked this section — they render as dark "NEW" cards on top.
+        if (firstLoadRef.current) {
+          firstLoadRef.current = false;
+          const anchor = anchorRef.current;
+          if (anchor) {
+            const anchorMs = new Date(anchor).getTime();
+            setNewOrderIds(
+              new Set(
+                list
+                  .filter((o: any) => new Date(o.createdAt).getTime() > anchorMs)
+                  .map((o: any) => o.id)
+              )
+            );
+          }
+        }
+
         markAllAsSeen();
 
         if (highlightId) {
-          const matched = (data.orders || []).find((o: any) => o.id === highlightId);
+          const matched = list.find((o: any) => o.id === highlightId);
           if (matched) setSelectedOrder(matched);
         }
       }
@@ -95,6 +159,51 @@ function OrdersContent() {
     e.preventDefault();
     fetchOrders();
   };
+
+  // Local filter mirror so the "NEW" attention section follows the same
+  // status/search view as the table below it.
+  const query = search.trim().toLowerCase();
+  const matchesLocalFilter = (o: any) => {
+    if (statusFilter !== "ALL" && o.status !== statusFilter) return false;
+    if (!query) return true;
+    const haystack = [
+      o.orderNumber,
+      o.shippingAddress?.firstName,
+      o.shippingAddress?.lastName,
+      o.shippingAddress?.email,
+      o.shippingAddress?.phone,
+    ]
+      .join(" ")
+      .toLowerCase();
+    return haystack.includes(query);
+  };
+
+  const newOrders = orders.filter((o) => newOrderIds.has(o.id) && matchesLocalFilter(o));
+  const checkedOrders = orders.filter((o) => !newOrderIds.has(o.id) && matchesLocalFilter(o));
+
+  // Checked orders grouped by arrival day (newest first) — chat-style date headers
+  const checkedGroups: { key: string; label: string; items: any[] }[] = [];
+  {
+    const byDay: Record<string, { key: string; label: string; items: any[] }> = {};
+    const todayKey = new Date().toDateString();
+    const yesterdayKey = new Date(Date.now() - 86400000).toDateString();
+    for (const o of checkedOrders) {
+      const d = new Date(o.createdAt);
+      const key = d.toDateString();
+      if (!byDay[key]) {
+        const fullDate = d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+        const label =
+          key === todayKey
+            ? `Today • ${fullDate}`
+            : key === yesterdayKey
+            ? `Yesterday • ${fullDate}`
+            : d.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+        byDay[key] = { key, label, items: [] };
+      }
+      byDay[key].items.push(o);
+    }
+    checkedGroups.push(...Object.values(byDay)); // server returns orders newest-first
+  }
 
   const handleUpdateStatus = async (orderId: string, newStatus: string) => {
     setUpdating(true);
@@ -251,6 +360,66 @@ function OrdersContent() {
           </form>
         </div>
 
+        {/* NEW Orders — arrived after the admin last checked this section.
+            Dark cards on top so "new" is obvious at a glance (chat style).
+            Opening this page marks them seen; next visit they sit under
+            their date header with a "Checked" label. */}
+        {!loading && newOrders.length > 0 && (
+          <section className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-xs uppercase tracking-widest font-semibold text-[#495464]">
+                New Orders ({newOrders.length})
+              </h2>
+              <span className="text-[10px] uppercase tracking-widest text-[#495464]/50">
+                Arrived since your last check
+              </span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+              {newOrders.map((o: any) => (
+                <div
+                  key={o.id}
+                  className="bg-[#181A1D] text-[#F4F4F2] border border-[#495464]/50 p-4 space-y-2 shadow-xs animate-fadeIn"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-serif font-semibold tracking-wide text-sm truncate">{o.orderNumber}</span>
+                    <span className="text-[9px] font-bold uppercase tracking-widest bg-[#F4F4F2] text-[#181A1D] px-1.5 py-0.5 flex-shrink-0">
+                      New
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-[#BBBFCA] flex items-center gap-1.5">
+                    <Clock className="w-3 h-3 flex-shrink-0" />
+                    <span>
+                      {formatTime(o.createdAt)} •{" "}
+                      {new Date(o.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                    </span>
+                  </p>
+                  <p className="text-[11px] text-[#BBBFCA] truncate">
+                    {(o.shippingAddress?.firstName || "Client")} {o.shippingAddress?.lastName || ""} •{" "}
+                    {o.shippingAddress?.city || "Pakistan"} • {(o.items || []).length} pcs •{" "}
+                    <span className="text-[#F4F4F2] font-serif font-semibold">{formatPrice(o.total || 0)}</span>
+                  </p>
+                  <div className="flex items-center gap-2 pt-1">
+                    <button
+                      onClick={() => setSelectedOrder(o)}
+                      className="flex-1 inline-flex items-center justify-center gap-1 bg-[#F4F4F2] text-[#181A1D] px-2 py-1.5 text-[10px] uppercase font-medium hover:bg-[#E8E8E8] transition-colors whitespace-nowrap"
+                    >
+                      <Eye className="w-3 h-3 flex-shrink-0" />
+                      View
+                    </button>
+                    <button
+                      onClick={() => setPrintingOrder(o)}
+                      className="flex-1 inline-flex items-center justify-center gap-1 bg-[#495464] text-[#F4F4F2] px-2 py-1.5 text-[10px] uppercase font-medium hover:bg-[#363E4B] transition-colors whitespace-nowrap"
+                    >
+                      <Printer className="w-3 h-3 flex-shrink-0" />
+                      Print
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* Orders Table */}
         <div className="bg-[#F4F4F2] border border-[#BBBFCA]/40 shadow-xs overflow-hidden">
           {loading ? (
@@ -267,25 +436,39 @@ function OrdersContent() {
                 <thead className="bg-[#E8E8E8]/70 border-b border-[#BBBFCA]/40 text-[#495464] uppercase text-[10px]">
                   <tr>
                     <th className="w-[12%] px-3 py-3 font-semibold whitespace-nowrap">Order ID</th>
-                    <th className="w-[9%] px-2 py-3 font-semibold whitespace-nowrap">Date</th>
-                    <th className="w-[17%] px-2.5 py-3 font-semibold whitespace-nowrap">Customer</th>
-                    <th className="w-[7%] px-2 py-3 font-semibold whitespace-nowrap text-left">Items</th>
-                    <th className="w-[11%] px-2 py-3 font-semibold whitespace-nowrap">Total</th>
-                    <th className="w-[13%] px-2 py-3 font-semibold whitespace-nowrap text-center">Payment</th>
-                    <th className="w-[13%] px-2 py-3 font-semibold whitespace-nowrap text-center">Order Status</th>
-                    <th className="w-[18%] px-2.5 py-3 font-semibold text-right whitespace-nowrap">Action</th>
+                    <th className="w-[13%] px-2 py-3 font-semibold whitespace-nowrap">Time</th>
+                    <th className="w-[15%] px-2.5 py-3 font-semibold whitespace-nowrap">Customer</th>
+                    <th className="w-[6%] px-2 py-3 font-semibold whitespace-nowrap text-left">Items</th>
+                    <th className="w-[10%] px-2 py-3 font-semibold whitespace-nowrap">Total</th>
+                    <th className="w-[12%] px-2 py-3 font-semibold whitespace-nowrap text-center">Payment</th>
+                    <th className="w-[12%] px-2 py-3 font-semibold whitespace-nowrap text-center">Order Status</th>
+                    <th className="w-[20%] px-2.5 py-3 font-semibold text-right whitespace-nowrap">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#BBBFCA]/20">
-                  {orders.map((ord) => {
-                    const isBank = ord.paymentMethod === "bank_transfer" || ord.paymentMethod === "online";
-                    return (
+                  {/* Checked (seen) orders, grouped under date headers */}
+                  {checkedGroups.map((group) => (
+                    <React.Fragment key={group.key}>
+                      <tr>
+                        <td
+                          colSpan={8}
+                          className="bg-[#E8E8E8]/80 border-b border-[#BBBFCA]/40 px-3 py-1.5 text-[10px] uppercase tracking-[0.2em] font-semibold text-[#495464]"
+                        >
+                          {group.label}
+                        </td>
+                      </tr>
+                      {group.items.map((ord: any) => {
+                        return (
                       <tr key={ord.id} className="hover:bg-[#E8E8E8]/40 transition-colors">
                         <td className="px-3 py-3 font-serif font-semibold text-[#495464] truncate">
                           {ord.orderNumber}
                         </td>
                         <td className="px-2 py-3 text-[#495464]/70 whitespace-nowrap">
-                          {new Date(ord.createdAt).toLocaleDateString()}
+                          {formatTime(ord.createdAt)}
+                          <span className="ml-1.5 inline-flex items-center gap-0.5 text-[8px] uppercase tracking-wider text-[#495464]/60 border border-[#BBBFCA]/60 bg-[#E8E8E8] px-1 py-0.5 align-middle">
+                            <Check className="w-2.5 h-2.5" />
+                            Checked
+                          </span>
                         </td>
                         <td className="px-2.5 py-3 min-w-0">
                           <span className="font-medium block text-[#495464] truncate">
@@ -339,9 +522,11 @@ function OrdersContent() {
                           </button>
                         </div>
                       </td>
-                    </tr>
-                  );
-                })}
+                      </tr>
+                        );
+                      })}
+                    </React.Fragment>
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -562,9 +747,114 @@ function OrdersContent() {
           </div>
         )}
 
-        {/* Dedicated Print-Only Order Document (Hidden on screen, pure A4 invoice during print) */}
+        {/* Print Preview — paper size selector + live preview. Switching the
+            paper resizes/rescales the slip immediately; Print honors the
+            selected sheet dimensions via the injected @page rule. */}
+        {printingOrder && (
+          <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-xs no-print flex">
+            <div className="w-full h-full sm:m-4 bg-[#F4F4F2] sm:border sm:border-[#BBBFCA]/40 sm:shadow-2xl flex flex-col animate-fadeIn">
+              {/* Modal Header */}
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#BBBFCA]/40 px-4 sm:px-6 py-3">
+                <div className="min-w-0">
+                  <span className="text-[10px] uppercase tracking-widest font-semibold text-[#495464]/60 block">
+                    Print Preview
+                  </span>
+                  <h3 className="font-serif text-lg sm:text-xl font-medium text-[#495464] truncate">
+                    {printingOrder.orderNumber}
+                  </h3>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {/* Paper size dropdown — label + dimensions per option */}
+                  <div className="relative">
+                    <button
+                      onClick={() => setSizeMenuOpen((v) => !v)}
+                      className="bg-[#495464] text-[#F4F4F2] px-3 py-2 text-[11px] uppercase tracking-wider font-medium flex items-center gap-2 hover:bg-[#363E4B] transition-colors"
+                      aria-haspopup="listbox"
+                      aria-expanded={sizeMenuOpen}
+                    >
+                      <FileText className="w-3.5 h-3.5 flex-shrink-0" />
+                      <span>{getPaperSize(paperSize).label}</span>
+                      <span className="text-[#BBBFCA] font-mono normal-case tracking-tight hidden sm:inline">
+                        {getPaperSize(paperSize).dims}
+                      </span>
+                      <ChevronDown className={`w-3 h-3 transition-transform ${sizeMenuOpen ? "rotate-180" : ""}`} />
+                    </button>
+                    {sizeMenuOpen && (
+                      <>
+                        <div className="fixed inset-0 z-40" aria-hidden="true" onClick={() => setSizeMenuOpen(false)} />
+                        <div className="absolute right-0 top-full mt-1 w-56 sm:w-64 bg-[#F4F4F2] border border-[#BBBFCA] shadow-xl z-50 py-1 animate-fadeIn">
+                          {PAPER_SIZES.map((p) => (
+                            <button
+                              key={p.id}
+                              onClick={() => {
+                                handlePaperSizeChange(p.id);
+                                setSizeMenuOpen(false);
+                              }}
+                              className={`w-full text-left px-3 py-2 flex items-center justify-between gap-2 transition-colors ${
+                                paperSize === p.id
+                                  ? "bg-[#495464] text-[#F4F4F2]"
+                                  : "text-[#495464] hover:bg-[#E8E8E8]"
+                              }`}
+                            >
+                              <span className="text-[11px] uppercase tracking-wider font-medium">{p.label}</span>
+                              <span
+                                className={`text-[10px] font-mono ${
+                                  paperSize === p.id ? "text-[#F4F4F2]/75" : "text-[#495464]/60"
+                                }`}
+                              >
+                                {p.dims}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={handlePrintClick}
+                    className="inline-flex items-center gap-1.5 bg-[#495464] text-[#F4F4F2] px-4 py-2 text-[11px] uppercase tracking-wider font-medium hover:bg-[#363E4B] transition-colors"
+                  >
+                    <Printer className="w-3.5 h-3.5" />
+                    <span>Print</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setPrintingOrder(null);
+                      setSizeMenuOpen(false);
+                    }}
+                    className="p-2 text-[#495464] hover:bg-[#E8E8E8] transition-colors"
+                    aria-label="Close print preview"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Live Paper Preview */}
+              <div ref={previewRef} className="flex-1 min-h-0 overflow-hidden flex items-start justify-center py-3">
+                <div style={{ transform: `scale(${previewFit})`, transformOrigin: "top center" }}>
+                  <div
+                    className="bg-white shadow-2xl border border-[#BBBFCA]/50 overflow-hidden"
+                    style={{
+                      width: getPaperSize(paperSize).wMm * MM_TO_PX,
+                      minHeight: getPaperSize(paperSize).hMm * MM_TO_PX,
+                    }}
+                  >
+                    <OrderInvoicePrint order={printingOrder} paperSize={paperSize} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Dedicated Print-Only Order Document (hidden on screen, printed in
+            the selected paper size via the @page rule injected by the slip) */}
         <div id="printable-order-document" className="print-only">
-          {printingOrder && <OrderInvoicePrint order={printingOrder} />}
+          {printingOrder && <OrderInvoicePrint order={printingOrder} paperSize={paperSize} />}
         </div>
       </main>
     </div>

@@ -28,17 +28,32 @@ let cachedStorage: StorageMetrics | null = null;
 let lastFetchTime = 0;
 const CLIENT_CACHE_TTL = 3 * 60 * 1000; // 3 minutes memory cache
 
+interface PendingDestructiveAuth {
+  operation: string;
+  token: string;
+  expiresAt: number;
+}
+
 export default function AdminHeader({ title, subtitle, onOpenMobileMenu }: AdminHeaderProps) {
   const { openMobileMenu } = useAdminNav();
   const [storage, setStorage] = useState<StorageMetrics | null>(cachedStorage);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
 
-  // DB reset state machine: idle -> armed (first tap) -> running -> done/error
-  const [resetStep, setResetStep] = useState<"idle" | "armed" | "running" | "done" | "error">(
-    "idle"
-  );
+  // DB reset state machine, guarded by fresh Google re-authentication:
+  //   idle -> verify ("Verify with Google" -> Google round trip, max_age=0)
+  //        -> ready (server minted a 10-minute single-use authorization)
+  //        -> running (explicit final confirmation POSTed with the token)
+  //        -> done / error (error re-arms the verify step; the token is
+  //        single-use server-side, so every retry starts a fresh Google check)
+  const [resetStep, setResetStep] = useState<
+    "idle" | "verify" | "ready" | "running" | "done" | "error"
+  >("idle");
   const [resetError, setResetError] = useState<string | null>(null);
+  const [pendingAuth, setPendingAuth] = useState<PendingDestructiveAuth | null>(null);
+  const [verifying, setVerifying] = useState(false);
+  const [reauthNotice, setReauthNotice] = useState<string | null>(null);
+  const [reauthNoticeTone, setReauthNoticeTone] = useState<"ok" | "warn">("ok");
 
   const fetchStorage = useCallback(async (force = false) => {
     const now = Date.now();
@@ -65,40 +80,116 @@ export default function AdminHeader({ title, subtitle, onOpenMobileMenu }: Admin
     }
   }, []);
 
-  const handleResetDb = useCallback(async () => {
-    if (resetStep === "armed") {
-      // Second confirmation: actually wipe all records (images are preserved
-      // server-side — media_assets + storage files are never touched).
-      setResetStep("running");
-      setResetError(null);
-      try {
-        const res = await fetch("/api/admin/db/reset", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ confirm: "RESET" }),
-        });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          throw new Error(data.error || data.detail || `HTTP ${res.status}`);
-        }
-        setResetStep("done");
-        // The wipe changes the numbers - refresh the pill metrics.
-        cachedStorage = null;
-        lastFetchTime = 0;
-        fetchStorage(true);
-      } catch (err) {
-        setResetStep("error");
-        setResetError(err instanceof Error ? err.message : "Reset failed");
+  // Refresh the pending Google re-authorization for this admin session.
+  const fetchReauthStatus = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/db/reset/reauth", { cache: "no-store" });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.pending) {
+        setPendingAuth(data.pending);
+        setResetStep((s) => (s === "idle" || s === "verify" ? "ready" : s));
+      } else {
+        setPendingAuth(null);
       }
-    } else {
-      setResetStep("armed");
+    } catch {
+      // Transient error: keep current step, the server stays authoritative.
     }
-  }, [resetStep, fetchStorage]);
+  }, []);
+
+  // Send the admin to Google for a fresh re-authentication (max_age=0).
+  // On return (redirect lands back on /admin) the callback has minted a
+  // short-lived single-use token, which fetchReauthStatus surfaces as "ready".
+  const startGoogleVerify = useCallback(async () => {
+    setVerifying(true);
+    setReauthNotice(null);
+    try {
+      const res = await fetch("/api/admin/db/reset/reauth", { cache: "no-store" });
+      if (!res.ok) {
+        setReauthNoticeTone("warn");
+        setReauthNotice(
+          res.status === 503
+            ? "Google sign-in is not configured, so reset verification is unavailable."
+            : "Could not start Google verification. Please try again."
+        );
+        setVerifying(false);
+        return;
+      }
+      const data = await res.json();
+      if (data.pending) {
+        // Already verified and the token is still live — skip the round trip.
+        setPendingAuth(data.pending);
+        setResetStep("ready");
+        setVerifying(false);
+        return;
+      }
+      if (data.authUrl) {
+        window.location.assign(data.authUrl);
+        return;
+      }
+      setReauthNoticeTone("warn");
+      setReauthNotice("Google verification is unavailable right now. Please try again.");
+      setVerifying(false);
+    } catch {
+      setReauthNoticeTone("warn");
+      setReauthNotice("Network error — could not start Google verification.");
+      setVerifying(false);
+    }
+  }, []);
+
+  // Explicit FINAL confirmation: POSTs the single-use token to the server.
+  // The destructive endpoint verifies + consumes it before touching data.
+  const handleResetDb = useCallback(async () => {
+    if (resetStep !== "ready" || !pendingAuth) return;
+    setResetStep("running");
+    setResetError(null);
+    try {
+      const res = await fetch("/api/admin/db/reset", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ confirm: "RESET", authToken: pendingAuth.token }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || data.detail || `HTTP ${res.status}`);
+      }
+      setPendingAuth(null);
+      setResetStep("done");
+      // The wipe changes the numbers - refresh the pill metrics.
+      cachedStorage = null;
+      lastFetchTime = 0;
+      fetchStorage(true);
+    } catch (err) {
+      setPendingAuth(null);
+      setResetStep("error");
+      setResetError(err instanceof Error ? err.message : "Reset failed");
+    }
+  }, [resetStep, pendingAuth, fetchStorage]);
 
   useEffect(() => {
     fetchStorage(false);
-  }, [fetchStorage]);
+    fetchReauthStatus();
+
+    // Arriving back from the Google round trip: surface the result marker
+    // (?reauth=success|failed) once, then strip it from the URL.
+    const marker = new URLSearchParams(window.location.search).get("reauth");
+    if (marker === "success") {
+      setReauthNoticeTone("ok");
+      setReauthNotice("Google verified — you can confirm the database reset below.");
+    } else if (marker === "failed") {
+      setReauthNoticeTone("warn");
+      setReauthNotice(
+        "Google verification did not complete (cancelled, account mismatch, or expired). No data was changed — start again when ready."
+      );
+    }
+    if (marker) {
+      const next = new URL(window.location.href);
+      next.searchParams.delete("reauth");
+      window.history.replaceState({}, "", next.toString());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleToggle = onOpenMobileMenu || openMobileMenu;
 
@@ -241,48 +332,117 @@ export default function AdminHeader({ title, subtitle, onOpenMobileMenu }: Admin
                     Deletes all records (products, orders, reviews, users…) and
                     restores default settings. Images / media are kept.
                   </p>
+                  {reauthNotice && (
+                    <p
+                      className={`text-[10px] leading-relaxed font-medium ${
+                        reauthNoticeTone === "ok" ? "text-emerald-700/90" : "text-[#8B2C2C]"
+                      }`}
+                    >
+                      {reauthNotice}
+                    </p>
+                  )}
                   {resetStep === "done" ? (
                     <p className="text-[10px] font-medium text-emerald-700/90">
                       Reset complete — all data records wiped, images preserved.
                     </p>
                   ) : resetStep === "error" ? (
-                    <p className="text-[10px] font-medium text-red-700">
-                      {resetError || "Reset failed."}
-                    </p>
-                  ) : (
-                    <div className="flex items-center gap-2">
+                    <div className="space-y-1.5">
+                      <p className="text-[10px] font-medium text-red-700">
+                        {resetError || "Reset failed."}
+                      </p>
                       <button
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleResetDb();
+                          setResetStep("verify");
+                          setResetError(null);
                         }}
-                        disabled={resetStep === "running"}
-                        className={`flex-1 px-2 py-1.5 text-[10px] uppercase tracking-wider font-semibold transition-colors disabled:opacity-50 ${
-                          resetStep === "armed"
-                            ? "bg-[#8B2C2C] text-[#F4F4F2] hover:bg-[#7A2525]"
-                            : "border border-[#8B2C2C]/50 text-[#8B2C2C] hover:bg-[#8B2C2C]/5"
-                        }`}
+                        className="px-2.5 py-1.5 text-[10px] uppercase tracking-wider text-[#8B2C2C] border border-[#8B2C2C]/50 hover:bg-[#8B2C2C]/5 transition-colors"
                       >
-                        {resetStep === "running"
-                          ? "Resetting…"
-                          : resetStep === "armed"
-                            ? "Confirm — Wipe All Data"
-                            : "Reset DB"}
+                        Verify with Google
                       </button>
-                      {resetStep === "armed" && (
+                    </div>
+                  ) : resetStep === "running" ? (
+                    <p className="text-[10px] font-medium text-[#495464]/70">
+                      Resetting — in progress…
+                    </p>
+                  ) : resetStep === "ready" && pendingAuth ? (
+                    <div className="space-y-1.5">
+                      <p className="text-[10px] font-semibold text-emerald-700/90">
+                        Google verified — final confirmation
+                      </p>
+                      <p className="text-[10px] leading-relaxed text-[#495464]/55">
+                        Permanently deletes all data records. Valid for the next
+                        ~10 minutes.
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleResetDb();
+                          }}
+                          className="flex-1 px-2 py-1.5 text-[10px] uppercase tracking-wider font-semibold bg-[#8B2C2C] text-[#F4F4F2] hover:bg-[#7A2525] transition-colors"
+                        >
+                          Confirm — Wipe All Data
+                        </button>
                         <button
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
                             setResetStep("idle");
+                            setPendingAuth(null);
                           }}
                           className="px-2.5 py-1.5 text-[10px] uppercase tracking-wider text-[#495464]/70 hover:text-[#495464] border border-[#BBBFCA] transition-colors"
                         >
                           Cancel
                         </button>
-                      )}
+                      </div>
                     </div>
+                  ) : resetStep === "verify" ? (
+                    <div className="space-y-1.5">
+                      <p className="text-[10px] leading-relaxed text-[#495464]/55">
+                        Google re-authentication is required before wiping.
+                        After verifying, you get a 10-minute confirmation
+                        window here.
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            startGoogleVerify();
+                          }}
+                          disabled={verifying}
+                          className="flex-1 px-2 py-1.5 text-[10px] uppercase tracking-wider font-semibold bg-[#495464] text-[#F4F4F2] hover:bg-[#363E4B] transition-colors disabled:opacity-60"
+                        >
+                          {verifying ? "Opening Google…" : "Verify with Google"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setResetStep("idle");
+                            setReauthNotice(null);
+                          }}
+                          className="px-2.5 py-1.5 text-[10px] uppercase tracking-wider text-[#495464]/70 hover:text-[#495464] border border-[#BBBFCA] transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setReauthNotice(null);
+                        setResetStep("verify");
+                      }}
+                      className="px-2 py-1.5 text-[10px] uppercase tracking-wider font-semibold border border-[#8B2C2C]/50 text-[#8B2C2C] hover:bg-[#8B2C2C]/5 transition-colors"
+                    >
+                      Reset DB
+                    </button>
                   )}
                 </div>
               </div>

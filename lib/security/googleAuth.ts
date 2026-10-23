@@ -79,6 +79,10 @@ export function buildGoogleAuthUrl(options: {
   clientId: string;
   redirectUri: string;
   state: string;
+  /** Freshness policy: 0 = Google must re-authenticate (no silent session reuse). */
+  maxAge?: number;
+  /** Bound to the ID token (native flow) so replayed tokens are rejected. */
+  nonce?: string;
 }): string {
   const params = new URLSearchParams({
     client_id: options.clientId,
@@ -89,6 +93,11 @@ export function buildGoogleAuthUrl(options: {
     access_type: "online",
     prompt: "select_account",
   });
+
+  // Freshness + nonce are only used by the destructive-op re-auth flow;
+  // the regular sign-in flow omits both and behaves exactly as before.
+  if (options.maxAge !== undefined) params.set("max_age", String(options.maxAge));
+  if (options.nonce) params.set("nonce", options.nonce);
 
   return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
 }
@@ -159,7 +168,8 @@ export async function fetchGoogleUserInfo(accessToken: string): Promise<GoogleUs
 
 export async function verifyGoogleIdToken(
   idToken: string,
-  expectedAudience: string | string[]
+  expectedAudience: string | string[],
+  expectedNonce?: string
 ): Promise<GoogleUserInfo> {
   const response = await fetch(
     `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`
@@ -180,6 +190,13 @@ export async function verifyGoogleIdToken(
   // exactly which check broke instead of a generic "try again".
   if (!acceptedAudiences.some((item) => audience.includes(item))) {
     throw new Error("Invalid Google ID token (audience mismatch)");
+  }
+  // Replay defense: when the flow is bound to a nonce, the token must carry
+  // the exact nonce it was issued for.
+  if (expectedNonce) {
+    if (!data.nonce || data.nonce !== expectedNonce) {
+      throw new Error("Invalid Google ID token (nonce mismatch)");
+    }
   }
   if (!data.email) {
     throw new Error("Invalid Google ID token (no email)");
@@ -206,13 +223,24 @@ export async function verifyGoogleIdToken(
 /**
  * Generates a cryptographically secure OAuth state payload.
  */
-export function generateOAuthState(redirectPath?: string): { stateToken: string; rawCookieValue: string } {
+export interface DestructiveIntentState {
+  /** Stored server-side destructive-op intent this Google round trip belongs to. */
+  intentId: string;
+  /** Exact operation the admin is re-authenticating for (e.g. "RESET_DB"). */
+  operation: string;
+}
+
+export function generateOAuthState(
+  redirectPath?: string,
+  destructive?: DestructiveIntentState
+): { stateToken: string; rawCookieValue: string } {
   const randomToken = crypto.randomBytes(24).toString("hex");
-  const payload = {
+  const payload: Record<string, unknown> = {
     token: randomToken,
     redirect: redirectPath || "",
     createdAt: Date.now(),
   };
+  if (destructive) payload.destructive = destructive;
 
   const rawCookieValue = Buffer.from(JSON.stringify(payload)).toString("base64url");
   return {
@@ -227,7 +255,7 @@ export function generateOAuthState(redirectPath?: string): { stateToken: string;
 export function verifyOAuthState(
   queryState: string,
   cookieValue: string | undefined
-): { valid: boolean; redirectUrl?: string } {
+): { valid: boolean; redirectUrl?: string; destructive?: DestructiveIntentState } {
   if (!queryState || !cookieValue) {
     return { valid: false };
   }
@@ -238,9 +266,19 @@ export function verifyOAuthState(
 
     // Verify token matches and is within 10-minute validity window
     if (payload.token === queryState && Date.now() - payload.createdAt < 10 * 60 * 1000) {
+      const destructive: DestructiveIntentState | undefined =
+        payload.destructive &&
+        typeof payload.destructive.intentId === "string" &&
+        typeof payload.destructive.operation === "string"
+          ? {
+              intentId: payload.destructive.intentId,
+              operation: payload.destructive.operation,
+            }
+          : undefined;
       return {
         valid: true,
         redirectUrl: payload.redirect || undefined,
+        destructive,
       };
     }
   } catch {
