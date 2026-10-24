@@ -12,9 +12,11 @@ import { Plus } from "lucide-react";
 interface ProductCardProps {
   product: Product;
   priority?: boolean;
+  /** Optional image aspect override (e.g. "aspect-[2/3]" for taller tiles). Defaults to the 3/4 card ratio. */
+  aspectClass?: string;
 }
 
-export default function ProductCard({ product, priority = false }: ProductCardProps) {
+export default function ProductCard({ product, priority = false, aspectClass = "aspect-[3/4]" }: ProductCardProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [hasBeenHovered, setHasBeenHovered] = useState(false);
@@ -65,7 +67,7 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
       }}
     >
       {/* Image Container with Elegant Tonal Placeholder */}
-      <div className="relative aspect-[3/4] w-full bg-[#E8E8E8] overflow-hidden">
+      <div className={`relative w-full bg-[#E8E8E8] overflow-hidden ${aspectClass}`}>
         <Link
           href={`/product/${product.id}`}
           prefetch

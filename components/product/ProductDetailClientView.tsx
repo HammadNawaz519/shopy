@@ -60,20 +60,19 @@ export default function ProductDetailClientView({
     if (!colorObj || !colorObj.name) return;
     setSelectedColor(colorObj.name);
 
-    const colorIdx = product.colors?.findIndex((c: any) => c.name === colorObj.name);
-
-    // Primary: use the color's array index to map 1-to-1 with the images array
-    if (colorIdx !== undefined && colorIdx !== -1 && colorIdx < imageList.length) {
-      setSelectedImageIdx(colorIdx);
-      return;
-    }
-
-    // Fallback: match by explicit imageUrl field if present
+    // Primary: the explicit image this color was assigned to in the admin
     if (colorObj.imageUrl) {
       const urlIdx = imageList.findIndex((img) => img === colorObj.imageUrl);
       if (urlIdx !== -1) {
         setSelectedImageIdx(urlIdx);
+        return;
       }
+    }
+
+    // Fallback: use the color's array index to map 1-to-1 with the images array
+    const colorIdx = product.colors?.findIndex((c: any) => c.name === colorObj.name);
+    if (colorIdx !== undefined && colorIdx !== -1 && colorIdx < imageList.length) {
+      setSelectedImageIdx(colorIdx);
     }
   };
 

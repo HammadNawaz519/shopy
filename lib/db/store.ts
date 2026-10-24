@@ -1384,6 +1384,12 @@ class SupabaseDataStore {
         const price = Number(product.price) || 0;
         const quantity = Math.max(1, parseInt(String(item.quantity || 1), 10) || 1);
         subtotal += price * quantity;
+        // Image resolution order: the image the selected color was assigned to in
+        // the admin, then the client-supplied color image, then the product's
+        // first gallery image, then the default placeholder.
+        const colorMatch: any = Array.isArray(product.colors)
+          ? product.colors.find((c: any) => c && c.name === (item.color || "Default"))
+          : null;
         verifiedItems.push({
           productId: product.id,
           name: product.name,
@@ -1391,7 +1397,11 @@ class SupabaseDataStore {
           quantity,
           size: item.size || "M",
           color: item.color || "Default",
-          image: (product.images && product.images[0]) || item.image || "/editorial-craft.jpg",
+          image:
+            (colorMatch && colorMatch.imageUrl) ||
+            item.image ||
+            (product.images && product.images[0]) ||
+            "/editorial-craft.jpg",
         });
       }
       // SEC-03: Strictly omit and reject unverified client-supplied prices.

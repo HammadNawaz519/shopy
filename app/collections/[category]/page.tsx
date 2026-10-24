@@ -68,25 +68,31 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
 
   return (
     <div className="pt-20 pb-20 bg-[#F4F4F2] text-[#495464]">
-      {/* Category Header */}
-      <div className="w-full flex items-center justify-center overflow-hidden mb-16 py-20 sm:py-28 border-b border-[#1a1c20]/10">
+      {/* Category Header — editorial style matching the Collections overview */}
+      <div className="w-full flex items-center justify-center overflow-hidden mb-10 py-10 sm:py-14 border-b border-[#BBBFCA]/30">
         <div className="relative z-10 text-center px-6 max-w-4xl mx-auto">
           <Link
             href="/collections"
-            className="inline-flex items-center gap-2 text-[11px] uppercase tracking-widest text-[#495464]/60 hover:text-[#495464] mb-8 transition-colors"
+            className="inline-flex items-center gap-2 text-[11px] uppercase tracking-widest text-[#495464]/60 hover:text-[#495464] mb-4 transition-colors"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             <span>All Collections</span>
           </Link>
-          <h1 className="font-serif text-6xl sm:text-8xl lg:text-9xl font-bold tracking-tight text-[#1a1c20] uppercase leading-[0.95]">
+          <span className="text-xs uppercase tracking-widest text-[#495464]/60 block mb-2">
+            EDITORIAL CHAPTERS
+          </span>
+          <h1 className="font-serif text-4xl sm:text-5xl lg:text-6xl font-medium tracking-tight text-[#495464]">
             {category.name}
           </h1>
+          <p className="text-xs text-[#495464]/70 tracking-wider uppercase mt-3 max-w-md mx-auto">
+            {category.tagline || category.description || `Editorial collection of ${String(category.name).toLowerCase()}`}
+          </p>
         </div>
       </div>
 
       {/* Products Grid */}
       <div className="max-w-[1720px] mx-auto px-6 lg:px-12">
-        <div className="flex items-center justify-between pb-6 mb-12 border-b border-[#BBBFCA]/30">
+        <div className="flex items-center justify-between pb-4 mb-8 border-b border-[#BBBFCA]/30">
           <span className="text-xs uppercase tracking-widest text-[#495464]/70">
             {categoryProducts.length} {categoryProducts.length === 1 ? "Piece" : "Pieces"} available
           </span>
@@ -99,9 +105,9 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
         </div>
 
         {categoryProducts.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 lg:gap-10">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-5">
             {categoryProducts.map((product, idx) => (
-              <ProductCard key={product.id} product={product} priority={idx < 4} />
+              <ProductCard key={product.id} product={product} priority={idx < 4} aspectClass="aspect-[2/3]" />
             ))}
           </div>
         ) : (
